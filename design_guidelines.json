@@ -1,0 +1,125 @@
+{
+  "theme": "Light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) + Industrial Tech",
+  "vibe_description": "Objective, rigid, and functional. A modern, high-contrast B2B tool for contractors. Feels sturdy, precise, and highly readable in bright sunlight on a jobsite. Trades the dated forest green for a high-visibility 'Safety Orange' against stark white and concrete grays.",
+  "colors": {
+    "background": {
+      "app": "#F4F4F5",
+      "surface": "#FFFFFF",
+      "surface_hover": "#F4F4F5",
+      "surface_muted": "#FAFAFA",
+      "table_header": "#E4E4E7"
+    },
+    "text": {
+      "primary": "#09090B",
+      "secondary": "#52525B",
+      "muted": "#A1A1AA",
+      "inverse": "#FFFFFF",
+      "profit": "#059669"
+    },
+    "borders": {
+      "subtle": "#E4E4E7",
+      "strong": "#09090B",
+      "focus": "#F97316"
+    },
+    "brand": {
+      "primary": "#F97316",
+      "primary_hover": "#EA580C",
+      "primary_active": "#C2410C",
+      "secondary": "#09090B"
+    },
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "danger": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Cabinet Grotesk, sans-serif",
+      "body": "IBM Plex Sans, sans-serif"
+    },
+    "rules": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter text-[#09090B]",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-[#09090B]",
+      "h3": "text-xl sm:text-2xl font-bold tracking-tight text-[#09090B]",
+      "h4": "text-lg font-semibold tracking-tight text-[#09090B]",
+      "body": "text-base font-normal text-[#52525B] leading-relaxed",
+      "data_dense": "text-sm font-medium font-['IBM_Plex_Sans'] tracking-tight",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-[#A1A1AA]"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous container padding to separate sections, but extremely tight, tabular internal padding for data entry (Grid Borders pattern) to minimize scrolling during estimation.",
+    "container": "w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "surface_padding": "p-6 sm:p-8",
+    "dense_row_padding": "py-3 px-4",
+    "input_height_mobile": "h-14",
+    "input_height_desktop": "h-10"
+  },
+  "surfaces_and_micro_themes": {
+    "dashboard_cards": "bg-white border border-[#E4E4E7] rounded-none shadow-sm hover:border-[#09090B] transition-colors",
+    "estimate_grid": "border-collapse border border-[#E4E4E7] bg-white rounded-none. Inner rows have border-b border-[#E4E4E7]. No rounded corners for a technical spreadsheet feel.",
+    "sticky_totals_bar": "bg-[#09090B] text-white backdrop-blur-xl bg-opacity-95 border-b sm:border-t-0 border-white/20 shadow-xl z-50",
+    "primary_button": "bg-[#F97316] text-white font-bold rounded-none px-6 py-3 hover:bg-[#EA580C] active:translate-y-[1px] shadow-[4px_4px_0px_#09090B] border border-[#09090B] transition-all hover:shadow-[2px_2px_0px_#09090B] hover:translate-x-[2px] hover:translate-y-[2px]"
+  },
+  "components": {
+    "inputs": "bg-white border-2 border-[#E4E4E7] rounded-none focus:border-[#F97316] focus:ring-0 text-[#09090B] text-base md:text-sm font-['IBM_Plex_Sans']",
+    "number_inputs": "Large tap targets, right-aligned text for easy numeric scanning. Spin buttons hidden.",
+    "tables": "Flat, unstyled backgrounds. Header rows use overline typography. Zebra striping disabled in favor of strong 1px bottom borders.",
+    "badges": "Square (rounded-none), uppercase, tiny text, bold border. e.g. 'border border-[#F97316] text-[#F97316] px-2 py-1 text-xs font-bold'"
+  },
+  "icons_strategy": {
+    "library": "@phosphor-icons/react",
+    "style": "Duotone or bold weights to match the chunky, industrial architecture of the fonts and buttons."
+  },
+  "media": {
+    "login_hero_bg": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/f5ca1a54-7ada-4d85-b160-76d5daf2760b/images/d36a236ce8a57df40cb284a048570a3dc3ace340beaf7bd71fddadefd9427f32.png",
+      "description": "Architectural concrete and glass abstract - used for the split-screen login page background."
+    },
+    "quote_watermark": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/f5ca1a54-7ada-4d85-b160-76d5daf2760b/images/8c379778bd968e8639749c168fc2190cc34b64675f2c6e2b27004d1b5dbcf3c0.png",
+      "description": "Premium minimal textured background for the customer-facing PDF/Quote modal."
+    },
+    "placeholder_job_photo": {
+      "url": "https://images.unsplash.com/photo-1591474200742-8e512e6f98f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob3VzZSUyMHZpbnlsJTIwc2lkaW5nJTIwZXh0ZXJpb3IlMjBkYXlsaWdodHxlbnwwfHx8fDE3Nzk1Mzc1NDJ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Vinyl siding house exterior to be used as a sample photo upload in the estimate."
+    },
+    "user_avatar_placeholder": {
+      "url": "https://images.unsplash.com/photo-1672748341520-6a839e6c05bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBmb3JlbWFuJTIwbW9kZXJuJTIwcG9ydHJhaXQlMjBzbWlsaW5nfGVufDB8fHx8MTc3OTUzNzU0Mnww&ixlib=rb-4.1.0&q=85",
+      "description": "Modern construction foreman portrait for the top nav user avatar."
+    }
+  },
+  "screen_blueprints": {
+    "login": {
+      "layout": "CSS Grid: 1 col mobile, 2 cols desktop (md:grid-cols-2).",
+      "left_pane": "White background, perfectly centered login form. Very sparse. Logo/Name at top, Email/Pass inputs, massive Orange primary button.",
+      "right_pane": "Hidden on mobile. Uses `login_hero_bg` with `object-cover`. No overlay needed, let the image shine."
+    },
+    "dashboard": {
+      "layout": "Standard web app layout. Top Navbar (white, 1px bottom border). Main content area with a max-width container.",
+      "header": "Title 'Estimates' left aligned (Cabinet Grotesk). Orange '+ New Estimate' button right aligned.",
+      "list_view": "Cardless list. Each estimate is a row with `border-b border-[#E4E4E7]`. Flexbox on mobile (stack details), Grid on desktop. Click anywhere on row to open."
+    },
+    "estimate_editor": {
+      "layout": "The most complex screen. Needs to prioritize data density and mobile ergonomics.",
+      "sticky_bar": "Fixed to TOP of viewport. Black background (`bg-[#09090B]`). Displays: Job Name (left), Base Total, Sell Price (huge text, green/orange), Margin % (right). MUST always be visible.",
+      "job_info_bento": "Grid at the top (under sticky nav). Customer details, address, date. One cell dedicated to a dashed-border Photo Upload zone.",
+      "margin_panel": "A dedicated high-contrast block. Inputs for Sales Tax (%) and Target Profit Margin (%). Changing these dynamically recalculates the Sell Price in the sticky bar.",
+      "categories_list": "Render the 60+ items in collapsible Accordions (Shadcn) per category (Install Vinyl Siding, Ascend Accessories, etc.) to save scrolling.",
+      "line_item_row": "Inside category accordions. 3-column grid. Col 1: Item Name & Unit (text-sm). Col 2: Qty Input (large, h-12 to h-14, right-aligned text). Col 3: Line Total (read-only, calculated). Uses the Grid Borders technical look."
+    },
+    "catalog_manager": {
+      "layout": "Admin data-table style.",
+      "content": "List of all items. Inputs to edit Base Material Cost and Base Labor Cost directly in the row. 'Save Catalog' sticky button at bottom."
+    },
+    "customer_quote_modal": {
+      "layout": "Modal or entirely separate print-only route. Must look like an expensive invoice.",
+      "styling": "Swiss Brutalist. Black text on white. NO orange buttons visible in the printable area. Crisp borders. Includes uploaded job photo.",
+      "actions": "Overlay action bar floating outside the printable area: 'Download PDF', 'Email to Customer', 'Close'."
+    }
+  },
+  "testing_attributes": "All inputs, buttons, and row items MUST use `data-testid` in kebab-case based on role. (e.g., `data-testid='login-submit-btn'`, `data-testid='qty-input-vinyl-siding'`)."
+}
