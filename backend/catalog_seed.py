@@ -287,8 +287,10 @@ def build_tier_sections(tier_name: str) -> list:
     return out
 
 
-# Default tier for new companies (cheapest = safest first impression)
-DEFAULT_TIER_NAME = "one-opp"
+# Default tier for new companies — newest/unknown contractors get our most expensive
+# rate; you bump them down to better tiers (Contractor / Builder-Dealer / one-opp)
+# as they earn it.
+DEFAULT_TIER_NAME = "whole-sale"
 
 # Legacy export — keeps backward compat with any code that still reads DEFAULT_SECTIONS
 DEFAULT_SECTIONS = build_tier_sections(DEFAULT_TIER_NAME)
