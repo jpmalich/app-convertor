@@ -138,11 +138,6 @@ class TestAuthAndCompany:
 
 # ---------------- Catalog (per-company) ----------------
 class TestCatalogPerCompany:
-    def test_catalog_isolated_between_companies(self, company_a_owner, company_b_owner):
-        # Reset both first
-        company_a_owner.post(f"{API}/catalog/reset")
-        company_b_owner.post(f"{API}/catalog/reset")
-
     @pytest.mark.skip(reason="Obsolete under iter-6 4-tier architecture: per-company material overrides removed; material is now strictly tier-controlled (PUT /api/catalog only accepts labor overrides).")
     def test_catalog_isolated_between_companies(self, company_a_owner, company_b_owner):
         # Edit company A's catalog
