@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from "react";
 import { fmt } from "@/lib/api";
 import { useCompany } from "@/lib/company";
 import { useBranding } from "@/lib/branding";
+import { useAuth } from "@/lib/auth";
 import CompanyLogo from "@/components/CompanyLogo";
 import { X, Printer, Send } from "lucide-react";
 import { buildEmailHtml, buildEmailSubject, defaultEmailGreeting } from "@/lib/emailQuote";
@@ -9,6 +10,7 @@ import { buildEmailHtml, buildEmailSubject, defaultEmailGreeting } from "@/lib/e
 export default function QuoteModal({ estimate, totals, onClose, emailConfigured, onEmail }) {
   const { company } = useCompany();
   const branding = useBranding();
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(() => defaultEmailGreeting({ estimate, company }));
   const [sending, setSending] = useState(false);
