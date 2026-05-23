@@ -8,6 +8,7 @@ export function BrandingProvider({ children }) {
     supplier_name: "Loading…",
     supplier_tagline: "",
     supplier_logo_url: null,
+    default_pricing_mode: "margin",
   });
 
   useEffect(() => {

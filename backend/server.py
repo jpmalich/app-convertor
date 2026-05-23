@@ -179,7 +179,7 @@ class EstimateIn(BaseModel):
     tax_enabled: bool = True
     tax_rate: float = 7.0
     margin_pct: float = 30.0
-    pricing_mode: str = "margin"  # "margin" => sell = base / (1 - pct/100); "markup" => sell = base * (1 + pct/100)
+    pricing_mode: Optional[str] = None  # "margin" | "markup"; if None, falls back to supplier default at create time
     lines: List[EstimateLine] = []
     misc_labor: List[MiscLine] = []
     misc_material: List[MiscLine] = []
@@ -219,6 +219,7 @@ async def get_branding():
         "supplier_name": b.get("supplier_name") or SUPPLIER_NAME,
         "supplier_tagline": b.get("supplier_tagline") or SUPPLIER_TAGLINE,
         "supplier_logo_url": b.get("supplier_logo_url"),
+        "default_pricing_mode": b.get("default_pricing_mode") or "margin",
     }
 
 
@@ -232,6 +233,7 @@ class BrandingUpdate(BaseModel):
     supplier_name: Optional[str] = None
     supplier_tagline: Optional[str] = None
     supplier_logo_url: Optional[str] = None
+    default_pricing_mode: Optional[str] = None
 
 
 @api_router.put("/admin/branding")
@@ -244,6 +246,11 @@ async def admin_update_branding(body: BrandingUpdate, request: Request):
         updates["supplier_tagline"] = body.supplier_tagline.strip()
     if body.supplier_logo_url is not None:
         updates["supplier_logo_url"] = body.supplier_logo_url or None
+    if body.default_pricing_mode is not None:
+        mode = body.default_pricing_mode.strip().lower()
+        if mode not in {"margin", "markup"}:
+            raise HTTPException(status_code=400, detail="default_pricing_mode must be 'margin' or 'markup'")
+        updates["default_pricing_mode"] = mode
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.settings.update_one({"id": "branding"}, {"$set": updates}, upsert=True)
@@ -595,6 +602,10 @@ async def create_estimate(body: EstimateIn, user: dict = Depends(get_current_use
     est_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     doc = body.model_dump()
+    # Fall back to the supplier's configured default when the client didn't pick one.
+    if not doc.get("pricing_mode"):
+        b = await _get_branding()
+        doc["pricing_mode"] = b.get("default_pricing_mode") or "margin"
     doc.update({
         "id": est_id,
         "company_id": user["company_id"],
@@ -620,7 +631,8 @@ async def get_estimate(est_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.put("/estimates/{est_id}")
 async def update_estimate(est_id: str, body: EstimateIn, user: dict = Depends(get_current_user)):
-    update = body.model_dump()
+    # exclude_none so PUTs that omit pricing_mode don't clobber the stored value
+    update = body.model_dump(exclude_none=True)
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     res = await db.estimates.update_one(
         {"id": est_id, "company_id": user["company_id"]}, {"$set": update}

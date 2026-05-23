@@ -143,16 +143,17 @@ class TestAlsideDefaultCatalog:
         assert first["title"] == "Install Vinyl Siding"
         assert first["items"], "first section has no items"
         first_item = first["items"][0]
-        assert first_item["name"] == "Conquest"
+        # iteration-6 catalog seed uses the full SKU name; default tier is whole-sale.
+        assert first_item["name"] == "Conquest .040"
         assert first_item["unit"] == "SQ"
-        assert abs(first_item["mat"] - 92.19) < 1e-6
-        assert first_item["lab"] == 125
+        assert first_item["mat"] > 0  # tier-specific; concrete price asserted in iteration-6 tests
+        assert first_item["lab"] > 0
 
     def test_default_catalog_has_ascend_section(self, new_owner):
         cat = new_owner["session"].get(f"{API}/catalog").json()
         ascend = [s for s in cat["sections"] if s.get("ascend") is True]
         assert ascend, "no ASCEND section flagged"
-        assert ascend[0]["title"] == "Ascend Accessories"
+        assert ascend[0]["title"] == "Ascend Cladding/Accessories"
 
 
 # --------------------------------------------------------------------------- #

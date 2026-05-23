@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
-import { Upload, Shield, Copy, ArrowLeft, Tags, Building2 } from "lucide-react";
+import { Upload, Shield, Copy, ArrowLeft, Tags, Building2, Percent } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -14,6 +14,7 @@ export default function BrandingAdmin() {
   const [signupCode, setSignupCode] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [supplierTagline, setSupplierTagline] = useState("");
+  const [defaultPricingMode, setDefaultPricingMode] = useState("margin");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef();
@@ -29,6 +30,7 @@ export default function BrandingAdmin() {
         setBranding(b.data);
         setSupplierName(b.data.supplier_name || "");
         setSupplierTagline(b.data.supplier_tagline || "");
+        setDefaultPricingMode(b.data.default_pricing_mode || "margin");
         setSignupCode(s.data.signup_code);
       } catch (e) {
         setError(
@@ -96,6 +98,23 @@ export default function BrandingAdmin() {
       );
       setBranding(data);
       toast.success("Branding saved");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savePricingDefault = async (mode) => {
+    setBusy(true);
+    try {
+      const { data } = await axios.put(
+        `${API}/admin/branding?token=${encodeURIComponent(token)}`,
+        { default_pricing_mode: mode }
+      );
+      setBranding(data);
+      setDefaultPricingMode(data.default_pricing_mode || "margin");
+      toast.success(`Default pricing set to ${mode}`);
     } catch (e) {
       toast.error(e.response?.data?.detail || e.message);
     } finally {
@@ -177,6 +196,54 @@ export default function BrandingAdmin() {
             <button className="btn-primary" onClick={saveBranding} disabled={busy} data-testid="save-branding-btn">
               {busy ? "Saving…" : "Save"}
             </button>
+          </div>
+        </div>
+
+        {/* Default pricing mode */}
+        <div className="card p-6" data-testid="default-pricing-card">
+          <div className="flex items-center gap-3 mb-3">
+            <Percent className="w-5 h-5 text-[#F97316]" />
+            <div className="section-tag">Default Pricing Mode</div>
+          </div>
+          <p className="text-sm text-[#52525B] mb-4">
+            Sets how new estimates calculate sell price for every contractor by default.
+            Each contractor can still toggle per-estimate, but new estimates start in this mode.
+          </p>
+          <div
+            className="inline-flex border border-[#E4E4E7] rounded-sm overflow-hidden text-sm font-bold uppercase tracking-wider"
+            data-testid="default-pricing-toggle"
+          >
+            <button
+              type="button"
+              disabled={busy}
+              className={`px-5 py-2 transition ${
+                defaultPricingMode === "margin"
+                  ? "bg-[#09090B] text-white"
+                  : "bg-white text-[#52525B] hover:bg-[#F4F4F5]"
+              }`}
+              onClick={() => savePricingDefault("margin")}
+              data-testid="default-pricing-margin"
+            >
+              Margin
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className={`px-5 py-2 transition border-l border-[#E4E4E7] ${
+                defaultPricingMode === "markup"
+                  ? "bg-[#09090B] text-white"
+                  : "bg-white text-[#52525B] hover:bg-[#F4F4F5]"
+              }`}
+              onClick={() => savePricingDefault("markup")}
+              data-testid="default-pricing-markup"
+            >
+              Markup
+            </button>
+          </div>
+          <div className="mt-3 text-[11px] text-[#71717A] font-mono-num">
+            {defaultPricingMode === "margin"
+              ? "Margin: sell = base ÷ (1 − %)  — 30% gives a ×1.429 multiplier"
+              : "Markup: sell = base × (1 + %)  — 30% gives a ×1.300 multiplier"}
           </div>
         </div>
 
