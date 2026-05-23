@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import api from "./api";
 import { useAuth } from "./auth";
 
@@ -28,9 +28,12 @@ export function CompanyProvider({ children }) {
     return data;
   }, []);
 
-  return (
-    <CompanyCtx.Provider value={{ company, refresh, update }}>{children}</CompanyCtx.Provider>
+  const value = useMemo(
+    () => ({ company, refresh, update }),
+    [company, refresh, update]
   );
+
+  return <CompanyCtx.Provider value={value}>{children}</CompanyCtx.Provider>;
 }
 
 export const useCompany = () => useContext(CompanyCtx);

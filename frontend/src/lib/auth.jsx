@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import api, { formatApiError } from "./api";
 
 const AuthCtx = createContext(null);
@@ -51,17 +51,20 @@ export function AuthProvider({ children }) {
       await api.post("/auth/logout");
     } catch (e) {
       // Server-side logout best-effort; clear local state regardless
-      // eslint-disable-next-line no-console
-      console.warn("Logout call failed; clearing local session anyway", e);
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("Logout call failed; clearing local session anyway", e);
+      }
     }
     setUser(false);
   };
 
-  return (
-    <AuthCtx.Provider value={{ user, error, login, register, logout, refreshMe: fetchMe }}>
-      {children}
-    </AuthCtx.Provider>
+  const value = useMemo(
+    () => ({ user, error, login, register, logout, refreshMe: fetchMe }),
+    [user, error, fetchMe]
   );
+
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
 
 export const useAuth = () => useContext(AuthCtx);

@@ -18,8 +18,10 @@ export function BrandingProvider({ children }) {
         setBranding(data);
       } catch (e) {
         // Public endpoint should always be reachable; log so misconfig is visible
-        // eslint-disable-next-line no-console
-        console.warn("Failed to load /api/branding — using defaults", e);
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.warn("Failed to load /api/branding — using defaults", e);
+        }
       }
     })();
   }, []);
