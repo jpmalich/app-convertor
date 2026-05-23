@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import EstimateEditor from "@/pages/EstimateEditor";
 import Catalog from "@/pages/Catalog";
+import Team from "@/pages/Team";
 import Layout from "@/components/Layout";
 
 function Protected({ children }) {
@@ -40,6 +41,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/estimate/:id" element={<EstimateEditor />} />
               <Route path="/catalog" element={<Catalog />} />
+              <Route path="/team" element={<Team />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

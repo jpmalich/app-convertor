@@ -4,16 +4,19 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 import os
+import io
+import csv
 import uuid
+import secrets
 import logging
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional, Any
+from typing import List, Optional
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File, status
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi.responses import FileResponse, StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
@@ -23,10 +26,11 @@ from catalog_seed import DEFAULT_SECTIONS
 # ---------------------------------------------------------------------------
 # Config & DB
 # ---------------------------------------------------------------------------
-JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-prod-" + uuid.uuid4().hex)
+JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-" + uuid.uuid4().hex)
 JWT_ALG = "HS256"
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@wolfandson.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin123!")
+ADMIN_COMPANY = os.environ.get("ADMIN_COMPANY", "Wolf and Son Renovations LLC")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 
@@ -59,8 +63,7 @@ def verify_password(pw: str, hashed: str) -> bool:
 
 def create_access_token(user_id: str, email: str) -> str:
     payload = {
-        "sub": user_id,
-        "email": email,
+        "sub": user_id, "email": email,
         "exp": datetime.now(timezone.utc) + timedelta(days=7),
         "type": "access",
     }
@@ -72,6 +75,12 @@ def set_auth_cookie(response: Response, token: str):
         key="access_token", value=token, httponly=True,
         secure=True, samesite="none", max_age=604800, path="/",
     )
+
+
+def make_invite_code() -> str:
+    # Short, human-friendly: 8 uppercase alphanumeric chars
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
 async def get_current_user(request: Request) -> dict:
@@ -94,13 +103,24 @@ async def get_current_user(request: Request) -> dict:
     return user
 
 
+async def get_company_for(user: dict) -> dict:
+    if not user.get("company_id"):
+        raise HTTPException(status_code=400, detail="User has no company")
+    company = await db.companies.find_one({"id": user["company_id"]}, {"_id": 0})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return company
+
+
 # ---------------------------------------------------------------------------
-# Pydantic Models
+# Models
 # ---------------------------------------------------------------------------
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str
     name: Optional[str] = None
+    company_name: Optional[str] = None  # creates a new company
+    invite_code: Optional[str] = None   # joins an existing company
 
 
 class LoginIn(BaseModel):
@@ -154,7 +174,7 @@ class EstimateIn(BaseModel):
     lines: List[EstimateLine] = []
     misc_labor: List[MiscLine] = []
     misc_material: List[MiscLine] = []
-    photos: List[str] = []  # urls
+    photos: List[str] = []
     status_label: str = "draft"
 
 
@@ -162,30 +182,68 @@ class EmailQuoteIn(BaseModel):
     recipient_email: EmailStr
     subject: Optional[str] = None
     message: Optional[str] = None
-    html_quote: str  # rendered HTML of quote
+    html_quote: str
 
 
 # ---------------------------------------------------------------------------
-# Auth Endpoints
+# Auth
 # ---------------------------------------------------------------------------
+async def _create_company(name: str, owner_user_id: str) -> dict:
+    company = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "owner_user_id": owner_user_id,
+        "invite_code": make_invite_code(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.companies.insert_one(company)
+    # Seed default catalog scoped to this company
+    await db.catalogs.insert_one({
+        "company_id": company["id"],
+        "sections": DEFAULT_SECTIONS,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return company
+
+
 @api_router.post("/auth/register")
 async def register(body: RegisterIn, response: Response):
     email = body.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
+
     user_id = str(uuid.uuid4())
+
+    # Determine company assignment
+    company_id: Optional[str] = None
+    role = "user"
+    if body.invite_code:
+        code = body.invite_code.strip().upper()
+        company = await db.companies.find_one({"invite_code": code}, {"_id": 0})
+        if not company:
+            raise HTTPException(status_code=400, detail="Invalid invite code")
+        company_id = company["id"]
+        role = "member"
+    else:
+        # Create a new company for this user (default if they didn't give a name)
+        cname = (body.company_name or f"{(body.name or email.split('@')[0])}'s Company").strip()
+        company = await _create_company(cname, user_id)
+        company_id = company["id"]
+        role = "owner"
+
     user_doc = {
         "id": user_id,
         "email": email,
         "name": body.name or email.split("@")[0],
         "password_hash": hash_password(body.password),
-        "role": "user",
+        "role": role,
+        "company_id": company_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(user_doc)
     token = create_access_token(user_id, email)
     set_auth_cookie(response, token)
-    return {"id": user_id, "email": email, "name": user_doc["name"], "role": "user"}
+    return {"id": user_id, "email": email, "name": user_doc["name"], "role": role, "company_id": company_id}
 
 
 @api_router.post("/auth/login")
@@ -196,7 +254,10 @@ async def login(body: LoginIn, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user["id"], email)
     set_auth_cookie(response, token)
-    return {"id": user["id"], "email": user["email"], "name": user.get("name"), "role": user.get("role", "user")}
+    return {
+        "id": user["id"], "email": user["email"], "name": user.get("name"),
+        "role": user.get("role", "user"), "company_id": user.get("company_id"),
+    }
 
 
 @api_router.post("/auth/logout")
@@ -211,49 +272,66 @@ async def me(user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
-# Catalog (global, one shared catalog per deployment)
+# Company
 # ---------------------------------------------------------------------------
-CATALOG_ID = "default"
+@api_router.get("/company")
+async def get_company(user: dict = Depends(get_current_user)):
+    company = await get_company_for(user)
+    return company
 
 
-@api_router.get("/catalog")
-async def get_catalog(user: dict = Depends(get_current_user)):
-    cat = await db.catalogs.find_one({"id": CATALOG_ID}, {"_id": 0})
+# ---------------------------------------------------------------------------
+# Catalog (per company)
+# ---------------------------------------------------------------------------
+async def _ensure_catalog(company_id: str) -> dict:
+    cat = await db.catalogs.find_one({"company_id": company_id}, {"_id": 0})
     if not cat:
-        cat = {"id": CATALOG_ID, "sections": DEFAULT_SECTIONS,
-               "updated_at": datetime.now(timezone.utc).isoformat()}
+        cat = {
+            "company_id": company_id, "sections": DEFAULT_SECTIONS,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
         await db.catalogs.insert_one(cat)
         cat.pop("_id", None)
     return cat
 
 
+@api_router.get("/catalog")
+async def get_catalog(user: dict = Depends(get_current_user)):
+    return await _ensure_catalog(user["company_id"])
+
+
 @api_router.put("/catalog")
 async def update_catalog(body: CatalogIn, user: dict = Depends(get_current_user)):
     payload = {
-        "id": CATALOG_ID,
+        "company_id": user["company_id"],
         "sections": [s.model_dump() for s in body.sections],
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.catalogs.update_one({"id": CATALOG_ID}, {"$set": payload}, upsert=True)
+    await db.catalogs.update_one(
+        {"company_id": user["company_id"]}, {"$set": payload}, upsert=True
+    )
     return payload
 
 
 @api_router.post("/catalog/reset")
 async def reset_catalog(user: dict = Depends(get_current_user)):
-    payload = {"id": CATALOG_ID, "sections": DEFAULT_SECTIONS,
-               "updated_at": datetime.now(timezone.utc).isoformat()}
-    await db.catalogs.update_one({"id": CATALOG_ID}, {"$set": payload}, upsert=True)
+    payload = {
+        "company_id": user["company_id"], "sections": DEFAULT_SECTIONS,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.catalogs.update_one(
+        {"company_id": user["company_id"]}, {"$set": payload}, upsert=True
+    )
     return payload
 
 
 # ---------------------------------------------------------------------------
-# Estimates
+# Estimates (scoped to company)
 # ---------------------------------------------------------------------------
 @api_router.get("/estimates")
 async def list_estimates(user: dict = Depends(get_current_user)):
-    cursor = db.estimates.find({"user_id": user["id"]}, {"_id": 0}).sort("updated_at", -1)
-    items = await cursor.to_list(500)
-    return items
+    cursor = db.estimates.find({"company_id": user["company_id"]}, {"_id": 0}).sort("updated_at", -1)
+    return await cursor.to_list(500)
 
 
 @api_router.post("/estimates")
@@ -262,8 +340,12 @@ async def create_estimate(body: EstimateIn, user: dict = Depends(get_current_use
     now = datetime.now(timezone.utc).isoformat()
     doc = body.model_dump()
     doc.update({
-        "id": est_id, "user_id": user["id"],
-        "created_at": now, "updated_at": now,
+        "id": est_id,
+        "company_id": user["company_id"],
+        "created_by": user["id"],
+        "created_by_name": user.get("name"),
+        "created_at": now,
+        "updated_at": now,
     })
     await db.estimates.insert_one(doc)
     doc.pop("_id", None)
@@ -272,7 +354,9 @@ async def create_estimate(body: EstimateIn, user: dict = Depends(get_current_use
 
 @api_router.get("/estimates/{est_id}")
 async def get_estimate(est_id: str, user: dict = Depends(get_current_user)):
-    doc = await db.estimates.find_one({"id": est_id, "user_id": user["id"]}, {"_id": 0})
+    doc = await db.estimates.find_one(
+        {"id": est_id, "company_id": user["company_id"]}, {"_id": 0}
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
     return doc
@@ -283,24 +367,119 @@ async def update_estimate(est_id: str, body: EstimateIn, user: dict = Depends(ge
     update = body.model_dump()
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     res = await db.estimates.update_one(
-        {"id": est_id, "user_id": user["id"]}, {"$set": update}
+        {"id": est_id, "company_id": user["company_id"]}, {"$set": update}
     )
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
-    doc = await db.estimates.find_one({"id": est_id}, {"_id": 0})
-    return doc
+    return await db.estimates.find_one({"id": est_id}, {"_id": 0})
 
 
 @api_router.delete("/estimates/{est_id}")
 async def delete_estimate(est_id: str, user: dict = Depends(get_current_user)):
-    res = await db.estimates.delete_one({"id": est_id, "user_id": user["id"]})
+    res = await db.estimates.delete_one({"id": est_id, "company_id": user["company_id"]})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
-# Photo Upload
+# CSV Export (registered BEFORE /estimates/{est_id} so the literal path wins)
+# ---------------------------------------------------------------------------
+def _calc_totals(est: dict) -> dict:
+    lines = est.get("lines", []) or []
+    misc_labor = est.get("misc_labor", []) or []
+    misc_material = est.get("misc_material", []) or []
+    sub_mat = sum((l.get("qty", 0) or 0) * (l.get("mat", 0) or 0) for l in lines) + sum((m.get("mat", 0) or 0) for m in misc_material)
+    sub_lab = sum((l.get("qty", 0) or 0) * (l.get("lab", 0) or 0) for l in lines) + sum((m.get("lab", 0) or 0) for m in misc_material) + sum((m.get("lab", 0) or 0) for m in misc_labor)
+    wasted = sub_mat * (1 + (est.get("waste_pct", 0) or 0) / 100)
+    tax = wasted * ((est.get("tax_rate", 0) or 0) / 100) if est.get("tax_enabled") else 0
+    base = wasted + tax + sub_lab
+    sell = base * (1 + (est.get("margin_pct", 0) or 0) / 100)
+    profit = sell - base
+    return {"sub_mat": sub_mat, "sub_lab": sub_lab, "wasted": wasted, "tax": tax, "base": base, "sell": sell, "profit": profit}
+
+
+@api_router.get("/exports/estimates.csv")
+async def export_estimates_csv(user: dict = Depends(get_current_user)):
+    cursor = db.estimates.find({"company_id": user["company_id"]}, {"_id": 0}).sort("updated_at", -1)
+    estimates = await cursor.to_list(2000)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "Estimate #", "Customer", "Address", "Date", "Estimator",
+        "Material", "Labor", "Tax", "Base", "Margin %", "Sell Price", "Profit",
+        "Created By", "Updated At",
+    ])
+    for e in estimates:
+        t = _calc_totals(e)
+        writer.writerow([
+            e.get("estimate_number", ""), e.get("customer_name", ""),
+            e.get("address", ""), e.get("estimate_date", ""), e.get("estimator", ""),
+            f"{t['sub_mat']:.2f}", f"{t['sub_lab']:.2f}", f"{t['tax']:.2f}",
+            f"{t['base']:.2f}", e.get("margin_pct", 0), f"{t['sell']:.2f}", f"{t['profit']:.2f}",
+            e.get("created_by_name", ""), e.get("updated_at", ""),
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="estimates.csv"'},
+    )
+
+
+@api_router.get("/exports/estimates/{est_id}.csv")
+async def export_estimate_csv(est_id: str, user: dict = Depends(get_current_user)):
+    est = await db.estimates.find_one({"id": est_id, "company_id": user["company_id"]}, {"_id": 0})
+    if not est:
+        raise HTTPException(status_code=404, detail="Not found")
+    t = _calc_totals(est)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Field", "Value"])
+    for k, v in [
+        ("Estimate #", est.get("estimate_number", "")),
+        ("Customer", est.get("customer_name", "")),
+        ("Address", est.get("address", "")),
+        ("Date", est.get("estimate_date", "")),
+        ("Estimator", est.get("estimator", "")),
+        ("Notes", (est.get("notes", "") or "").replace("\n", " ")),
+        ("Waste %", est.get("waste_pct", 0)),
+        ("Tax Enabled", est.get("tax_enabled", True)),
+        ("Tax Rate %", est.get("tax_rate", 0)),
+        ("Margin %", est.get("margin_pct", 0)),
+    ]:
+        writer.writerow([k, v])
+    writer.writerow([])
+    writer.writerow(["Section", "Item", "Unit", "Qty", "Material $", "Labor $", "Line Total"])
+    for l in est.get("lines", []) or []:
+        if (l.get("qty", 0) or 0) > 0:
+            qty = l["qty"] or 0
+            line_total = qty * ((l.get("mat", 0) or 0) + (l.get("lab", 0) or 0))
+            writer.writerow([l["section"], l["name"], l["unit"], qty, l.get("mat", 0), l.get("lab", 0), f"{line_total:.2f}"])
+    for m in est.get("misc_labor", []) or []:
+        writer.writerow(["Misc. Labor Only", m.get("desc", ""), "—", 1, 0, m.get("lab", 0), f"{(m.get('lab', 0) or 0):.2f}"])
+    for m in est.get("misc_material", []) or []:
+        writer.writerow(["Misc. Labor & Material", m.get("desc", ""), "—", 1, m.get("mat", 0), m.get("lab", 0), f"{((m.get('mat', 0) or 0) + (m.get('lab', 0) or 0)):.2f}"])
+    writer.writerow([])
+    writer.writerow(["Summary", ""])
+    writer.writerow(["Material Subtotal", f"{t['sub_mat']:.2f}"])
+    writer.writerow(["After Waste", f"{t['wasted']:.2f}"])
+    writer.writerow(["Tax", f"{t['tax']:.2f}"])
+    writer.writerow(["Labor Subtotal", f"{t['sub_lab']:.2f}"])
+    writer.writerow(["Base Cost", f"{t['base']:.2f}"])
+    writer.writerow(["Sell Price", f"{t['sell']:.2f}"])
+    writer.writerow(["Profit", f"{t['profit']:.2f}"])
+    buf.seek(0)
+    fname = f"estimate_{(est.get('estimate_number') or est['id']).replace(' ', '_')}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Uploads
 # ---------------------------------------------------------------------------
 @api_router.post("/uploads")
 async def upload_photo(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
@@ -319,7 +498,6 @@ async def upload_photo(file: UploadFile = File(...), user: dict = Depends(get_cu
 
 @api_router.get("/uploads/{name}")
 async def serve_upload(name: str):
-    from fastapi.responses import FileResponse
     target = UPLOAD_DIR / name
     if not target.exists():
         raise HTTPException(status_code=404, detail="Not found")
@@ -327,11 +505,13 @@ async def serve_upload(name: str):
 
 
 # ---------------------------------------------------------------------------
-# Email Quote (Resend)
+# Email
 # ---------------------------------------------------------------------------
 @api_router.post("/estimates/{est_id}/email")
 async def email_quote(est_id: str, body: EmailQuoteIn, user: dict = Depends(get_current_user)):
-    est = await db.estimates.find_one({"id": est_id, "user_id": user["id"]}, {"_id": 0})
+    est = await db.estimates.find_one(
+        {"id": est_id, "company_id": user["company_id"]}, {"_id": 0}
+    )
     if not est:
         raise HTTPException(status_code=404, detail="Estimate not found")
     if not RESEND_API_KEY:
@@ -382,42 +562,61 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Startup: indexes + seeds
+# Startup: indexes + admin seed + migration
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
 async def on_start():
     await db.users.create_index("email", unique=True)
     await db.users.create_index("id", unique=True)
     await db.estimates.create_index("id", unique=True)
-    await db.estimates.create_index("user_id")
-    await db.catalogs.create_index("id", unique=True)
+    await db.estimates.create_index("company_id")
+    await db.catalogs.create_index("company_id", unique=True)
+    await db.companies.create_index("id", unique=True)
+    await db.companies.create_index("invite_code", unique=True)
+
+    # Migrate old global catalog (id="default") -> company-scoped if present
+    legacy = await db.catalogs.find_one({"id": "default"})
+    if legacy:
+        await db.catalogs.delete_one({"id": "default"})
 
     # Seed admin user
     admin = await db.users.find_one({"email": ADMIN_EMAIL.lower()})
+    admin_id = admin["id"] if admin else str(uuid.uuid4())
+
+    # Ensure admin's company exists
+    admin_company = None
+    if admin:
+        if admin.get("company_id"):
+            admin_company = await db.companies.find_one({"id": admin["company_id"]})
+    if not admin_company:
+        admin_company = await _create_company(ADMIN_COMPANY, admin_id)
+
     if not admin:
         await db.users.insert_one({
-            "id": str(uuid.uuid4()),
+            "id": admin_id,
             "email": ADMIN_EMAIL.lower(),
             "name": "Admin",
             "password_hash": hash_password(ADMIN_PASSWORD),
-            "role": "admin",
+            "role": "owner",
+            "company_id": admin_company["id"],
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         logger.info("Seeded admin user %s", ADMIN_EMAIL)
-    elif not verify_password(ADMIN_PASSWORD, admin["password_hash"]):
-        await db.users.update_one(
-            {"email": ADMIN_EMAIL.lower()},
-            {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}},
-        )
+    else:
+        updates = {}
+        if not verify_password(ADMIN_PASSWORD, admin["password_hash"]):
+            updates["password_hash"] = hash_password(ADMIN_PASSWORD)
+        if not admin.get("company_id"):
+            updates["company_id"] = admin_company["id"]
+            updates["role"] = "owner"
+        if updates:
+            await db.users.update_one({"email": ADMIN_EMAIL.lower()}, {"$set": updates})
 
-    # Seed catalog
-    if not await db.catalogs.find_one({"id": CATALOG_ID}):
-        await db.catalogs.insert_one({
-            "id": CATALOG_ID,
-            "sections": DEFAULT_SECTIONS,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        })
-        logger.info("Seeded default catalog")
+    # Migrate any orphan estimates without company_id -> admin's company
+    await db.estimates.update_many(
+        {"company_id": {"$exists": False}},
+        {"$set": {"company_id": admin_company["id"]}},
+    )
 
 
 @app.on_event("shutdown")

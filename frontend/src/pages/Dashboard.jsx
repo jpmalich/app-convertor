@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { fmt, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, Trash2, FileText, Search } from "lucide-react";
+import { Plus, Trash2, FileText, Search, Download } from "lucide-react";
 
 export default function Dashboard() {
   const [items, setItems] = useState([]);
@@ -72,9 +72,30 @@ export default function Dashboard() {
           <div className="text-xs uppercase tracking-[0.2em] text-[#A1A1AA] mb-1">Dashboard</div>
           <h1 className="font-heading text-4xl sm:text-5xl text-[#09090B]">Estimates</h1>
         </div>
-        <button className="btn-primary" onClick={createEstimate} data-testid="new-estimate-btn">
-          <Plus className="w-4 h-4" /> New Estimate
-        </button>
+        <div className="flex gap-3">
+          <button
+            className="btn-secondary"
+            onClick={async () => {
+              try {
+                const res = await api.get(`/exports/estimates.csv`, { responseType: "blob" });
+                const url = URL.createObjectURL(res.data);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "estimates.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                toast.error(formatApiError(e.response?.data?.detail));
+              }
+            }}
+            data-testid="export-all-csv-btn"
+          >
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button className="btn-primary" onClick={createEstimate} data-testid="new-estimate-btn">
+            <Plus className="w-4 h-4" /> New Estimate
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 relative">

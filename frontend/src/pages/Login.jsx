@@ -14,6 +14,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [joinMode, setJoinMode] = useState("create"); // 'create' | 'join'
   const [busy, setBusy] = useState(false);
 
   React.useEffect(() => {
@@ -23,14 +26,20 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
-    const ok =
-      mode === "login"
-        ? await login(email, password)
-        : await register(email, password, name);
-    setBusy(false);
-    if (ok) {
-      toast.success(mode === "login" ? "Welcome back" : "Account created");
+    let ok;
+    if (mode === "login") {
+      ok = await login(email, password);
+    } else {
+      ok = await register(
+        email,
+        password,
+        name,
+        joinMode === "create" ? companyName : undefined,
+        joinMode === "join" ? inviteCode : undefined
+      );
     }
+    setBusy(false);
+    if (ok) toast.success(mode === "login" ? "Welcome back" : "Account created");
   };
 
   return (
@@ -42,9 +51,7 @@ export default function Login() {
               W
             </div>
             <div>
-              <div className="font-heading text-xl text-[#09090B] leading-none">
-                Wolf & Son
-              </div>
+              <div className="font-heading text-xl text-[#09090B] leading-none">Wolf & Son</div>
               <div className="text-[10px] uppercase tracking-[0.25em] text-[#A1A1AA] mt-1">
                 Renovations · Estimator
               </div>
@@ -62,18 +69,68 @@ export default function Login() {
 
           <form onSubmit={submit} className="space-y-4">
             {mode === "register" && (
-              <div>
-                <label className="label">Name</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  data-testid="name-input"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="label">Name</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    data-testid="name-input"
+                  />
+                </div>
+
+                <div className="border border-[#E4E4E7] p-3">
+                  <div className="flex border-b border-[#E4E4E7] mb-3">
+                    <button
+                      type="button"
+                      className={`flex-1 py-2 text-xs uppercase tracking-wider font-bold ${joinMode === "create" ? "text-[#F97316] border-b-2 border-[#F97316]" : "text-[#A1A1AA]"}`}
+                      onClick={() => setJoinMode("create")}
+                      data-testid="mode-create-co"
+                    >
+                      New company
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 py-2 text-xs uppercase tracking-wider font-bold ${joinMode === "join" ? "text-[#F97316] border-b-2 border-[#F97316]" : "text-[#A1A1AA]"}`}
+                      onClick={() => setJoinMode("join")}
+                      data-testid="mode-join-co"
+                    >
+                      Join with code
+                    </button>
+                  </div>
+                  {joinMode === "create" ? (
+                    <div>
+                      <label className="label">Company name</label>
+                      <input
+                        className="input"
+                        type="text"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="e.g. Acme Sidings LLC"
+                        data-testid="company-name-input"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="label">Invite code</label>
+                      <input
+                        className="input font-mono-num uppercase tracking-wider"
+                        type="text"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        placeholder="ABCD1234"
+                        required={joinMode === "join"}
+                        data-testid="invite-code-input"
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
+
             <div>
               <label className="label">Email</label>
               <input

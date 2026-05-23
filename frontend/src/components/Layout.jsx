@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { LogOut, LayoutGrid, Settings2 } from "lucide-react";
+import { LogOut, LayoutGrid, Settings2, Users } from "lucide-react";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -24,7 +24,7 @@ export default function Layout() {
               W
             </div>
             <div className="leading-tight">
-              <div className="font-heading text-base text-[#09090B]">Wolf & Son</div>
+              <div className="font-heading text-base text-[#09090B]">Wolf &amp; Son</div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA]">Estimator</div>
             </div>
           </Link>
@@ -34,6 +34,9 @@ export default function Layout() {
             </Link>
             <Link to="/catalog" className={linkCls("/catalog")} data-testid="nav-catalog">
               <Settings2 className="inline w-4 h-4 mr-1" /> Catalog
+            </Link>
+            <Link to="/team" className={linkCls("/team")} data-testid="nav-team">
+              <Users className="inline w-4 h-4 mr-1" /> Team
             </Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -59,6 +62,7 @@ export default function Layout() {
         <div className="sm:hidden flex border-t border-[#E4E4E7]">
           <Link to="/" className={`flex-1 text-center ${linkCls("/")}`}>Estimates</Link>
           <Link to="/catalog" className={`flex-1 text-center ${linkCls("/catalog")}`}>Catalog</Link>
+          <Link to="/team" className={`flex-1 text-center ${linkCls("/team")}`}>Team</Link>
         </div>
       </header>
       <Outlet />
