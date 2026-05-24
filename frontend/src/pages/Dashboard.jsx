@@ -152,7 +152,26 @@ export default function Dashboard() {
                   {e.estimate_number || "—"}
                 </div>
                 <div className="col-span-12 md:col-span-4">
-                  <div className="font-semibold text-[#09090B]">{e.customer_name || "Untitled"}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="font-semibold text-[#09090B]">{e.customer_name || "Untitled"}</div>
+                    {e.accepted_at ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC] rounded-sm"
+                        title={`Accepted ${new Date(e.accepted_at).toLocaleString()}`}
+                        data-testid={`status-accepted-${e.id}`}
+                      >
+                        ✓ Accepted
+                      </span>
+                    ) : e.last_sent_at ? (
+                      <span
+                        className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] rounded-sm"
+                        title={`Sent ${new Date(e.last_sent_at).toLocaleString()}`}
+                        data-testid={`status-sent-${e.id}`}
+                      >
+                        Sent
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="text-xs text-[#A1A1AA]">{new Date(e.updated_at).toLocaleString()}</div>
                 </div>
                 <div className="col-span-12 md:col-span-3 text-sm text-[#52525B] truncate">{e.address || "—"}</div>

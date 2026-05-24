@@ -57,14 +57,16 @@ export function buildEmailHtml({ estimate, totals, company, branding, message, a
   const expiryStr = computeExpiry(estimate.estimate_date);
   const estNumDisplay = estimate.estimate_number ? `#${estimate.estimate_number}` : "";
 
-  // Accept-CTA mailto: pre-fills a reply addressed back to the contractor.
-  const acceptHref = acceptEmail
+  // Prefer the hosted accept page (one-click). Fall back to a mailto pre-fill
+  // for older callers that don't supply an accept URL.
+  const mailtoHref = acceptEmail
     ? `mailto:${encodeURIComponent(acceptEmail)}` +
       `?subject=${encodeURIComponent(`Accepting estimate ${estimate.estimate_number || ""} — ${estimate.customer_name || ""}`)}` +
       `&body=${encodeURIComponent(
         `Hi,\n\nI'd like to accept the estimate ${estNumDisplay} for ${$(totals.sell)} as quoted.\nPlease let me know the next steps.\n\nThanks,\n${estimate.customer_name || ""}`
       )}`
     : null;
+  const acceptHref = acceptUrl || mailtoHref;
 
   // ---- Builders -----------------------------------------------------------
   const cell = (content, extra = "") =>

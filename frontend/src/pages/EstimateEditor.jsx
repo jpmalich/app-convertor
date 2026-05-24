@@ -110,14 +110,20 @@ export default function EstimateEditor() {
           totals={totals}
           onClose={() => setShowQuote(false)}
           emailConfigured={emailStatus.configured}
-          onEmail={async ({ recipient_email, html, subject }) => {
+          onEmail={async ({ recipient_email, html, subject, accept_token }) => {
             try {
               await api.post(`/estimates/${id}/email`, {
                 recipient_email,
                 html_quote: html,
                 subject,
+                accept_token,
               });
               toast.success("Email sent");
+              // Refresh local estimate so the dashboard badge updates.
+              try {
+                const { data } = await api.get(`/estimates/${id}`);
+                if (data) Object.assign(est, data);
+              } catch { /* non-fatal */ }
               return true;
             } catch (e) {
               toast.error(formatApiError(e.response?.data?.detail));

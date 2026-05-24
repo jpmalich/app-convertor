@@ -22,6 +22,17 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
     [estimate, company]
   );
 
+  // Stable accept token for this customer-facing quote. Reuse any existing one
+  // saved on the estimate (so the link stays valid across re-sends) or mint a
+  // fresh UUID4 client-side.
+  const acceptToken = useMemo(
+    () => estimate.accept_token || (typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+    [estimate.accept_token]
+  );
+  const acceptUrl = `${window.location.origin}/accept/${acceptToken}`;
+
   const linesWithQty = (estimate.lines || []).filter((l) => (l.qty || 0) > 0);
   const linesBySection = linesWithQty.reduce((acc, l) => {
     (acc[l.section] = acc[l.section] || []).push(l);
@@ -38,9 +49,10 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
       company,
       branding,
       message,
+      acceptUrl,
       acceptEmail: user?.email,
     });
-    const ok = await onEmail({ recipient_email: email, html, subject });
+    const ok = await onEmail({ recipient_email: email, html, subject, accept_token: acceptToken });
     setSending(false);
     if (ok) onClose();
   };
@@ -50,6 +62,7 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
     try {
       const html = buildEmailHtml({
         estimate, totals, company, branding, message,
+        acceptUrl,
         acceptEmail: user?.email,
       });
       const res = await fetch(

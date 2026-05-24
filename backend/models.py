@@ -95,3 +95,8 @@ class EmailQuoteIn(BaseModel):
     subject: Optional[str] = None
     message: Optional[str] = None
     html_quote: str
+    accept_token: Optional[str] = None  # client-generated UUID4 for the public accept link
+
+
+class CustomerAcceptIn(BaseModel):
+    note: Optional[str] = None

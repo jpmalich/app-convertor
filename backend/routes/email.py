@@ -42,6 +42,14 @@ async def email_quote(est_id: str, body: EmailQuoteIn, user: dict = Depends(get_
         )
         reply_to_email = (owner or {}).get("email") or user.get("email")
 
+        # Persist the client-generated accept token (idempotent — keep the first one assigned)
+        # and bump the estimate's status to "sent" so the dashboard can show pipeline state.
+        update_set = {"status_label": "sent", "last_sent_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
+        if body.accept_token and not est.get("accept_token"):
+            update_set["accept_token"] = body.accept_token
+            update_set["recipient_email"] = body.recipient_email
+        await db.estimates.update_one({"id": est_id}, {"$set": update_set})
+
         # Render the same email-safe HTML to a PDF and attach. WeasyPrint can block
         # for a moment on large jobs, so push it to a thread.
         pdf_bytes = await asyncio.to_thread(render_pdf, body.html_quote)

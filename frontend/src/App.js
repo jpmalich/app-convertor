@@ -11,6 +11,7 @@ import EstimateEditor from "@/pages/EstimateEditor";
 import Catalog from "@/pages/Catalog";
 import Team from "@/pages/Team";
 import BrandingAdmin from "@/pages/BrandingAdmin";
+import AcceptPage from "@/pages/AcceptPage";
 import Layout from "@/components/Layout";
 
 function Protected({ children }) {
@@ -37,6 +38,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/branding-admin" element={<BrandingAdmin />} />
+                <Route path="/accept/:token" element={<AcceptPage />} />
                 <Route
                   element={
                     <Protected>
