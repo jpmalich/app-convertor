@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { useCompany } from "@/lib/company";
 import { LogOut, LayoutGrid, Settings2, Users } from "lucide-react";
 import CompanyLogo from "@/components/CompanyLogo";
+import InstallBanner from "@/components/InstallBanner";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -69,6 +70,7 @@ export default function Layout() {
         </div>
       </header>
       <Outlet />
+      <InstallBanner />
     </div>
   );
 }
