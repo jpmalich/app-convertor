@@ -45,6 +45,43 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
     if (ok) onClose();
   };
 
+  const handleDownloadPdf = async () => {
+    setSending(true);
+    try {
+      const html = buildEmailHtml({
+        estimate, totals, company, branding, message,
+        acceptEmail: user?.email,
+      });
+      const res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/estimates/${estimate.id}/pdf`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipient_email: "noreply@noreply.com", html_quote: html }),
+        }
+      );
+      if (!res.ok) throw new Error(`PDF request failed: ${res.status}`);
+      const blob = await res.blob();
+      // Pull filename from Content-Disposition if present
+      const dispo = res.headers.get("content-disposition") || "";
+      const match = dispo.match(/filename="?([^";]+)"?/);
+      const filename = match ? match[1] : `estimate-${estimate.estimate_number || estimate.id}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      window.alert(`Could not generate PDF: ${e.message}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] bg-[#09090B]/70 backdrop-blur-sm overflow-y-auto" data-testid="quote-modal">
       <div className="min-h-screen flex flex-col items-center py-6 sm:py-10 px-4">
@@ -71,8 +108,14 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-secondary" onClick={() => window.print()} data-testid="quote-print-btn">
-              <Printer className="w-4 h-4" /> Print / PDF
+            <button
+              className="btn-secondary"
+              onClick={handleDownloadPdf}
+              disabled={sending}
+              data-testid="download-pdf-btn"
+              title="Download a PDF copy of this quote"
+            >
+              <Printer className="w-4 h-4" /> {sending ? "…" : "Download PDF"}
             </button>
             <button className="btn-ghost text-white hover:text-white" onClick={onClose} data-testid="quote-close-btn">
               <X className="w-5 h-5" />
