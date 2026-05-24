@@ -81,18 +81,21 @@ export default function SectionAccordion({
             return (
               <div
                 key={l.name}
-                className="grid grid-cols-12 gap-3 px-5 py-2 border-b border-[#E4E4E7] items-center"
+                className="grid grid-cols-12 gap-3 px-4 md:px-5 py-3 md:py-2 border-b border-[#E4E4E7] items-center"
               >
-                <div className="col-span-12 md:col-span-5 text-sm text-[#09090B]">{l.name}</div>
+                <div className="col-span-12 md:col-span-5 text-sm font-semibold md:font-normal text-[#09090B]">{l.name}</div>
                 <div className="col-span-3 md:col-span-1 text-xs text-[#A1A1AA] uppercase tracking-wider">
+                  <span className="md:hidden text-[10px] text-[#A1A1AA] block">Unit</span>
                   {l.unit}
                 </div>
                 <div className="col-span-3 md:col-span-2 text-right text-sm font-mono-num text-[#52525B]">
+                  <span className="md:hidden text-[10px] text-[#A1A1AA] block text-right">Mat $</span>
                   {fmt(l.mat)}
                 </div>
-                <div className="col-span-6 md:col-span-1">
+                <div className="col-span-3 md:col-span-1">
+                  <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">Qty</label>
                   <input
-                    className="input num h-10 sm:h-9"
+                    className="input num h-11 md:h-9 text-base md:text-sm w-full"
                     type="number"
                     inputMode="decimal"
                     step="0.5"
@@ -103,9 +106,10 @@ export default function SectionAccordion({
                     data-testid={`qty-${section.title}-${l.name}`}
                   />
                 </div>
-                <div className="col-span-6 md:col-span-1 relative">
+                <div className="col-span-3 md:col-span-1 relative">
+                  <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">Lab $</label>
                   <input
-                    className={`input num h-10 sm:h-9 ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
+                    className={`input num h-11 md:h-9 text-base md:text-sm w-full ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
                     type="number"
                     inputMode="decimal"
                     step="0.25"
@@ -118,7 +122,7 @@ export default function SectionAccordion({
                   {labOverridden && (
                     <button
                       type="button"
-                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#F97316] text-white text-[10px] leading-none flex items-center justify-center"
+                      className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
                       onClick={() => onResetLine(l.section, l.name)}
                       title={`Reset to catalog default ($${l.defaultLab})`}
                       data-testid={`reset-lab-${section.title}-${l.name}`}
@@ -127,7 +131,8 @@ export default function SectionAccordion({
                     </button>
                   )}
                 </div>
-                <div className="col-span-12 md:col-span-2 text-right font-mono-num text-sm font-semibold text-[#09090B]">
+                <div className="col-span-12 md:col-span-2 text-right font-mono-num text-base md:text-sm font-bold md:font-semibold text-[#09090B] pt-2 md:pt-0 border-t md:border-t-0 border-[#F4F4F5]">
+                  <span className="md:hidden text-[10px] text-[#A1A1AA] uppercase tracking-wider mr-2">Total</span>
                   {fmt(total)}
                 </div>
               </div>

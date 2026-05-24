@@ -99,11 +99,11 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
     <div className="fixed inset-0 z-[60] bg-[#09090B]/70 backdrop-blur-sm overflow-y-auto" data-testid="quote-modal">
       <div className="min-h-screen flex flex-col items-center py-6 sm:py-10 px-4">
         {/* Floating action bar */}
-        <div className="no-print w-full max-w-3xl flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="no-print w-full max-w-3xl flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:flex-1">
             <input
               type="email"
-              className="input bg-white"
+              className="input bg-white h-12 md:h-9 text-base md:text-sm"
               placeholder="customer@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -111,7 +111,7 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
               style={{ minWidth: 240 }}
             />
             <button
-              className="btn-primary"
+              className="btn-primary h-12 md:h-9 justify-center md:justify-start"
               onClick={handleEmail}
               disabled={!email || sending || !emailConfigured}
               data-testid="send-email-btn"
@@ -120,9 +120,9 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
               <Send className="w-4 h-4" /> {sending ? "Sending…" : "Email"}
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-between md:justify-end">
             <button
-              className="btn-secondary"
+              className="btn-secondary h-12 md:h-9 flex-1 md:flex-none justify-center md:justify-start"
               onClick={handleDownloadPdf}
               disabled={sending}
               data-testid="download-pdf-btn"
@@ -130,8 +130,13 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
             >
               <Printer className="w-4 h-4" /> {sending ? "…" : "Download PDF"}
             </button>
-            <button className="btn-ghost text-white hover:text-white" onClick={onClose} data-testid="quote-close-btn">
-              <X className="w-5 h-5" />
+            <button
+              className="btn-ghost text-white hover:text-white p-3 md:p-1"
+              onClick={onClose}
+              data-testid="quote-close-btn"
+              aria-label="Close"
+            >
+              <X className="w-6 h-6 md:w-5 md:h-5" />
             </button>
           </div>
         </div>

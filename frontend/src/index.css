@@ -58,10 +58,22 @@ body {
 
 .btn-ghost {
   @apply inline-flex items-center justify-center gap-2 text-[#52525B] font-semibold px-3 py-2 transition-colors hover:text-[#09090B];
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .btn-danger {
   @apply inline-flex items-center justify-center gap-2 text-[#EF4444] font-semibold px-3 py-2 hover:bg-[#FEF2F2] border border-transparent hover:border-[#EF4444] transition-all;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Tighten the touch-target floors back down on desktop where pointers are precise */
+@media (min-width: 768px) {
+  .btn-ghost, .btn-danger {
+    min-width: 0;
+    min-height: 0;
+  }
 }
 
 /* Form inputs */
