@@ -22,6 +22,7 @@ class CatalogItem(BaseModel):
     unit: str
     mat: float
     lab: float
+    ami_part: Optional[str] = None  # Supplier SKU for the material list / ordering
 
 
 class CatalogSection(BaseModel):
@@ -63,6 +64,8 @@ class EstimateLine(BaseModel):
     qty: float = 0
     mat: float = 0
     lab: float = 0
+    color: Optional[str] = None  # Per-line color choice — appears on the material list
+    ami_part: Optional[str] = None  # Snapshotted at quote time so re-runs are reproducible
 
 
 class MiscLine(BaseModel):

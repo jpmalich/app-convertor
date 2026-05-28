@@ -46,6 +46,7 @@ async def _resolve_catalog_for_company(company: dict) -> dict:
                 "tier_lab": float(it["lab"]),
                 "mat_overridden": "mat" in ov,
                 "lab_overridden": "lab" in ov,
+                "ami_part": it.get("ami_part"),    # carry SKU through for material list
             })
         sections.append({"title": s["title"], "ascend": s.get("ascend", False), "items": items_out})
     return {"sections": sections, "tier_id": tier["id"], "tier_name": tier["name"]}

@@ -270,6 +270,42 @@ TIER_PRICES = {
 }
 
 
+# AMI part numbers from Alside's price sheet — used on the printed material list
+# so contractors can order/pull materials by SKU. Items without an AMI # (most
+# labor-only lines, some accessories) just show blank on the list.
+ITEM_AMI = {
+    "Conquest .040": "015456",
+    "Coventry .042": "016061",
+    "Odyssey .044": "015406",
+    "Charter Oak .046": "015451",
+    "vertical board and batten": "016021",
+    "Shakes and Scallops": "655052",
+    "Ascend Composite Lap Siding": "018001",
+    "Ascend Composite B&B (add 30% Waste)": "018021",
+    ".019 Coil (1 per 5 SQ Siding)": "103954",
+    "PVC Trim Coil (1 per 5 SQ Siding)": "103956",
+    "Performance G8 Trim Coil (1 per 5 SQ Siding)": "103960",
+    "Outside corners": "105644",
+    "Inside Corners (Siding)": "105053",
+    '3/4" J-Channel (2 per SQ of siding)': "105118",
+    '1/2" J-Channel (2 per SQ of siding)': "105114",
+    "Finish Trim": "105200",
+    "Starter": "107361",
+    "House Wrap": "646662A0",
+    "RainDrop": "646686",
+    '3/8" Fan Fold': "668363",
+    '1 1/4" Trim Nails': "780052",
+    'Soffit & fascia up to 13" wide — Charter Oak': "105020",
+    'Soffit & fascia up to 13" wide — Greenbriar': "106022",
+    'Soffit & fascia up to 13" — T2': "105007",
+    'Soffit & fascia 13"–30" wide — Charter Oak': "105020",
+    'Soffit & fascia 13"–30" wide — Greenbriar': "106022",
+    'Soffit & fascia 13"–30" — T2': "105007",
+    '3/4" J-Channel (Charter Oak)': "105118",
+    '1/2" J-Channel (for T2 Soffit)': "105114",
+}
+
+
 def build_tier_sections(tier_name: str) -> list:
     """Build the full sections list for a given tier name using SECTION_LAYOUT + TIER_PRICES."""
     prices = TIER_PRICES[tier_name]
@@ -282,6 +318,7 @@ def build_tier_sections(tier_name: str) -> list:
                 "name": n, "unit": unit,
                 "mat": float(prices.get(n, 0)),
                 "lab": float(lab),  # labor default — contractor can override
+                "ami_part": ITEM_AMI.get(n),
             })
         out.append({"title": title, "ascend": ascend, "items": items})
     return out

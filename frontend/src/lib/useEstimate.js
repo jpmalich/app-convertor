@@ -35,6 +35,10 @@ export default function useEstimate(id) {
               mat: saved && saved.mat != null ? saved.mat : it.mat,
               lab: saved && saved.lab != null ? saved.lab : it.lab,
               qty: saved ? saved.qty || 0 : 0,
+              // Per-estimate color override (only set on lines the contractor edits)
+              color: saved && saved.color ? saved.color : "",
+              // SKU snapshot — taken from catalog so re-saves keep history consistent
+              ami_part: it.ami_part || (saved ? saved.ami_part : null) || null,
               // Catalog defaults — used to flag overrides in the UI
               defaultMat: it.mat,
               defaultLab: it.lab,
@@ -70,10 +74,13 @@ export default function useEstimate(id) {
   }, []);
 
   const updateLineField = useCallback((section, name, field, value) => {
+    // `color` is a string; everything else is numeric. Coerce accordingly so
+    // typing into the color box doesn't get NaN'd to 0.
+    const coerced = field === "color" ? String(value) : (Number(value) || 0);
     setEst((e) => ({
       ...e,
       lines: e.lines.map((l) =>
-        l.section === section && l.name === name ? { ...l, [field]: Number(value) || 0 } : l
+        l.section === section && l.name === name ? { ...l, [field]: coerced } : l
       ),
     }));
   }, []);

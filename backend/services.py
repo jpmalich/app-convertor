@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from config import SUPPLIER_NAME, SUPPLIER_TAGLINE
 from db import db, logger
 from deps import make_invite_code
-from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections
+from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +35,9 @@ async def get_branding() -> dict:
 # Price tiers
 # ---------------------------------------------------------------------------
 async def ensure_tiers_seeded():
-    """Seed the 4 standard price tiers if they don't exist yet."""
+    """Seed the 4 standard price tiers if they don't exist yet.
+    Also runs a tiny in-place migration to backfill `ami_part` on existing tier
+    docs that were seeded before AMI numbers existed in the catalog."""
     existing = {t["name"] async for t in db.price_tiers.find({}, {"name": 1})}
     for name in TIER_NAMES:
         if name not in existing:
@@ -48,6 +50,24 @@ async def ensure_tiers_seeded():
                 "updated_at": now,
             })
             logger.info("Seeded price tier %s", name)
+
+    # Backfill ami_part on existing tiers whenever the seed map gains new SKUs.
+    # Cheap to run on every boot — only writes when an item is missing the field.
+    async for tier in db.price_tiers.find({}, {"_id": 0, "id": 1, "sections": 1}):
+        sections = tier.get("sections") or []
+        dirty = False
+        for sec in sections:
+            for item in sec.get("items", []):
+                want = ITEM_AMI.get(item.get("name"))
+                if want and item.get("ami_part") != want:
+                    item["ami_part"] = want
+                    dirty = True
+        if dirty:
+            await db.price_tiers.update_one(
+                {"id": tier["id"]},
+                {"$set": {"sections": sections, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            logger.info("Backfilled AMI part numbers on tier %s", tier["id"])
 
 
 async def get_default_tier_id() -> str | None:

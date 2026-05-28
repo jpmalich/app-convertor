@@ -3,9 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import api, { API, formatApiError } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
+import { useCompany } from "@/lib/company";
+import { useBranding } from "@/lib/branding";
 import useEstimate from "@/lib/useEstimate";
 import { calcTotals } from "@/lib/calc";
+import { buildMaterialListHtml, materialListFilename } from "@/lib/materialList";
 import StickyBar from "@/components/estimate/StickyBar";
 import JobInfoPanel from "@/components/estimate/JobInfoPanel";
 import SettingsRow from "@/components/estimate/SettingsRow";
@@ -18,6 +21,9 @@ export default function EstimateEditor() {
   const { id } = useParams();
   const nav = useNavigate();
   const t = useT();
+  const { lang } = useLang();
+  const { company } = useCompany();
+  const branding = useBranding();
   const { est, catalog, loading, emailStatus, update, updateLineQty, updateLineField, resetLineToDefault, save } = useEstimate(id);
   const [openSections, setOpenSections] = useState({});
   const [saving, setSaving] = useState(false);
@@ -69,6 +75,37 @@ export default function EstimateEditor() {
     }
   };
 
+  const handlePrintMaterials = async () => {
+    // Save first so the server has the latest qty/color before we render the PDF.
+    await handleSave();
+    // Build the material-list HTML on the client, then reuse the existing
+    // estimate-PDF endpoint (which accepts arbitrary html).
+    const html = buildMaterialListHtml({ estimate: est, company, branding, lang });
+    try {
+      const res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/estimates/${id}/pdf`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipient_email: "noreply@noreply.com", html_quote: html }),
+        }
+      );
+      if (!res.ok) throw new Error(`PDF render failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = materialListFilename(est);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(`Could not generate material list: ${e.message}`);
+    }
+  };
+
   return (
     <>
       <StickyBar est={est} totals={totals} />
@@ -103,6 +140,7 @@ export default function EstimateEditor() {
           }}
           onPrint={() => window.print()}
           onExportCsv={handleExportCsv}
+          onPrintMaterials={handlePrintMaterials}
         />
       </main>
 

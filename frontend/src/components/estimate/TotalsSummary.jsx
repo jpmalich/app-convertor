@@ -1,9 +1,9 @@
 import React from "react";
 import { fmt } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { Save, FileText, Printer, Download } from "lucide-react";
+import { Save, FileText, Printer, Download, ClipboardList } from "lucide-react";
 
-export default function TotalsSummary({ est, totals, saving, onSave, onOpenQuote, onPrint, onExportCsv }) {
+export default function TotalsSummary({ est, totals, saving, onSave, onOpenQuote, onPrint, onExportCsv, onPrintMaterials }) {
   const t = useT();
   const modeLabel = est.pricing_mode === "markup" ? t("est.markup").toLowerCase() : t("est.margin").toLowerCase();
   return (
@@ -23,6 +23,9 @@ export default function TotalsSummary({ est, totals, saving, onSave, onOpenQuote
         </button>
         <button className="btn-secondary" onClick={onOpenQuote} data-testid="open-quote-btn">
           <FileText className="w-4 h-4" /> {t("est.customerQuote")}
+        </button>
+        <button className="btn-secondary" onClick={onPrintMaterials} data-testid="material-list-btn">
+          <ClipboardList className="w-4 h-4" /> Material List
         </button>
         <button className="btn-secondary" onClick={onPrint} data-testid="print-btn">
           <Printer className="w-4 h-4" /> {t("est.print")}
