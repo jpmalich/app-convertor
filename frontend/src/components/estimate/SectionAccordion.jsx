@@ -1,8 +1,9 @@
 import React from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, Lightbulb } from "lucide-react";
 import { fmt } from "@/lib/api";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
+import { isCommonlyNeeded, unfilledCommonCount } from "@/lib/commonItems";
 
 /**
  * Renders one collapsible section.
@@ -35,6 +36,9 @@ export default function SectionAccordion({
     miscRows.reduce((s, m) => s + (m.mat || 0) + (m.lab || 0), 0);
 
   const filledCount = lines.filter((l) => (l.qty || 0) > 0).length + miscRows.length;
+  // Yellow flag pill: shown on the collapsed section header so contractors
+  // know which categories have commonly-needed items they haven't quoted yet.
+  const unfilledCommon = unfilledCommonCount(lines);
 
   const addMisc = () => {
     const newRow = isMiscMat
@@ -66,6 +70,16 @@ export default function SectionAccordion({
               {t("est.itemsBadge", { n: filledCount })}
             </span>
           )}
+          {unfilledCommon > 0 && (
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 bg-yellow-100 border border-yellow-400 text-yellow-900 flex items-center gap-1"
+              title="Commonly-needed items in this section haven't been quoted yet"
+              data-testid={`common-flag-${section.title}`}
+            >
+              <Lightbulb className="w-3 h-3" />
+              {unfilledCommon}
+            </span>
+          )}
         </div>
         <div className="font-mono-num text-sm text-[#52525B]">{fmt(sectionSell)}</div>
       </button>
@@ -82,13 +96,24 @@ export default function SectionAccordion({
           {lines.map((l) => {
             const total = (l.qty || 0) * ((l.mat || 0) + (l.lab || 0));
             const labOverridden = l.defaultLab != null && Number(l.lab) !== Number(l.defaultLab);
+            const isCommon = isCommonlyNeeded(l.name);
+            const isUnfilledCommon = isCommon && (l.qty || 0) <= 0;
             return (
               <div
                 key={l.name}
-                className="grid grid-cols-12 gap-3 px-4 md:px-5 py-3 md:py-2 border-b border-[#E4E4E7] items-center"
+                className={`grid grid-cols-12 gap-3 px-4 md:px-5 py-3 md:py-2 border-b border-[#E4E4E7] items-center ${
+                  isUnfilledCommon ? "bg-yellow-50" : ""
+                }`}
+                data-testid={`row-${section.title}-${l.name}`}
               >
                 <div className="col-span-12 md:col-span-5">
-                  <div className="text-sm font-semibold md:font-normal text-[#09090B]">
+                  <div className="text-sm font-semibold md:font-normal text-[#09090B] flex items-center gap-2 flex-wrap">
+                    {isCommon && (
+                      <Lightbulb
+                        className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0"
+                        title="Commonly needed — review qty"
+                      />
+                    )}
                     {tItem(l.name, lang)}
                     {l.ami_part && (
                       <span
