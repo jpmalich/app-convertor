@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from config import SUPPLIER_NAME, SUPPLIER_TAGLINE
 from db import db, logger
 from deps import make_invite_code
-from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI
+from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI, TIER_PRICES
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +53,46 @@ async def ensure_tiers_seeded():
         {"$set": {"lines.$[l].section": "Vinyl Siding"}},
         array_filters=[{"l.section": "Install Vinyl Siding"}],
     )
+    # Iter 26: rename "Ascend - 5.5\" H Channel  (16' length)" → "Ascend - 5.5\" Trim  (16' length)"
+    # in both tier docs AND historical estimate line items.
+    H_CHANNEL = "Ascend - 5.5\" H Channel  (16' length)"
+    TRIM = "Ascend - 5.5\" Trim  (16' length)"
+    await db.price_tiers.update_many(
+        {"sections.items.name": H_CHANNEL},
+        {"$set": {"sections.$[].items.$[it].name": TRIM}},
+        array_filters=[{"it.name": H_CHANNEL}],
+    )
+    await db.estimates.update_many(
+        {"lines.name": H_CHANNEL},
+        {"$set": {"lines.$[l].name": TRIM}},
+        array_filters=[{"l.name": H_CHANNEL}],
+    )
+    # Iter 26 follow-up: the catalog_seed update + section-rebuild migration
+    # raced on first reload — Trim/ASCEND Finish Trim/Ascend - Starter landed
+    # in DB at $0 because TIER_PRICES wasn't fully populated yet. Backfill the
+    # correct mat prices from TIER_PRICES, idempotent (only updates items that
+    # are currently $0 and have a real price in TIER_PRICES).
+    BACKFILL = [TRIM, "ASCEND Finish Trim", "Ascend - Starter"]
+    async for tier in db.price_tiers.find({}, {"_id": 0, "id": 1, "name": 1, "sections": 1}):
+        prices = TIER_PRICES.get(tier["name"])
+        if not prices:
+            continue
+        sections = tier.get("sections") or []
+        changed = False
+        for sec in sections:
+            for it in sec.get("items", []) or []:
+                if it.get("name") in BACKFILL and float(it.get("mat") or 0) == 0:
+                    want = float(prices.get(it["name"], 0))
+                    if want > 0:
+                        it["mat"] = want
+                        changed = True
+        if changed:
+            await db.price_tiers.update_one(
+                {"id": tier["id"]},
+                {"$set": {"sections": sections,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            logger.info("Backfilled Ascend prices on tier %s", tier["name"])
     existing = {t["name"] async for t in db.price_tiers.find({}, {"name": 1})}
     for name in TIER_NAMES:
         if name not in existing:
