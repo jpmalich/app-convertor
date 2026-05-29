@@ -9,7 +9,13 @@ export function calcTotals(est) {
     lines.reduce((s, l) => s + (l.qty || 0) * (l.lab || 0), 0) +
     miscMat.reduce((s, l) => s + (l.lab || 0), 0) +
     miscLab.reduce((s, l) => s + (l.lab || 0), 0);
-  const wasted = subMat * (1 + (est?.waste_pct || 0) / 100);
+  // Waste factor only inflates Vinyl Siding material (cut-offs from
+  // 12.5'/16' panels). Everything else is ordered to actual count.
+  const vinylMat = lines
+    .filter((l) => l.section === "Vinyl Siding")
+    .reduce((s, l) => s + (l.qty || 0) * (l.mat || 0), 0);
+  const wasteAdd = vinylMat * ((est?.waste_pct || 0) / 100);
+  const wasted = subMat + wasteAdd;
   const tax = est?.tax_enabled ? wasted * ((est?.tax_rate || 0) / 100) : 0;
   const base = wasted + tax + subLab;
   const pct = (est?.margin_pct || 0) / 100;

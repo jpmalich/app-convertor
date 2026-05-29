@@ -156,7 +156,15 @@ def calc_totals(est: dict) -> dict:
         + sum((m.get("lab", 0) or 0) for m in misc_material)
         + sum((m.get("lab", 0) or 0) for m in misc_labor)
     )
-    wasted = sub_mat * (1 + (est.get("waste_pct", 0) or 0) / 100)
+    # Waste factor only inflates the Vinyl Siding material (cut-offs from
+    # 12.5'/16' panels). Trim, accessories, soffit, gutter, dumpster, etc. are
+    # ordered to actual piece-count so they should not be padded.
+    vinyl_mat = sum(
+        (ln.get("qty", 0) or 0) * (ln.get("mat", 0) or 0)
+        for ln in lines if ln.get("section") == "Vinyl Siding"
+    )
+    waste_add = vinyl_mat * ((est.get("waste_pct", 0) or 0) / 100)
+    wasted = sub_mat + waste_add
     tax = wasted * ((est.get("tax_rate", 0) or 0) / 100) if est.get("tax_enabled") else 0
     base = wasted + tax + sub_lab
     pct = (est.get("margin_pct", 0) or 0) / 100

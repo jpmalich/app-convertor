@@ -64,7 +64,12 @@ export function buildMaterialListHtml({ estimate, company, branding, lang = "en"
       items
         .map((l) => {
           const rawQty = Number(l.qty) || 0;
-          const wasteQty = roundUpHalf(rawQty * (1 + wastePct / 100));
+          // Waste only applies to Vinyl Siding line items. Everything else
+          // is ordered to actual piece-count.
+          const applyWaste = sectionName === "Vinyl Siding";
+          const wasteQty = applyWaste
+            ? roundUpHalf(rawQty * (1 + wastePct / 100))
+            : rawQty;
           return `<tr class="item-row">
             <td class="cell-ami">${l.ami_part ? esc(l.ami_part) : '<span class="dim">—</span>'}</td>
             <td class="cell-desc">${esc(tItem(l.name, lang))}</td>

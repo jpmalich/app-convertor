@@ -26,6 +26,9 @@ export default function SettingsRow({ est, update }) {
           />
           <span className="text-[#52525B]">{t("est.wasteSuffix")}</span>
         </div>
+        <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+          {t("est.wasteHint")}
+        </p>
       </div>
       <div className="card p-5">
         <div className="section-tag mb-3">{t("est.salesTax")}</div>

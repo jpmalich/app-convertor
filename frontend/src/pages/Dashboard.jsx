@@ -81,7 +81,12 @@ export default function Dashboard() {
     const subLab = (e.lines || []).reduce((s, l) => s + (l.qty || 0) * (l.lab || 0), 0) +
       (e.misc_material || []).reduce((s, l) => s + (l.lab || 0), 0) +
       (e.misc_labor || []).reduce((s, l) => s + (l.lab || 0), 0);
-    const wasted = subMat * (1 + (e.waste_pct || 0) / 100);
+    // Waste applies only to Vinyl Siding material — keeps the dashboard
+    // pipeline totals matching the per-estimate calc in lib/calc.js.
+    const vinylMat = (e.lines || [])
+      .filter((l) => l.section === "Vinyl Siding")
+      .reduce((s, l) => s + (l.qty || 0) * (l.mat || 0), 0);
+    const wasted = subMat + vinylMat * ((e.waste_pct || 0) / 100);
     const tax = e.tax_enabled ? wasted * ((e.tax_rate || 0) / 100) : 0;
     const base = wasted + tax + subLab;
     const pct = (e.margin_pct || 0) / 100;
