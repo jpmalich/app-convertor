@@ -128,6 +128,23 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: round((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)),
         "note": "Eaves LF + Rakes LF",
     },
+    # MISC LABOR & MATERIAL — caps from HOVER window/door counts
+    {
+        "section": "Misc. Labor & Material",
+        "item": "Cap window",
+        "unit": "Each",
+        "extract": lambda m: int(m.get("window_count") or 0),
+        "note": "1 per window from HOVER",
+    },
+    {
+        "section": "Misc. Labor & Material",
+        "item": "Cap entry door",
+        "unit": "Each",
+        # We can't tell entry vs patio vs garage from HOVER, so default all
+        # doors to entry. Contractor adjusts in editor if there's a patio/garage.
+        "extract": lambda m: int(m.get("door_count") or 0),
+        "note": "1 per door (split to patio/garage manually if needed)",
+    },
 ]
 
 
