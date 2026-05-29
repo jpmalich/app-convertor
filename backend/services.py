@@ -72,7 +72,12 @@ async def ensure_tiers_seeded():
     # in DB at $0 because TIER_PRICES wasn't fully populated yet. Backfill the
     # correct mat prices from TIER_PRICES, idempotent (only updates items that
     # are currently $0 and have a real price in TIER_PRICES).
-    BACKFILL = [TRIM, "ASCEND Finish Trim", "Ascend - Starter"]
+    BACKFILL = [
+        TRIM, "ASCEND Finish Trim", "Ascend - Starter",
+        ".019 Coil (1 per 50' fascia)",
+        "PVC Trim Coil (1 per 50' fascia)",
+        "Performance G8 Trim Coil (1 per 50' fascia)",
+    ]
     async for tier in db.price_tiers.find({}, {"_id": 0, "id": 1, "name": 1, "sections": 1}):
         prices = TIER_PRICES.get(tier["name"])
         if not prices:
