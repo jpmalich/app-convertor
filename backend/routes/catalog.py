@@ -7,7 +7,7 @@ from catalog_seed import DEFAULT_TIER_NAME
 from db import db
 from deps import check_admin_token, get_company_for, get_current_user
 from models import CatalogOverridesIn, CompanyTierAssign, TierUpdate
-from services import ensure_tiers_seeded
+from services import calc_totals, ensure_tiers_seeded
 
 router = APIRouter()
 
@@ -145,7 +145,6 @@ async def admin_list_companies(request: Request):
 async def admin_pipeline_stats(request: Request):
     """Aggregate pipeline across ALL contractor companies — what the supplier
     sees on /branding-admin to gauge tool adoption + Alside-product velocity."""
-    from services import calc_totals
     check_admin_token(request)
     cursor = db.estimates.find({}, {"_id": 0})
     estimates = await cursor.to_list(5000)

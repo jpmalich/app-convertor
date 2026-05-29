@@ -1,6 +1,7 @@
 """Quote-email delivery via Resend + email-config status."""
 import asyncio
 import base64
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -44,7 +45,10 @@ async def email_quote(est_id: str, body: EmailQuoteIn, user: dict = Depends(get_
 
         # Persist the client-generated accept token (idempotent — keep the first one assigned)
         # and bump the estimate's status to "sent" so the dashboard can show pipeline state.
-        update_set = {"status_label": "sent", "last_sent_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
+        update_set = {
+            "status_label": "sent",
+            "last_sent_at": datetime.now(timezone.utc).isoformat(),
+        }
         if body.accept_token and not est.get("accept_token"):
             update_set["accept_token"] = body.accept_token
             update_set["recipient_email"] = body.recipient_email

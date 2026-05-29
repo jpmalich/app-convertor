@@ -361,8 +361,8 @@ function DiffPreview({ changes, unmatched, onCancel, onApply, busy }) {
             Unmatched rows (skipped)
           </div>
           <ul className="text-xs text-red-900 space-y-1 font-mono-num">
-            {unmatched.slice(0, 10).map((u, i) => (
-              <li key={i}>
+            {unmatched.slice(0, 10).map((u) => (
+              <li key={`${u.row}-${u.tier || ""}-${u.name || ""}`}>
                 Row {u.row}: {u.tier || "?"} · {u.section || "?"} · {u.name || "?"} — <em>{u.reason}</em>
               </li>
             ))}
@@ -390,11 +390,11 @@ function DiffPreview({ changes, unmatched, onCancel, onApply, busy }) {
               </tr>
             </thead>
             <tbody className="bg-white">
-              {changes.map((c, i) => {
+              {changes.map((c) => {
                 const delta = c.new - c.old;
                 const pct = c.old ? (delta / c.old) * 100 : 0;
                 return (
-                  <tr key={i} className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA]">
+                  <tr key={`${c.tier_id}-${c.section}-${c.name}-${c.field}`} className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA]">
                     <td className="px-3 py-1.5 font-mono-num text-xs text-[#52525B]">{c.tier_name}</td>
                     <td className="px-3 py-1.5 text-xs text-[#52525B]">{c.section}</td>
                     <td className="px-3 py-1.5 text-xs">{c.name}</td>

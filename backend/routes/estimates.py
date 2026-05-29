@@ -1,6 +1,7 @@
 """Estimate CRUD + CSV exports."""
 import csv
 import io
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -76,7 +77,7 @@ async def duplicate_estimate(est_id: str, user: dict = Depends(get_current_user)
         "created_by_name": user.get("name"),
         "created_at": now,
         "updated_at": now,
-        "estimate_number": f"EST-{int(__import__('time').time()) % 1_000_000:06d}",
+        "estimate_number": f"EST-{int(time.time()) % 1_000_000:06d}",
         "estimate_date": now[:10],
         "status_label": "draft",
         "notes": (src.get("notes") or ""),  # carry scope forward; contractor can edit
