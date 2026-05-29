@@ -1,7 +1,7 @@
 """Compose all sub-routers under the /api prefix."""
 from fastapi import APIRouter
 
-from . import auth, branding, catalog, company, email, estimates, public, uploads
+from . import auth, branding, catalog, company, email, estimates, pricing_admin, public, uploads
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(branding.router)
@@ -12,6 +12,7 @@ api_router.include_router(estimates.router)
 api_router.include_router(uploads.router)
 api_router.include_router(email.router)
 api_router.include_router(public.router)
+api_router.include_router(pricing_admin.router)
 
 
 @api_router.get("/")

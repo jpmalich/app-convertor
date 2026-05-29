@@ -4,6 +4,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Upload, Shield, Copy, ArrowLeft, Tags, Building2, Percent, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import PricingUpdatePanel from "@/components/admin/PricingUpdatePanel";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -304,6 +305,9 @@ export default function BrandingAdmin() {
 
         {/* Pricing Tiers */}
         <PricingTiersPanel token={token} />
+
+        {/* Bulk pricing updates (% bump, CSV/Excel upload, export) */}
+        <PricingUpdatePanel token={token} />
 
         {/* Contractors → Tier assignment */}
         <PipelinePanel token={token} />
