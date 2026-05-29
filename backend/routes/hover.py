@@ -128,6 +128,14 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: round((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)),
         "note": "Eaves LF + Rakes LF",
     },
+    # SEAMLESS GUTTER — eaves are exactly where gutters go (rakes don't get gutter)
+    {
+        "section": "Seamless Gutter",
+        "item": "Gutter 6\"",
+        "unit": "LF",
+        "extract": lambda m: round(m.get("eaves_lf") or 0),
+        "note": "Eaves LF (gutters run along eaves, not rakes)",
+    },
     # MISC LABOR & MATERIAL — caps from HOVER window/door counts. We use the
     # classified counts (entry/patio/garage) from the LLM so the contractor
     # doesn't have to manually rebalance.
