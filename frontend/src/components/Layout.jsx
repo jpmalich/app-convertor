@@ -7,6 +7,7 @@ import { LogOut, LayoutGrid, Settings2, Users } from "lucide-react";
 import CompanyLogo from "@/components/CompanyLogo";
 import InstallBanner from "@/components/InstallBanner";
 import LangToggle from "@/components/LangToggle";
+import Footer from "@/components/Footer";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -30,7 +31,7 @@ export default function Layout() {
     }`;
 
   return (
-    <div className="min-h-screen bg-[#F4F4F5]">
+    <div className="min-h-screen bg-[#F4F4F5] flex flex-col">
       <header className="bg-white border-b border-[#E4E4E7] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-3" data-testid="brand-link">
@@ -80,7 +81,10 @@ export default function Layout() {
           <Link to="/team" className={`flex-1 text-center ${linkCls("/team")}`}>{t("nav.team")}</Link>
         </div>
       </header>
-      <Outlet />
+      <div className="flex-1">
+        <Outlet />
+      </div>
+      <Footer />
       <InstallBanner />
     </div>
   );

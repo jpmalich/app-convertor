@@ -13,6 +13,8 @@ import Catalog from "@/pages/Catalog";
 import Team from "@/pages/Team";
 import BrandingAdmin from "@/pages/BrandingAdmin";
 import AcceptPage from "@/pages/AcceptPage";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 import Layout from "@/components/Layout";
 
 function Protected({ children }) {
@@ -41,6 +43,8 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/branding-admin" element={<BrandingAdmin />} />
                   <Route path="/accept/:token" element={<AcceptPage />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
                   <Route
                     element={
                       <Protected>
