@@ -4,6 +4,7 @@ import api, { fmt, formatApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Plus, Trash2, FileText, Search, Download, Copy } from "lucide-react";
+import EmailPipeline from "@/components/EmailPipeline";
 
 // Categorize an estimate into one of the pipeline buckets based on its lifecycle fields.
 function statusOf(e) {
@@ -289,6 +290,7 @@ export default function Dashboard() {
                         {t("dash.badge.sent")}
                       </span>
                     ) : null}
+                    <EmailPipeline est={e} />
                   </div>
                   <div className="text-xs text-[#A1A1AA]">{new Date(e.updated_at).toLocaleString()}</div>
                 </div>
