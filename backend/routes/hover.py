@@ -59,8 +59,14 @@ HOVER_MAPPING_SPEC = [
         "section": "Vinyl Siding",
         "item": "Charter Oak Clap 4.5\" .046",
         "unit": "SQ",
-        "extract": lambda m: round((m.get("siding_sqft") or 0) / 100.0, 1),
-        "note": "Default siding pick — change profile via edit if needed",
+        # Prefer HOVER's "SIDING WASTE TOTALS → + Openings < 20ft² +10%" value
+        # (it already bakes in the small-opening waste). Fall back to the raw
+        # facades area if that specific row isn't present in the report.
+        "extract": lambda m: round(
+            ((m.get("siding_with_openings_sqft") or m.get("siding_sqft") or 0)) / 100.0,
+            1,
+        ),
+        "note": "From HOVER 'SIDING WASTE TOTALS → + Openings < 20ft² +10%' (already includes +10% small-opening adder)",
     },
     # ACCESSORIES — corners, J-channel, starter, finish trim, house wrap, nails
     {
@@ -217,7 +223,8 @@ PROMPT_SYSTEM = (
 PROMPT_TEMPLATE = """Extract from this HOVER report:
 
 {{
-  "siding_sqft": <total Facades Siding area, ft²>,
+  "siding_sqft": <total Facades Siding area, ft² — the BASE area before any waste>,
+  "siding_with_openings_sqft": <value from the "SIDING WASTE TOTALS" section, specifically the line labeled "+ Openings < 20ft² +10%" (or "Openings <20ft² +10%"). This is the siding area AFTER the 10% small-openings adder. ft². If that exact line is not present, return null.>,
   "soffit_sqft": <total Soffit Area, ft²>,
   "eaves_lf": <total Eaves length, feet (decimal)>,
   "rakes_lf": <total Rakes length, feet (decimal)>,
