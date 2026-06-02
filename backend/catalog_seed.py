@@ -45,6 +45,54 @@ SECTION_LAYOUT = [
         "Ascend - J - Channel  (2 per Sq of siding)",
         "ASCEND Finish Trim", "Ascend - Starter",
     ]),
+    # -----------------------------------------------------------------------
+    # LP SmartSide product line — single-price (same across all 4 tiers,
+    # set by Howard's "LP Smart siding" tab in the Excel price sheet).
+    # Items are prefixed with "LP " to avoid collisions with Vinyl/Ascend
+    # items of similar names (e.g. "Outside corners" exists in both
+    # Siding Accessories and LP Siding Accessories with different sizes).
+    # Placed right after Ascend so the LP-only sections appear at the TOP of
+    # the LP tab in the editor (above the shared Tear-Off/Gutter/Misc
+    # sections that LP also uses).
+    # -----------------------------------------------------------------------
+    ("LP Smart Siding", False, [
+        'LP Strand Lap Siding 3/8" x 8" x 16\'',
+        'LP Strand Shake 3/8" x 12" x 4\'',
+        'LP Nickel Gap 1/2" x 8" x 16\'',
+        'LP Strand Panel 3/8" x 4\' x 8\'',
+        'LP Strand Panel 3/8" x 4\' x 10\'',
+        'LP Strand Panel 3/8" x 16" x 16\'',
+    ]),
+    ("LP SmartSide Trim", False, [
+        # 190 series — 4/4 thick
+        'LP 190 Trim 5/8" x 3" x 16\'',
+        # 440 series — 4/4 thick
+        'LP 440 Trim 3/4" x 4" x 16\'',
+        'LP 440 Trim 3/4" x 6" x 16\'',
+        'LP 440 Trim 3/4" x 8" x 16\'',
+        'LP 440 Trim 3/4" x 10" x 16\'',
+        'LP 440 Trim 3/4" x 12" x 16\'',
+        # 540 series — 5/4 thick
+        'LP 540 Trim 3/4" x 4" x 16\'',
+        'LP 540 Trim 3/4" x 6" x 16\'',
+        'LP 540 Trim 3/4" x 8" x 16\'',
+        'LP 540 Trim 3/4" x 10" x 16\'',
+        'LP 540 Trim 3/4" x 12" x 16\'',
+    ]),
+    ("LP Siding Accessories", False, [
+        "LP Color Match Coil",
+        'LP Outside corners 4" x 16\'',
+        'LP Outside corners 6" x 16\'',
+        "LP Touch-up Kit",
+        "LP Caulking Color Match",
+        'LP J-blocks 1" W/FLASHING',
+        'LP Mini Split 1" W/FLASHING',
+    ]),
+    ("LP SmartSide Soffit", False, [
+        'LP Soffit 3/8" x 16" x 16\' Vented',
+        'LP Soffit 3/8" x 24" x 16\' Vented',
+        'LP Soffit 3/8" x 24" x 16\' Solid',
+    ]),
     ("Siding Accessories", False, [
         ".019 Coil (1 per 5 Sq Siding)",
         "PVC Trim Coil (1 per 5 Sq Siding)",
@@ -89,51 +137,6 @@ SECTION_LAYOUT = [
     ("Misc.", False, [
         "Cap tops of bird boxes", "Dormer upcharge", "R&R Utilities",
         "Cut out 4x4 section of wall and insulate",
-    ]),
-    # -----------------------------------------------------------------------
-    # LP SmartSide product line — single-price (same across all 4 tiers,
-    # set by Howard's "LP Smart siding" tab in the Excel price sheet).
-    # Items are prefixed with "LP " to avoid collisions with Vinyl/Ascend
-    # items of similar names (e.g. "Outside corners" exists in both
-    # Siding Accessories and LP Siding Accessories with different sizes).
-    # -----------------------------------------------------------------------
-    ("LP Smart Siding", False, [
-        'LP Strand Lap Siding 3/8" x 8" x 16\'',
-        'LP Strand Shake 3/8" x 12" x 4\'',
-        'LP Nickel Gap 1/2" x 8" x 16\'',
-        'LP Strand Panel 3/8" x 4\' x 8\'',
-        'LP Strand Panel 3/8" x 4\' x 10\'',
-        'LP Strand Panel 3/8" x 16" x 16\'',
-    ]),
-    ("LP SmartSide Trim", False, [
-        # 190 series — 4/4 thick
-        'LP 190 Trim 5/8" x 3" x 16\'',
-        # 440 series — 4/4 thick
-        'LP 440 Trim 3/4" x 4" x 16\'',
-        'LP 440 Trim 3/4" x 6" x 16\'',
-        'LP 440 Trim 3/4" x 8" x 16\'',
-        'LP 440 Trim 3/4" x 10" x 16\'',
-        'LP 440 Trim 3/4" x 12" x 16\'',
-        # 540 series — 5/4 thick
-        'LP 540 Trim 3/4" x 4" x 16\'',
-        'LP 540 Trim 3/4" x 6" x 16\'',
-        'LP 540 Trim 3/4" x 8" x 16\'',
-        'LP 540 Trim 3/4" x 10" x 16\'',
-        'LP 540 Trim 3/4" x 12" x 16\'',
-    ]),
-    ("LP Siding Accessories", False, [
-        "LP Color Match Coil",
-        'LP Outside corners 4" x 16\'',
-        'LP Outside corners 6" x 16\'',
-        "LP Touch-up Kit",
-        "LP Caulking Color Match",
-        'LP J-blocks 1" W/FLASHING',
-        'LP Mini Split 1" W/FLASHING',
-    ]),
-    ("LP SmartSide Soffit", False, [
-        'LP Soffit 3/8" x 16" x 16\' Vented',
-        'LP Soffit 3/8" x 24" x 16\' Vented',
-        'LP Soffit 3/8" x 24" x 16\' Solid',
     ]),
 ]
 
@@ -213,11 +216,10 @@ ITEM_META = {
     'LP 440 Trim 3/4" x 8" x 16\'': ("PCS", 0),
     'LP 440 Trim 3/4" x 10" x 16\'': ("PCS", 0),
     'LP 440 Trim 3/4" x 12" x 16\'': ("PCS", 0),
-    # Note: the 4" and 6" entries in the 540 (5/4) series are labelled
-    # "SQ" in Howard's spreadsheet — preserved verbatim. Adjust via the
-    # catalog admin if that was a typo and they should be PCS.
-    'LP 540 Trim 3/4" x 4" x 16\'': ("SQ", 0),
-    'LP 540 Trim 3/4" x 6" x 16\'': ("SQ", 0),
+    # Note: per Howard, all 540 (5/4) trim sizes are PCS — the SQ labels for
+    # 4" and 6" in the original spreadsheet were typos.
+    'LP 540 Trim 3/4" x 4" x 16\'': ("PCS", 0),
+    'LP 540 Trim 3/4" x 6" x 16\'': ("PCS", 0),
     'LP 540 Trim 3/4" x 8" x 16\'': ("PCS", 0),
     'LP 540 Trim 3/4" x 10" x 16\'': ("PCS", 0),
     'LP 540 Trim 3/4" x 12" x 16\'': ("PCS", 0),

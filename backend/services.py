@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from config import SUPPLIER_NAME, SUPPLIER_TAGLINE
 from db import db, logger
 from deps import make_invite_code
-from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI, TIER_PRICES
+from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI, ITEM_META, TIER_PRICES
 
 
 # ---------------------------------------------------------------------------
@@ -164,11 +164,17 @@ async def ensure_tiers_seeded():
                 sections[i] = fresh_sec
                 dirty = True
             else:
-                # Same item set — just backfill ami_part on each item
+                # Same item set — backfill ami_part AND reconcile unit from
+                # ITEM_META so unit fixes (e.g. SQ→PCS typo corrections) flow
+                # to existing DB tier docs without manual migration.
                 for item in sec.get("items", []):
-                    want = ITEM_AMI.get(item.get("name"))
-                    if want and item.get("ami_part") != want:
-                        item["ami_part"] = want
+                    want_ami = ITEM_AMI.get(item.get("name"))
+                    if want_ami and item.get("ami_part") != want_ami:
+                        item["ami_part"] = want_ami
+                        dirty = True
+                    meta = ITEM_META.get(item.get("name"))
+                    if meta and meta[0] and item.get("unit") != meta[0]:
+                        item["unit"] = meta[0]
                         dirty = True
         # Append any sections introduced by a newer SECTION_LAYOUT that don't
         # yet exist in this tier doc (e.g. the LP SmartSide sections added

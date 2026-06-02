@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from catalog_seed import DEFAULT_TIER_NAME, product_lines_for
+from catalog_seed import DEFAULT_TIER_NAME, SECTION_LAYOUT, product_lines_for
 from db import db
 from deps import check_admin_token, get_company_for, get_current_user
 from models import CatalogOverridesIn, CompanyTierAssign, TierUpdate
@@ -58,6 +58,12 @@ async def _resolve_catalog_for_company(company: dict) -> dict:
             "product_lines": s.get("product_lines") or product_lines_for(s["title"]),
             "items": items_out,
         })
+    # Sort sections by their position in SECTION_LAYOUT so the order is always
+    # canonical (matches code) regardless of how they were appended to the DB
+    # tier doc over time. Sections we don't know about (legacy / renamed)
+    # fall to the end of the list.
+    layout_order = {title: i for i, (title, _, _) in enumerate(SECTION_LAYOUT)}
+    sections.sort(key=lambda s: layout_order.get(s["title"], 10_000))
     return {"sections": sections, "tier_id": tier["id"], "tier_name": tier["name"]}
 
 
