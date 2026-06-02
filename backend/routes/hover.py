@@ -192,11 +192,12 @@ HOVER_MAPPING_SPEC = [
         "note": "2/SQ siding + perimeter ÷ 10' around openings",
     },
     # =====================================================================
-    # HOUSE WRAP — vinyl + ascend share the accessories section. LP has
-    # no house wrap line item.
+    # WALL UNDERLAYMENT — vinyl gets House Wrap; Ascend gets RainDrop (the
+    # rainscreen underlayment Ascend installers prefer). LP has no
+    # underlayment line in the catalog.
     # =====================================================================
     {
-        "tabs": ["vinyl", "ascend"],
+        "tabs": ["vinyl"],
         "section": "Siding Accessories",
         "item": "House Wrap",
         "unit": "SQ",
@@ -205,6 +206,17 @@ HOVER_MAPPING_SPEC = [
             1,
         ),
         "note": "Matches HOVER 'SIDING WASTE TOTALS → + Openings < 20ft² +10%'",
+    },
+    {
+        "tabs": ["ascend"],
+        "section": "Siding Accessories",
+        "item": "RainDrop",
+        "unit": "SQ",
+        "extract": lambda m: round(
+            ((m.get("siding_with_openings_sqft") or m.get("siding_sqft") or 0)) / 100.0,
+            1,
+        ),
+        "note": "Ascend rainscreen underlayment — same SQ as siding",
     },
     # =====================================================================
     # NAILS — vinyl + ascend; LP uses different fasteners (manual entry).
