@@ -10,7 +10,10 @@ from datetime import datetime, timezone
 from config import SUPPLIER_NAME, SUPPLIER_TAGLINE
 from db import db, logger
 from deps import make_invite_code
-from catalog_seed import TIER_NAMES, DEFAULT_TIER_NAME, build_tier_sections, ITEM_AMI, ITEM_META, TIER_PRICES
+from catalog_seed import (
+    DEFAULT_TIER_NAME, TIER_NAMES, build_tier_sections,
+    ITEM_AMI, ITEM_META, TIER_PRICES, product_lines_for,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +170,16 @@ async def ensure_tiers_seeded():
         existing_titles = {s.get("title") for s in sections}
         dirty = False
         for i, sec in enumerate(sections):
+            # Reconcile product_lines on every section every boot so any code
+            # change to SECTION_PRODUCT_LINES propagates without manual DB
+            # work. Iter 23 cleanup: the "Ascend Cladding" section was first
+            # created with the default ["vinyl","ascend"] during a hot-reload
+            # race before SECTION_PRODUCT_LINES had its entry — this fixes
+            # those stale rows in place.
+            want_pls = product_lines_for(sec["title"])
+            if sec.get("product_lines") != want_pls:
+                sec["product_lines"] = want_pls
+                dirty = True
             fresh_sec = next((s for s in fresh if s["title"] == sec["title"]), None)
             if not fresh_sec:
                 continue
