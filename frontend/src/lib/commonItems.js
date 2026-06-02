@@ -32,6 +32,7 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   "Finish Trim",
   '3/4" J-Channel (2 per Sq of siding)',
   "House Wrap",
+  "RainDrop",
   '2" Nails 30 lbs (1 per 15 Sq)',
   '1 1/4" Trim Nails',
   'Soffit & fascia up to 13" wide Charter Oak',
@@ -88,6 +89,10 @@ const COMMON_ITEM_TAB_SCOPE = {
   '3/4" J-Channel (2 per Sq of siding)': new Set(["vinyl"]),
   "Finish Trim": new Set(["vinyl"]),
   "Starter": new Set(["vinyl"]),
+  // House Wrap is the canonical underlayment on Vinyl jobs; Ascend installers
+  // typically use RainDrop instead, so swap the highlight per tab.
+  "House Wrap": new Set(["vinyl"]),
+  "RainDrop": new Set(["ascend"]),
 };
 
 /** Is this item commonly-needed on the given tab? Falls back to a global
