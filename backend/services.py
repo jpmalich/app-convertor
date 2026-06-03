@@ -94,6 +94,20 @@ async def ensure_tiers_seeded():
             "el.name": {"$in": ASCEND_SIDING_NAMES},
         }],
     )
+    # Iter 30: "New Exterior Coil Trim" moved from "Window Exterior Trim
+    # Work" → "Window Installation". Re-tag any saved estimate lines that
+    # still reference the old section so saved-qty / overrides round-trip.
+    await db.estimates.update_many(
+        {"lines": {"$elemMatch": {
+            "section": "Window Exterior Trim Work",
+            "name": "New Exterior Coil Trim",
+        }}},
+        {"$set": {"lines.$[el].section": "Window Installation"}},
+        array_filters=[{
+            "el.section": "Window Exterior Trim Work",
+            "el.name": "New Exterior Coil Trim",
+        }],
+    )
     # Iter 27: drop the "(1 per 50' fascia)" suffix from the 3 siding-accessories
     # coil entries — the fascia variants now live in Vinyl Soffit with Siding as
     # separate items, so the Siding Accessories names should just describe their

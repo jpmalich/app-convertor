@@ -358,7 +358,7 @@ HOVER_MAPPING_SPEC = [
     },
     {
         "tabs": ["windows"],
-        "section": "Window Exterior Trim Work",
+        "section": "Window Installation",
         "item": "New Exterior Coil Trim",
         "unit": "Each",
         "extract": lambda m: int(m.get("window_count") or 0),

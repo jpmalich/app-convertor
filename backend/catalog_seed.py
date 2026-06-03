@@ -171,6 +171,9 @@ SECTION_LAYOUT = [
         "Field Mull Assembly and/or Field Glaze (adder per each opening)",
         "Lead Safe Installation Practices For Window Installation",
         "Lead Safe - Test Fee (all homes 1978 and older are tested)",
+        # Moved from "Window Exterior Trim Work" — coil trim is part of the
+        # standard install package on most window jobs.
+        "New Exterior Coil Trim",
     ]),
     ("Vero Sliding Glass Doors", False, [
         'Vero - Sliding glass door 60" x 80"',
@@ -187,7 +190,6 @@ SECTION_LAYOUT = [
         "New Exterior Primed Stops or Snap Trim",
         "New Exterior Primed Wood Trim",
         "New Exterior Composite Trim",
-        "New Exterior Coil Trim",
     ]),
     ("Window Interior Trim Work", False, [
         "New Interior Stops or Flat Trim",
