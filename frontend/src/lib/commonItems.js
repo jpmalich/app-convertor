@@ -68,6 +68,16 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   "LP Caulking Color Match",
   'LP J-blocks 1" W/FLASHING',
   'LP Soffit 3/8" x 16" x 16\' Vented',
+  // ----- Windows tab common items -----
+  "Vero - Double Hung 0-101 UI",
+  "Window - Pocket Install",
+  "Lead Safe Installation Practices For Window Installation",
+  "Lead Safe - Test Fee (all homes 1978 and older are tested)",
+  "Cap window (Windows)",
+  'Vero - Sliding glass door 60" x 80"',
+  "Vinyl Sliding Glass Door (5' & 6' width)",
+  "Job Measure Standard Fee 4 days+",
+  "Disposal Fee (Windows)",
 ]);
 
 export function isCommonlyNeeded(itemName) {
