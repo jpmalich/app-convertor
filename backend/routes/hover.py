@@ -356,6 +356,14 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: int(m.get("patio_door_count") or 0),
         "note": "1 install per HOVER patio door",
     },
+    {
+        "tabs": ["windows"],
+        "section": "Window Exterior Trim Work",
+        "item": "New Exterior Coil Trim",
+        "unit": "Each",
+        "extract": lambda m: int(m.get("window_count") or 0),
+        "note": "1 coil-trim wrap per HOVER window (default exterior trim)",
+    },
 ]
 
 
