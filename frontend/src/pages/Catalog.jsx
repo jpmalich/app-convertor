@@ -4,6 +4,7 @@ import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
 import { toast } from "sonner";
 import { Save, RotateCcw, Lock } from "lucide-react";
+import { VISIBLE_TAB_IDS } from "@/lib/tabsConfig";
 
 export default function Catalog() {
   const [sections, setSections] = useState([]);
@@ -17,7 +18,15 @@ export default function Catalog() {
     setLoading(true);
     try {
       const { data } = await api.get("/catalog");
-      setSections(data.sections || []);
+      // Hide sections that belong only to tabs the contractor has turned off
+      // in tabsConfig (e.g. LP SmartSide while LP pricing is paused). The
+      // backend still returns everything so catalog data stays intact —
+      // we just don't render hidden sections in the catalog admin UI.
+      const visible = (data.sections || []).filter((s) => {
+        const pls = s.product_lines || ["vinyl", "ascend"];
+        return pls.some((p) => VISIBLE_TAB_IDS.includes(p));
+      });
+      setSections(visible);
       setTierName(data.tier_name || "");
     } catch (e) {
       toast.error(formatApiError(e.response?.data?.detail));
