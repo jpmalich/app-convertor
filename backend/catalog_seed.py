@@ -175,6 +175,10 @@ SECTION_LAYOUT = [
         # "Cap window" line on the siding tabs (same $20 labor); "(Windows)"
         # suffix disambiguates from the siding Misc. Labor & Material row.
         "Cap window (Windows)",
+        # Iter 32: moved here from "Window Misc." per Howard — install
+        # always includes the measure trip + disposal.
+        "Job Measure Standard Fee 4 days+",
+        "Disposal Fee (Windows)",
     ]),
     ("Vero Sliding Glass Doors", False, [
         'Vero - Sliding glass door 60" x 80"',
@@ -204,11 +208,9 @@ SECTION_LAYOUT = [
         "Mullion Removal & Cut-Out of Non-Structural Framing Members",
         "Storm Window Removal",
         "Second/Third/Clear Story Fee",
-        "Job Measure Standard Fee 4 days+",
         "Job Measure Rush Fee 3 days or less",
         "Add New Channel on ALL, Close up opening to match master Front opening",
         "Minimum Job Charge For Window Installs",
-        "Disposal Fee (Windows)",
     ]),
 ]
 

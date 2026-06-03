@@ -123,6 +123,23 @@ async def ensure_tiers_seeded():
         {"$set": {"lines.$[l].name": "Cap window (Windows)"}},
         array_filters=[{"l.name": "New Exterior Coil Trim"}],
     )
+    # Iter 32: Job Measure Standard Fee + Disposal Fee moved from
+    # "Window Misc." → "Window Installation". Re-tag historical lines.
+    WINDOW_INSTALL_MOVE = [
+        "Job Measure Standard Fee 4 days+",
+        "Disposal Fee (Windows)",
+    ]
+    await db.estimates.update_many(
+        {"lines": {"$elemMatch": {
+            "section": "Window Misc.",
+            "name": {"$in": WINDOW_INSTALL_MOVE},
+        }}},
+        {"$set": {"lines.$[el].section": "Window Installation"}},
+        array_filters=[{
+            "el.section": "Window Misc.",
+            "el.name": {"$in": WINDOW_INSTALL_MOVE},
+        }],
+    )
     # Iter 27: drop the "(1 per 50' fascia)" suffix from the 3 siding-accessories
     # coil entries — the fascia variants now live in Vinyl Soffit with Siding as
     # separate items, so the Siding Accessories names should just describe their
