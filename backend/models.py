@@ -106,6 +106,12 @@ class EstimateIn(BaseModel):
     outside_corner_color: str = ""
     soffit_fascia_color: str = ""
     window_wrap_color: str = ""
+    # Window product colors (Windows tab) — appear on the material list so
+    # the installer pulls the right Vero color stock for frames + interior
+    # + exterior trim.
+    window_frame_color: str = ""
+    window_interior_color: str = ""
+    window_exterior_color: str = ""
     waste_pct: float = 0
     tax_enabled: bool = True
     tax_rate: float = 7.0

@@ -127,6 +127,46 @@ export default function JobInfoPanel({ est, update }) {
             </div>
           </div>
         </div>
+
+        {/* Window-product colors (Windows tab) — separate block so it
+            doesn't visually crowd the siding color row. */}
+        <div className="sm:col-span-2 lg:col-span-3 pt-2">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-2">
+            {t("est.colors.windows")}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div>
+              <label className="label">{t("est.color.windowFrame")}</label>
+              <input
+                className="input"
+                value={est.window_frame_color || ""}
+                placeholder={t("est.color.placeholder")}
+                onChange={(e) => update({ window_frame_color: e.target.value })}
+                data-testid="color-window-frame"
+              />
+            </div>
+            <div>
+              <label className="label">{t("est.color.windowInterior")}</label>
+              <input
+                className="input"
+                value={est.window_interior_color || ""}
+                placeholder={t("est.color.placeholder")}
+                onChange={(e) => update({ window_interior_color: e.target.value })}
+                data-testid="color-window-interior"
+              />
+            </div>
+            <div>
+              <label className="label">{t("est.color.windowExterior")}</label>
+              <input
+                className="input"
+                value={est.window_exterior_color || ""}
+                placeholder={t("est.color.placeholder")}
+                onChange={(e) => update({ window_exterior_color: e.target.value })}
+                data-testid="color-window-exterior"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
