@@ -1,16 +1,20 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api, { formatApiError } from "@/lib/api";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
 import { toast } from "sonner";
 import { Save, RotateCcw, Lock } from "lucide-react";
-import { VISIBLE_TAB_IDS } from "@/lib/tabsConfig";
+import { VISIBLE_TAB_IDS, VISIBLE_TAB_DEFS } from "@/lib/tabsConfig";
 
 export default function Catalog() {
   const [sections, setSections] = useState([]);
   const [tierName, setTierName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Active product-line tab on the catalog page. Mirrors the estimator's
+  // Excel-style tab strip so contractors can edit labor on Vinyl, Ascend
+  // and Windows independently without scrolling through all sections.
+  const [activeTab, setActiveTab] = useState(VISIBLE_TAB_IDS[0] || "vinyl");
   const t = useT();
   const { lang } = useLang();
 
@@ -89,6 +93,32 @@ export default function Catalog() {
     toast.success(t("cat.resetDone"));
   };
 
+  // Sections that belong to the active tab. Sections with multi-tab
+  // product_lines (e.g. shared Misc rows) appear under every relevant tab.
+  const visibleSections = useMemo(
+    () =>
+      sections.filter((s) =>
+        (s.product_lines || ["vinyl", "ascend"]).includes(activeTab)
+      ),
+    [sections, activeTab]
+  );
+
+  // Per-tab override count for the tab badge so contractors can see at a
+  // glance which tab has labor edits in flight (not yet saved or already
+  // saved as an override).
+  const tabBadges = useMemo(() => {
+    const counts = {};
+    VISIBLE_TAB_DEFS.forEach((t) => (counts[t.id] = 0));
+    sections.forEach((s) => {
+      const pls = s.product_lines || ["vinyl", "ascend"];
+      const overrideCount = (s.items || []).filter((it) => it.lab_overridden).length;
+      pls.forEach((p) => {
+        if (counts[p] != null) counts[p] += overrideCount;
+      });
+    });
+    return counts;
+  }, [sections]);
+
   if (loading) return <div className="p-10 text-center text-[#52525B]">{t("common.loading")}</div>;
 
   return (
@@ -116,8 +146,54 @@ export default function Catalog() {
         </div>
       </div>
 
+      <div
+        className="card mb-4 p-2 flex flex-wrap gap-1"
+        role="tablist"
+        data-testid="catalog-tabs"
+      >
+        {VISIBLE_TAB_DEFS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const badge = tabBadges[tab.id] || 0;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.id)}
+              data-testid={`catalog-tab-${tab.id}`}
+              className={[
+                "flex-1 min-w-[140px] px-4 py-3 text-left border transition-colors",
+                isActive
+                  ? "border-[#F97316] bg-orange-50"
+                  : "border-[#E4E4E7] bg-white hover:border-[#A1A1AA]",
+              ].join(" ")}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={[
+                    "text-xs uppercase tracking-[0.18em] font-bold",
+                    isActive ? "text-[#F97316]" : "text-[#52525B]",
+                  ].join(" ")}
+                >
+                  {tab.label}
+                </span>
+                {badge > 0 && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 bg-[#F97316] text-white"
+                    title={`${badge} labor override${badge === 1 ? "" : "s"} on this tab`}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="space-y-8">
-        {sections.map((s) => (
+        {visibleSections.map((s) => (
           <div key={s.title} className="card">
             <div className="px-5 py-3 border-b border-[#E4E4E7]">
               <div className="section-tag">{tSection(s.title, lang)}</div>
