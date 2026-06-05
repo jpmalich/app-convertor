@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -47,6 +47,12 @@ export default function useEstimate(id) {
   const [catalog, setCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [emailStatus, setEmailStatus] = useState({ configured: false });
+  // User-edit counter — bumped on every user mutation (update, qty, field,
+  // reset). The autosave effect watches this so it can fire ONLY for real
+  // user edits, never for the initial load or for est updates triggered
+  // by save() itself (e.g. status_label changes from the server).
+  const [userEdits, setUserEdits] = useState(0);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +129,7 @@ export default function useEstimate(id) {
 
   const update = useCallback((patch) => {
     setEst((e) => ({ ...e, ...patch }));
+    setUserEdits((n) => n + 1);
   }, []);
 
   // Matchers now take the tab too — a section + name can exist on multiple
@@ -137,6 +144,7 @@ export default function useEstimate(id) {
         matchLine(l, tab, section, name) ? { ...l, qty: Number(qty) || 0 } : l
       ),
     }));
+    setUserEdits((n) => n + 1);
   }, []);
 
   const updateLineField = useCallback((tab, section, name, field, value) => {
@@ -146,6 +154,7 @@ export default function useEstimate(id) {
         matchLine(l, tab, section, name) ? { ...l, [field]: Number(value) || 0 } : l
       ),
     }));
+    setUserEdits((n) => n + 1);
   }, []);
 
   const resetLineToDefault = useCallback((tab, section, name) => {
@@ -157,66 +166,135 @@ export default function useEstimate(id) {
           : l
       ),
     }));
+    setUserEdits((n) => n + 1);
   }, []);
 
-  const save = useCallback(async () => {
-    if (!est) return;
+  // Build the PUT payload from an estimate object. Used by both save()
+  // and any caller that needs to persist freshly-merged data without
+  // waiting for React state to flush (e.g. HOVER apply, catalog sync —
+  // both update() THEN save() in one user gesture and would otherwise
+  // hit the stale-closure issue).
+  const buildPayload = useCallback((source) => {
+    return {
+      kind: source.kind || "siding",
+      customer_name: source.customer_name || "",
+      address: source.address || "",
+      estimate_number: source.estimate_number || "",
+      estimate_date: source.estimate_date || "",
+      estimator: source.estimator || "",
+      notes: source.notes || "",
+      siding_color: source.siding_color || "",
+      ascend_color: source.ascend_color || "",
+      accessories_color: source.accessories_color || "",
+      outside_corner_color: source.outside_corner_color || "",
+      soffit_fascia_color: source.soffit_fascia_color || "",
+      window_wrap_color: source.window_wrap_color || "",
+      window_frame_color: source.window_frame_color || "",
+      window_interior_color: source.window_interior_color || "",
+      window_exterior_color: source.window_exterior_color || "",
+      waste_pct: source.waste_pct || 0,
+      tax_enabled: !!source.tax_enabled,
+      tax_rate: source.tax_rate || 0,
+      margin_pct: source.margin_pct || 0,
+      pricing_mode: source.pricing_mode || "margin",
+      lines: (source.lines || [])
+        .filter((l) => (l.qty || 0) > 0)
+        .map((l) => ({
+          tab: l.tab || "vinyl",
+          section: l.section,
+          name: l.name,
+          unit: l.unit,
+          qty: l.qty,
+          mat: l.mat,
+          lab: l.lab,
+          ami_part: l.ami_part || null,
+        })),
+      misc_labor: (source.misc_labor || []).map((m) => ({ ...m, tab: m.tab || "vinyl" })),
+      misc_material: (source.misc_material || []).map((m) => ({ ...m, tab: m.tab || "vinyl" })),
+      photos: source.photos || [],
+      status_label: source.status_label || "draft",
+    };
+  }, []);
+
+  const save = useCallback(async (overrideEst) => {
+    const source = overrideEst || est;
+    if (!source) return;
+    savingRef.current = true;
     try {
-      const payload = {
-        // Preserve workspace tag so a Window-kind estimate stays in the
-        // Windows dashboard after saving.
-        kind: est.kind || "siding",
-        customer_name: est.customer_name || "",
-        address: est.address || "",
-        estimate_number: est.estimate_number || "",
-        estimate_date: est.estimate_date || "",
-        estimator: est.estimator || "",
-        notes: est.notes || "",
-        siding_color: est.siding_color || "",
-        ascend_color: est.ascend_color || "",
-        accessories_color: est.accessories_color || "",
-        outside_corner_color: est.outside_corner_color || "",
-        soffit_fascia_color: est.soffit_fascia_color || "",
-        window_wrap_color: est.window_wrap_color || "",
-        window_frame_color: est.window_frame_color || "",
-        window_interior_color: est.window_interior_color || "",
-        window_exterior_color: est.window_exterior_color || "",
-        waste_pct: est.waste_pct || 0,
-        tax_enabled: !!est.tax_enabled,
-        tax_rate: est.tax_rate || 0,
-        margin_pct: est.margin_pct || 0,
-        pricing_mode: est.pricing_mode || "margin",
-        lines: est.lines
-          .filter((l) => (l.qty || 0) > 0)
-          .map((l) => ({
-            // Persist the tab so multi-product quotes round-trip cleanly.
-            tab: l.tab || "vinyl",
-            section: l.section,
-            name: l.name,
-            unit: l.unit,
-            qty: l.qty,
-            mat: l.mat,
-            lab: l.lab,
-            ami_part: l.ami_part || null,
-          })),
-        misc_labor: (est.misc_labor || []).map((m) => ({
-          ...m,
-          tab: m.tab || "vinyl",
-        })),
-        misc_material: (est.misc_material || []).map((m) => ({
-          ...m,
-          tab: m.tab || "vinyl",
-        })),
-        photos: est.photos || [],
-        status_label: est.status_label || "draft",
-      };
-      const { data } = await api.put(`/estimates/${id}`, payload);
+      const { data } = await api.put(`/estimates/${id}`, buildPayload(source));
       toast.success("Saved");
       return data;
     } catch (err) {
       toast.error(formatApiError(err.response?.data?.detail));
+    } finally {
+      savingRef.current = false;
     }
-  }, [est, id]);
+  }, [est, id, buildPayload]);
+
+  // Quiet autosave — same PUT as save() but no toast (so the user isn't
+  // spammed every 2s while typing). Reads the LATEST est via ref so the
+  // debounce timer always saves the freshest state.
+  const estRef = useRef(est);
+  useEffect(() => { estRef.current = est; }, [est]);
+
+  const autosave = useCallback(async () => {
+    const source = estRef.current;
+    if (!source) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      await api.put(`/estimates/${id}`, buildPayload(source));
+    } catch {
+      // Silently swallow — user can hit Save manually for a toast.
+      // Network blips shouldn't bug them every 2 seconds.
+    } finally {
+      savingRef.current = false;
+    }
+  }, [id, buildPayload]);
+
+  // Debounced autosave: whenever the user-edit counter ticks, schedule a
+  // PUT 2 seconds later. Subsequent edits within that window reset the
+  // timer. This way "type qty=10, click away, refresh" never loses the
+  // change without the user remembering to hit Save.
+  useEffect(() => {
+    if (userEdits === 0) return;            // skip initial load
+    const t = setTimeout(autosave, 2000);
+    return () => clearTimeout(t);
+  }, [userEdits, autosave]);
+
+  // Flush any pending autosave when the tab is closed / hidden so the
+  // contractor doesn't lose recent edits when navigating away quickly.
+  useEffect(() => {
+    if (userEdits === 0) return;
+    const flush = () => {
+      const source = estRef.current;
+      if (!source) return;
+      try {
+        // sendBeacon is the only reliable way to fire a request during
+        // pagehide; it's fire-and-forget but the server still persists.
+        const url = `${api.defaults.baseURL}/estimates/${id}`;
+        const blob = new Blob([JSON.stringify(buildPayload(source))], {
+          type: "application/json",
+        });
+        // sendBeacon doesn't carry credentials cross-origin by default —
+        // fall back to a synchronous fetch with keepalive when needed.
+        if (navigator.sendBeacon && navigator.sendBeacon(url, blob)) return;
+        fetch(url, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildPayload(source)),
+          keepalive: true,
+        }).catch(() => {});
+      } catch { /* private mode / no beacon support */ }
+    };
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", flush);
+    };
+  }, [id, userEdits, buildPayload]);
 
   return { est, catalog, loading, emailStatus, update, updateLineQty, updateLineField, resetLineToDefault, save };
 }

@@ -159,7 +159,7 @@ export default function EstimateEditor() {
       <StickyBar est={est} tabTotals={tabTotals} activeTab={activeTab} tabs={visibleTabDefs} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24" data-testid="estimate-editor">
         <CatalogSyncBanner est={est} update={update} />
-        <JobInfoPanel est={est} update={update} />
+        <JobInfoPanel est={est} update={update} save={save} />
         <SettingsRow est={est} update={update} />
         <PhotosPanel est={est} update={update} />
 

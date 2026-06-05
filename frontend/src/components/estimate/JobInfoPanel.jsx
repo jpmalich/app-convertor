@@ -3,13 +3,13 @@ import { useT } from "@/lib/i18n";
 import { VINYL_SIDING_COLORS, ASCEND_COLORS, SOFFIT_COLORS } from "@/lib/colorOptions";
 import HoverImportButton from "@/components/estimate/HoverImportButton";
 
-export default function JobInfoPanel({ est, update }) {
+export default function JobInfoPanel({ est, update, save }) {
   const t = useT();
   return (
     <section className="card p-5 sm:p-6 mb-6" data-testid="job-info">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="section-tag">{t("est.jobInfo")}</div>
-        <HoverImportButton est={est} update={update} />
+        <HoverImportButton est={est} update={update} save={save} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>

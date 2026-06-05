@@ -46,10 +46,11 @@ const UNIT_BY_KEY = (k) => {
   return "";
 };
 
-export default function HoverImportButton({ est, update }) {
+export default function HoverImportButton({ est, update, save }) {
   const fileRef = useRef();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [applying, setApplying] = useState(false);
 
   const upload = async (f) => {
     if (!f) return;
@@ -71,7 +72,7 @@ export default function HoverImportButton({ est, update }) {
     }
   };
 
-  const apply = () => {
+  const apply = async () => {
     if (!result?.lines?.length) return;
     // Merge by (tab, section, name) — same item can exist on multiple tabs
     // with independent quantities, and the HOVER importer now emits a line
@@ -105,8 +106,22 @@ export default function HoverImportButton({ est, update }) {
       }
     }
     update({ lines: next });
-    toast.success(`Imported HOVER: ${added} new + ${updated} updated across all tabs`);
-    setResult(null);
+    // Auto-save right after apply so the contractor can leave / refresh
+    // without losing the import. Without this, hitting Back forces another
+    // HOVER upload (and another LLM charge). Pass the merged estimate
+    // straight to save() to side-step React's stale state closure.
+    setApplying(true);
+    try {
+      if (save) {
+        await save({ ...est, lines: next });
+      }
+      toast.success(`Imported HOVER: ${added} new + ${updated} updated across all tabs · saved`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e?.message || "Saved locally but failed to persist — click Save");
+    } finally {
+      setApplying(false);
+      setResult(null);
+    }
   };
 
   return (
@@ -265,11 +280,15 @@ export default function HoverImportButton({ est, update }) {
                   type="button"
                   className="px-4 py-2 bg-[#F97316] text-white border border-[#F97316] hover:bg-[#EA580C] text-sm font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
                   onClick={apply}
-                  disabled={!result.lines?.length}
+                  disabled={!result.lines?.length || applying}
                   data-testid="hover-apply-btn"
                 >
-                  <Check className="w-4 h-4" />
-                  Apply {result.lines?.length || 0} Lines
+                  {applying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  {applying ? "Saving…" : `Apply ${result.lines?.length || 0} Lines & Save`}
                 </button>
               </div>
             </div>
