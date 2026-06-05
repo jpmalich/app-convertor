@@ -59,7 +59,7 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl"],
         "section": "Vinyl Siding",
-        "item": "Charter Oak Clap 4.5\" .046",
+        "item": "Charter Oak Standard color Dutch Lap 4.5\" .046",
         "unit": "SQ",
         "extract": lambda m: round(
             ((m.get("siding_with_openings_sqft") or m.get("siding_sqft") or 0)) / 100.0,
@@ -96,10 +96,10 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl"],
         "section": "Siding Accessories",
-        "item": "Outside corners",
+        "item": "Outside corners Standard color",
         "unit": "PCS",
         "extract": lambda m: max(1, round((m.get("outside_corner_lf") or 0) / 10)),
-        "note": "Vinyl 10' pieces / outside-corner LF",
+        "note": "Vinyl 10' pieces / outside-corner LF — defaults to Standard color",
     },
     {
         "tabs": ["ascend"],
@@ -124,10 +124,10 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl"],
         "section": "Siding Accessories",
-        "item": "Inside Corners (Siding)",
+        "item": "Inside Corners (Siding) Standard color",
         "unit": "PCS",
         "extract": lambda m: max(0, round((m.get("inside_corner_lf") or 0) / 10)),
-        "note": "10' pieces per HOVER inside-corner LF",
+        "note": "10' pieces per HOVER inside-corner LF — defaults to Standard color",
     },
     {
         "tabs": ["ascend"],
@@ -162,10 +162,10 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl"],
         "section": "Siding Accessories",
-        "item": "Finish Trim",
+        "item": "Finish Trim Standard color",
         "unit": "LF",
         "extract": lambda m: round(m.get("starter_lf") or 0),
-        "note": "Mirrors starter LF for top course",
+        "note": "Mirrors starter LF for top course — defaults to Standard color",
     },
     {
         "tabs": ["ascend"],
@@ -183,13 +183,13 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl"],
         "section": "Siding Accessories",
-        "item": "3/4\" J-Channel (2 per Sq of siding)",
+        "item": "3/4\" J-Channel Standard color (2 per Sq of siding)",
         "unit": "PCS",
         "extract": lambda m: max(0, round(
             ((m.get("siding_sqft") or 0) / 100.0) * 2
             + (m.get("opening_perimeter_lf") or 0) / 10
         )),
-        "note": "2/SQ siding + perimeter ÷ 10' around openings",
+        "note": "2/SQ siding + perimeter ÷ 10' around openings — defaults to Standard color",
     },
     # =====================================================================
     # WALL UNDERLAYMENT — vinyl gets House Wrap; Ascend gets RainDrop (the
@@ -244,18 +244,18 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl", "ascend"],
         "section": "Vinyl Soffit with Siding",
-        "item": "Soffit & fascia up to 13\" wide Charter Oak",
+        "item": "Soffit & fascia up to 13\" wide Charter Oak Standard color",
         "unit": "LF",
         "extract": lambda m: round((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)),
-        "note": "Eaves LF + Rakes LF",
+        "note": "Eaves LF + Rakes LF — defaults to Standard color",
     },
     {
         "tabs": ["vinyl", "ascend"],
         "section": "Vinyl Soffit with Siding",
-        "item": "3/4\" Soffit J-Channel (Charter Oak)",
+        "item": "3/4\" Soffit J-Channel (Charter Oak) Standard color",
         "unit": "LF",
         "extract": lambda m: round((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)),
-        "note": "Matches Soffit & fascia LF",
+        "note": "Matches Soffit & fascia LF — defaults to Standard color",
     },
     {
         "tabs": ["lp_smart"],

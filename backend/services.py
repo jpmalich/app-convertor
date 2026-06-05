@@ -170,6 +170,54 @@ async def ensure_tiers_seeded():
         ".019 Coil (1 per 50' fascia)",
         "PVC Trim Coil (1 per 50' fascia)",
         "Performance G8 Trim Coil (1 per 50' fascia)",
+        # Iter 34: Standard/Architectural color variants — backfill mat for
+        # any variant currently sitting at $0 (which happens when an earlier
+        # hot-reload race rebuilt the section with the new names but the
+        # then-current TIER_PRICES didn't yet have the new entries). Bounded
+        # to the new variant names so it can't touch any unrelated item.
+        # Vinyl Siding
+        'Conquest Standard color Clap 4.5" .040',
+        'Conquest Standard color Dutch lap 4.5" .040',
+        'Conquest Architectural color Clap 4.5" .040',
+        'Conquest Architectural color Dutch lap 4.5" .040',
+        'Coventry Standard color Clap 4" .042',
+        'Coventry Standard color Dutch lap 4" .042',
+        'Coventry Architectural color Clap 4" .042',
+        'Coventry Architectural color Dutch lap 4" .042',
+        'Coventry Standard color Clap 5" .042',
+        'Coventry Standard color Dutch lap 5" .042',
+        'Coventry Architectural color Clap 5" .042',
+        'Coventry Architectural color Dutch lap 5" .042',
+        'Odyssey Standard color Clap 4" .044',
+        'Odyssey Standard color Dutch Lap 4" .044',
+        'Odyssey Architectural color Clap 4" .044',
+        'Odyssey Architectural color Dutch Lap 4" .044',
+        'Odyssey Standard color Clap 5" .044',
+        'Odyssey Standard color Dutch Lap 5" .044',
+        'Odyssey Architectural color Clap 5" .044',
+        'Odyssey Architectural color Dutch Lap 5" .044',
+        'Charter Oak Standard color Clap 4.5" .046',
+        'Charter Oak Standard color Dutch Lap 4.5" .046',
+        'Charter Oak Architectural color Clap 4.5" .046',
+        'Charter Oak Architectural color Dutch Lap 4.5" .046',
+        'vertical board and batten Standard color 7"',
+        'vertical board and batten Architectural color 7"',
+        # Siding Accessories
+        "Outside corners Standard color",
+        "Outside corners Architectural color",
+        "Inside Corners (Siding) Standard color",
+        "Inside Corners (Siding) Architectural color",
+        '3/4" J-Channel Standard color (2 per Sq of siding)',
+        '3/4" J-Channel Architectural color (2 per Sq of siding)',
+        "Finish Trim Standard color",
+        "Finish Trim Architectural color",
+        # Vinyl Soffit with Siding
+        'Soffit & fascia up to 13" wide Charter Oak Standard color',
+        'Soffit & fascia up to 13" wide Charter Oak Architectural color',
+        'Soffit & fascia up to 13"-30" wide Charter Oak Standard color',
+        'Soffit & fascia up to 13"-30" wide Charter Oak Architectural color',
+        '3/4" Soffit J-Channel (Charter Oak) Standard color',
+        '3/4" Soffit J-Channel (Charter Oak) Architectural color',
     ]
     # Iter 28: LP trim moved from per-piece to per-LF pricing (Howard's
     # request — 16' boards, so LF price = PCS price ÷ 16). Force-update mat
@@ -214,6 +262,15 @@ async def ensure_tiers_seeded():
                     want = float(prices.get(it["name"], 0))
                     if want > 0:
                         it["mat"] = want
+                        changed = True
+                # Iter 34: same race can leave lab at $0 on items that should
+                # default to a non-zero lab (e.g. all the siding profiles at
+                # $125/SQ). Bounded to BACKFILL so it can't disturb deliberate
+                # supplier overrides on other items.
+                if it.get("name") in BACKFILL and float(it.get("lab") or 0) == 0:
+                    meta = ITEM_META.get(it["name"])
+                    if meta and float(meta[1]) > 0:
+                        it["lab"] = float(meta[1])
                         changed = True
                 # LP trim PCS→LF conversion (Iter 28): force the new LF price
                 # AND the new "LF" unit. Doesn't touch any other item, so it

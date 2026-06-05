@@ -1,0 +1,47 @@
+{
+  "summary": "Iter 34 (Siding Catalog Restructure) backend verification — all 17 pytest cases passed on first run. Catalog correctly splits siding profiles + accessories + Charter Oak soffit into Standard color / Architectural color variants per Howard's updated Alside Excel sheet. Old single-variant names removed; legacy estimates still load; tier prices, AMI part numbers, and the hover-import endpoint all behave as specified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration34_siding_split.py",
+    "/app/test_reports/pytest/pytest_iteration7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "catalog_seed.py is 1008 lines — single source of truth for all tier pricing. Consider splitting per-tier price dictionaries into their own modules (tiers/whole_sale.py, tiers/contractor.py, etc.) so future tier edits don't risk merge conflicts on the same giant file.",
+    "TIER_PRICES dictionaries have a misspelled key 'Clean up / haul away job debris' (capital C, spaces around slash) vs SECTION_LAYOUT name 'clean up/ haul away job debris' (lowercase c, no spaces). Lookups via .get(n,0) return 0 silently — this is why those rows still cost $0. Not Iter 34-related but worth flagging.",
+    "ITEM_AMI is missing entries for the new Standard/Architectural soffit J-Channel variants in /app/backend/routes/catalog.py output? Verified via test: AMI '105118' IS present on '3/4\" Soffit J-Channel (Charter Oak) Standard color'. OK — false alarm; tests confirm presence.",
+    "/api/admin/tiers correctly rejects missing token (401/403); good defensive auth."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration34_siding_split.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "n/a (skipped per request)"
+  },
+  "test_credentials": "Admin: hhunt6677@yahoo.com / Admin123! ; Supplier Admin Token: OXSp1EXqp1rPLsQfeEoZyDbFCLZ3D6B2D55HyO1LFoE",
+  "seed_data_creation": "Estimate round-trip test creates a TEST_Iter34_<uuid> estimate then deletes it. No persistent test data left in DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration34_siding_split.py is the canonical regression file for Iter 34 catalog shape. Run it whenever catalog_seed.py is touched. Each tier price assertion uses Charter Oak Standard Clap 4.5\".046 as the canary; expand the by_name lookup pattern to validate other variants if future iterations require it.",
+  "verified_features": [
+    "Admin login → 200 + session cookie",
+    "Vinyl Siding section: 27 items, all variants present, lab=$125, mat>0",
+    "Siding Accessories: 22 items, new color variants present, old names removed",
+    "Vinyl Soffit with Siding: 16 items, Charter Oak Standard/Architectural variants present",
+    "Architectural color upcharge Vinyl removed from catalog entirely",
+    "Tier prices for Charter Oak Std Clap: whole-sale=$151.31, Contractor=$136.22, Builder-Dealer=$125.46, one-opp=$113.57",
+    "AMI part numbers: Charter Oak Std Clap=015451, Std Dutch Lap=015452, Arch Clap=015451 (shared)",
+    "POST /api/estimates with new variant + GET round-trip persists correctly",
+    "GET /api/estimates lists legacy data without error",
+    "POST /api/estimates/hover-import endpoint exists and accepts file uploads"
+  ]
+}

@@ -26,17 +26,17 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   "Capping general",
   "Flashing",
   // Items the HOVER importer fills in — flag these for non-HOVER users too
-  "Outside corners",
-  "Inside Corners (Siding)",
+  "Outside corners Standard color",
+  "Inside Corners (Siding) Standard color",
   "Starter",
-  "Finish Trim",
-  '3/4" J-Channel (2 per Sq of siding)',
+  "Finish Trim Standard color",
+  '3/4" J-Channel Standard color (2 per Sq of siding)',
   "House Wrap",
   "RainDrop",
   '2" Nails 30 lbs (1 per 15 Sq)',
   '1 1/4" Trim Nails',
-  'Soffit & fascia up to 13" wide Charter Oak',
-  '3/4" Soffit J-Channel (Charter Oak)',
+  'Soffit & fascia up to 13" wide Charter Oak Standard color',
+  '3/4" Soffit J-Channel (Charter Oak) Standard color',
   'Gutter 6"',
   ".019 Coil (1 per 50' fascia)",
   "Cap window",
@@ -46,7 +46,7 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   // ----- Tab-default "headline" siding products (one per tab) -----
   // Even when a contractor isn't using HOVER, these are the most-quoted
   // items per product line — surface them so they always catch the eye.
-  'Charter Oak Dutch Lap 4.5" .046',          // Vinyl tab default
+  'Charter Oak Standard color Dutch Lap 4.5" .046',  // Vinyl tab default
   'Ascend Composite Lap Siding 7"',           // Ascend tab default
   // ----- Ascend Cladding/Accessories starter pack — Ascend installers
   // commonly need these but they're easy to overlook since the headline
@@ -94,10 +94,10 @@ export function isCommonlyNeeded(itemName) {
 //
 // Shape: { itemName: Set<tabId> } — if missing, the flag applies to all tabs.
 const COMMON_ITEM_TAB_SCOPE = {
-  "Outside corners": new Set(["vinyl"]),
-  "Inside Corners (Siding)": new Set(["vinyl"]),
-  '3/4" J-Channel (2 per Sq of siding)': new Set(["vinyl"]),
-  "Finish Trim": new Set(["vinyl"]),
+  "Outside corners Standard color": new Set(["vinyl"]),
+  "Inside Corners (Siding) Standard color": new Set(["vinyl"]),
+  '3/4" J-Channel Standard color (2 per Sq of siding)': new Set(["vinyl"]),
+  "Finish Trim Standard color": new Set(["vinyl"]),
   "Starter": new Set(["vinyl"]),
   // House Wrap is the canonical underlayment on Vinyl jobs; Ascend installers
   // typically use RainDrop instead, so swap the highlight per tab.
