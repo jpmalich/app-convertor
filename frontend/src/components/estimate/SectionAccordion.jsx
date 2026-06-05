@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Lightbulb } from "lucide-react";
 import { fmt } from "@/lib/api";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
 import { isCommonOnTab, unfilledCommonCount } from "@/lib/commonItems";
+import { groupLinesBySubCategory } from "@/lib/subCategories";
 
 /**
  * Renders one collapsible section.
@@ -131,6 +132,141 @@ export default function SectionAccordion({
     update({ [miscKey]: allMiscRows.filter((r) => r !== target) });
   };
 
+  // Sub-category support (currently only Vinyl Siding splits by brand).
+  // openSubs tracks which nested drop-downs are expanded; defaults to the
+  // first sub-category open so the section never looks empty on first open.
+  const subGroups = groupLinesBySubCategory(section.title, lines);
+  const [openSubs, setOpenSubs] = useState(
+    subGroups ? new Set(subGroups.slice(0, 1).map((g) => g.id)) : new Set()
+  );
+  const toggleSub = (id) =>
+    setOpenSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const renderLine = (l) => {
+    const total = (l.qty || 0) * ((l.mat || 0) + (l.lab || 0));
+    const labOverridden = l.defaultLab != null && Number(l.lab) !== Number(l.defaultLab);
+    const isCommon = isCommonOnTab(l.name, activeTab);
+    const isUnfilledCommon = isCommon && (l.qty || 0) <= 0;
+    return (
+      <div
+        key={`${l.tab}::${l.name}`}
+        className={`grid grid-cols-12 gap-3 px-4 md:px-5 py-3 md:py-2 border-b border-[#E4E4E7] items-center ${
+          isUnfilledCommon ? "bg-yellow-50" : ""
+        }`}
+        data-testid={`row-${section.title}-${l.name}`}
+      >
+        <div className="col-span-12 md:col-span-5">
+          <div className="text-sm font-semibold md:font-normal text-[#09090B] flex items-center gap-2 flex-wrap">
+            {isCommon && (
+              <Lightbulb
+                className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0"
+                title="Commonly needed — review qty"
+              />
+            )}
+            {tItem(l.name, lang)}
+            {l.ami_part && (
+              <span
+                className="ml-2 inline-block font-mono-num text-[10px] tracking-wider text-[#71717A] bg-[#F4F4F5] border border-[#E4E4E7] px-1.5 py-0.5 rounded-sm"
+                title="Alside part number"
+                data-testid={`ami-${section.title}-${l.name}`}
+              >
+                AMI #{l.ami_part}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="col-span-3 md:col-span-1 text-xs text-[#A1A1AA] uppercase tracking-wider">
+          <span className="md:hidden text-[10px] text-[#A1A1AA] block">{t("est.col.unit")}</span>
+          {tUnit(l.unit, lang)}
+        </div>
+        <div className="col-span-3 md:col-span-2 text-right text-sm font-mono-num text-[#52525B]">
+          <span className="md:hidden text-[10px] text-[#A1A1AA] block text-right">{t("est.col.mat")}</span>
+          {EDITABLE_MAT_ITEMS.has(l.name) ? (
+            <div className="relative">
+              <input
+                className={`input num h-11 md:h-9 text-base md:text-sm w-full text-right ${
+                  l.defaultMat != null && Number(l.mat) !== Number(l.defaultMat)
+                    ? "border-[#F97316] bg-orange-50"
+                    : ""
+                }`}
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={l.mat ?? 0}
+                onChange={(e) => onField(l.tab, l.section, l.name, "mat", e.target.value)}
+                data-testid={`mat-${section.title}-${l.name}`}
+              />
+              {l.defaultMat != null && Number(l.mat) !== Number(l.defaultMat) && (
+                <button
+                  type="button"
+                  className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
+                  onClick={() =>
+                    onField(l.tab, l.section, l.name, "mat", l.defaultMat ?? 0)
+                  }
+                  title={`Reset to catalog default ($${l.defaultMat ?? 0})`}
+                  data-testid={`reset-mat-${section.title}-${l.name}`}
+                >
+                  ↺
+                </button>
+              )}
+            </div>
+          ) : (
+            fmt(l.mat)
+          )}
+        </div>
+        <div className="col-span-3 md:col-span-1">
+          <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.qty")}</label>
+          <input
+            className="input num h-11 md:h-9 text-base md:text-sm w-full"
+            type="number"
+            inputMode="decimal"
+            step="0.5"
+            min="0"
+            value={l.qty || ""}
+            placeholder="0"
+            onChange={(e) => onQty(l.tab, l.section, l.name, e.target.value)}
+            data-testid={`qty-${section.title}-${l.name}`}
+          />
+        </div>
+        <div className="col-span-3 md:col-span-1 relative">
+          <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.lab")}</label>
+          <input
+            className={`input num h-11 md:h-9 text-base md:text-sm w-full ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
+            type="number"
+            inputMode="decimal"
+            step="0.25"
+            min="0"
+            value={l.lab ?? 0}
+            onChange={(e) => onField(l.tab, l.section, l.name, "lab", e.target.value)}
+            title={labOverridden ? `Catalog default: $${l.defaultLab}` : ""}
+            data-testid={`lab-${section.title}-${l.name}`}
+          />
+          {labOverridden && (
+            <button
+              type="button"
+              className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
+              onClick={() => onResetLine(l.tab, l.section, l.name)}
+              title={`Reset to catalog default ($${l.defaultLab})`}
+              data-testid={`reset-lab-${section.title}-${l.name}`}
+            >
+              ↺
+            </button>
+          )}
+        </div>
+        <div className="col-span-12 md:col-span-2 text-right font-mono-num text-base md:text-sm font-bold md:font-semibold text-[#09090B] pt-2 md:pt-0 border-t md:border-t-0 border-[#F4F4F5]">
+          <span className="md:hidden text-[10px] text-[#A1A1AA] uppercase tracking-wider mr-2">{t("est.col.total")}</span>
+          {fmt(total)}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="card mb-4" data-testid={`section-${section.title}`}>
       <button
@@ -168,125 +304,59 @@ export default function SectionAccordion({
             <div className="col-span-1 text-right">{t("est.col.lab")}</div>
             <div className="col-span-2 text-right">{t("est.col.total")}</div>
           </div>
-          {lines.map((l) => {
-            const total = (l.qty || 0) * ((l.mat || 0) + (l.lab || 0));
-            const labOverridden = l.defaultLab != null && Number(l.lab) !== Number(l.defaultLab);
-            const isCommon = isCommonOnTab(l.name, activeTab);
-            const isUnfilledCommon = isCommon && (l.qty || 0) <= 0;
-            return (
-              <div
-                key={`${l.tab}::${l.name}`}
-                className={`grid grid-cols-12 gap-3 px-4 md:px-5 py-3 md:py-2 border-b border-[#E4E4E7] items-center ${
-                  isUnfilledCommon ? "bg-yellow-50" : ""
-                }`}
-                data-testid={`row-${section.title}-${l.name}`}
-              >
-                <div className="col-span-12 md:col-span-5">
-                  <div className="text-sm font-semibold md:font-normal text-[#09090B] flex items-center gap-2 flex-wrap">
-                    {isCommon && (
-                      <Lightbulb
-                        className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0"
-                        title="Commonly needed — review qty"
-                      />
-                    )}
-                    {tItem(l.name, lang)}
-                    {l.ami_part && (
-                      <span
-                        className="ml-2 inline-block font-mono-num text-[10px] tracking-wider text-[#71717A] bg-[#F4F4F5] border border-[#E4E4E7] px-1.5 py-0.5 rounded-sm"
-                        title="Alside part number"
-                        data-testid={`ami-${section.title}-${l.name}`}
-                      >
-                        AMI #{l.ami_part}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="col-span-3 md:col-span-1 text-xs text-[#A1A1AA] uppercase tracking-wider">
-                  <span className="md:hidden text-[10px] text-[#A1A1AA] block">{t("est.col.unit")}</span>
-                  {tUnit(l.unit, lang)}
-                </div>
-                <div className="col-span-3 md:col-span-2 text-right text-sm font-mono-num text-[#52525B]">
-                  <span className="md:hidden text-[10px] text-[#A1A1AA] block text-right">{t("est.col.mat")}</span>
-                  {EDITABLE_MAT_ITEMS.has(l.name) ? (
-                    <div className="relative">
-                      <input
-                        className={`input num h-11 md:h-9 text-base md:text-sm w-full text-right ${
-                          l.defaultMat != null && Number(l.mat) !== Number(l.defaultMat)
-                            ? "border-[#F97316] bg-orange-50"
-                            : ""
-                        }`}
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        min="0"
-                        value={l.mat ?? 0}
-                        onChange={(e) => onField(l.tab, l.section, l.name, "mat", e.target.value)}
-                        data-testid={`mat-${section.title}-${l.name}`}
-                      />
-                      {l.defaultMat != null && Number(l.mat) !== Number(l.defaultMat) && (
-                        <button
-                          type="button"
-                          className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
-                          onClick={() =>
-                            onField(l.tab, l.section, l.name, "mat", l.defaultMat ?? 0)
-                          }
-                          title={`Reset to catalog default ($${l.defaultMat ?? 0})`}
-                          data-testid={`reset-mat-${section.title}-${l.name}`}
-                        >
-                          ↺
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    fmt(l.mat)
-                  )}
-                </div>
-                <div className="col-span-3 md:col-span-1">
-                  <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.qty")}</label>
-                  <input
-                    className="input num h-11 md:h-9 text-base md:text-sm w-full"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="0"
-                    value={l.qty || ""}
-                    placeholder="0"
-                    onChange={(e) => onQty(l.tab, l.section, l.name, e.target.value)}
-                    data-testid={`qty-${section.title}-${l.name}`}
-                  />
-                </div>
-                <div className="col-span-3 md:col-span-1 relative">
-                  <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.lab")}</label>
-                  <input
-                    className={`input num h-11 md:h-9 text-base md:text-sm w-full ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
-                    type="number"
-                    inputMode="decimal"
-                    step="0.25"
-                    min="0"
-                    value={l.lab ?? 0}
-                    onChange={(e) => onField(l.tab, l.section, l.name, "lab", e.target.value)}
-                    title={labOverridden ? `Catalog default: $${l.defaultLab}` : ""}
-                    data-testid={`lab-${section.title}-${l.name}`}
-                  />
-                  {labOverridden && (
+          {subGroups
+            ? subGroups.map((g) => {
+                const isOpenSub = openSubs.has(g.id);
+                const subFilled = g.lines.filter((l) => (l.qty || 0) > 0).length;
+                const subTotal = g.lines.reduce(
+                  (s, l) => s + (l.qty || 0) * ((l.mat || 0) + (l.lab || 0)),
+                  0
+                );
+                const subUnfilled = g.lines.filter(
+                  (l) => isCommonOnTab(l.name, activeTab) && (l.qty || 0) <= 0
+                ).length;
+                return (
+                  <div key={g.id} className="border-b border-[#E4E4E7]" data-testid={`subcat-${g.id}`}>
                     <button
                       type="button"
-                      className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
-                      onClick={() => onResetLine(l.tab, l.section, l.name)}
-                      title={`Reset to catalog default ($${l.defaultLab})`}
-                      data-testid={`reset-lab-${section.title}-${l.name}`}
+                      onClick={() => toggleSub(g.id)}
+                      className="w-full flex items-center justify-between px-5 py-2.5 text-left bg-[#FAFAFA] hover:bg-[#F4F4F5]"
+                      data-testid={`subcat-toggle-${g.id}`}
                     >
-                      ↺
+                      <div className="flex items-center gap-2.5">
+                        {isOpenSub ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-[#71717A]" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-[#71717A]" />
+                        )}
+                        <span className="text-xs uppercase tracking-[0.14em] font-semibold text-[#3F3F46]">
+                          {g.label}
+                        </span>
+                        <span className="text-[10px] text-[#A1A1AA] font-mono-num">
+                          {g.lines.length}
+                        </span>
+                        {subFilled > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 border border-[#F97316] text-[#F97316]">
+                            {t("est.itemsBadge", { n: subFilled })}
+                          </span>
+                        )}
+                        {subUnfilled > 0 && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 bg-yellow-100 border border-yellow-400 text-yellow-900 flex items-center gap-1"
+                            title="Commonly-needed items in this sub-category haven't been quoted yet"
+                          >
+                            <Lightbulb className="w-3 h-3" />
+                            {subUnfilled}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-mono-num text-xs text-[#52525B]">{fmt(subTotal)}</div>
                     </button>
-                  )}
-                </div>
-                <div className="col-span-12 md:col-span-2 text-right font-mono-num text-base md:text-sm font-bold md:font-semibold text-[#09090B] pt-2 md:pt-0 border-t md:border-t-0 border-[#F4F4F5]">
-                  <span className="md:hidden text-[10px] text-[#A1A1AA] uppercase tracking-wider mr-2">{t("est.col.total")}</span>
-                  {fmt(total)}
-                </div>
-              </div>
-            );
-          })}
+                    {isOpenSub && <div>{g.lines.map(renderLine)}</div>}
+                  </div>
+                );
+              })
+            : lines.map(renderLine)}
 
           {/* Misc / ad-hoc rows */}
           {miscKey && (
