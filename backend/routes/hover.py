@@ -157,19 +157,11 @@ HOVER_MAPPING_SPEC = [
         "note": "Ascend starter LF along bottom course",
     },
     # =====================================================================
-    # FINISH TRIM — Ascend only. Vinyl Finish Trim is left for manual entry
-    # per Howard's request (HOVER's starter LF often doesn't translate to
-    # the top course on vinyl jobs, so contractors prefer to enter it
-    # themselves rather than have to clear an auto-filled qty).
+    # FINISH TRIM — left for manual entry on BOTH vinyl and Ascend per
+    # Howard's request. HOVER's starter LF often doesn't translate to the
+    # top course cleanly, so contractors prefer to enter Finish Trim
+    # themselves. The yellow Lightbulb on the row still prompts them.
     # =====================================================================
-    {
-        "tabs": ["ascend"],
-        "section": "Ascend Cladding/Accessories",
-        "item": "ASCEND Finish Trim",
-        "unit": "LF",
-        "extract": lambda m: round(m.get("starter_lf") or 0),
-        "note": "Ascend finish trim along top course",
-    },
     # =====================================================================
     # J-CHANNEL (Vinyl only — Ascend J-Channel unit is ambiguous in the
     # catalog vs how it's actually counted, so we leave Ascend J-Channel
