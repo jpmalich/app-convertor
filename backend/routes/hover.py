@@ -217,6 +217,19 @@ HOVER_MAPPING_SPEC = [
         "note": "2/SQ siding + perimeter ÷ 10' around openings (per Howard)",
     },
     # =====================================================================
+    # .019 TRIM COIL — 1 roll per 5 squares of siding (per Howard). The
+    # "Siding Accessories" section is shared across the Vinyl and Ascend
+    # tabs, so one mapping with both tabs listed lands the qty on each.
+    # =====================================================================
+    {
+        "tabs": ["vinyl", "ascend"],
+        "section": "Siding Accessories",
+        "item": ".019 Coil (1 per 5 Sq Siding)",
+        "unit": "ROLL",
+        "extract": lambda m: round(((m.get("siding_sqft") or 0) / 100.0) / 5, 2),
+        "note": "Squares ÷ 5 (per Howard)",
+    },
+    # =====================================================================
     # WALL UNDERLAYMENT — vinyl gets House Wrap; Ascend gets RainDrop (the
     # rainscreen underlayment Ascend installers prefer). LP has no
     # underlayment line in the catalog.
