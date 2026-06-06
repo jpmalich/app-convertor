@@ -1,10 +1,16 @@
 import React from "react";
 import { useT } from "@/lib/i18n";
-import { VINYL_SIDING_COLOR_GROUPS, ASCEND_COLORS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS } from "@/lib/colorOptions";
+import { vinylSidingColorGroupsForEstimate, ASCEND_COLORS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS } from "@/lib/colorOptions";
 import HoverImportButton from "@/components/estimate/HoverImportButton";
 
 export default function JobInfoPanel({ est, update, save }) {
   const t = useT();
+  // Brand-filtered vinyl siding color groups. Computed inline on every
+  // render — cheap (an array filter over <30 items) and avoids the
+  // hooks/preserve-manual-memoization lint complaint about useMemo +
+  // optional chaining. Shared across siding / accessories / outside-corner
+  // dropdowns so they all narrow to the active brand together.
+  const vinylColorGroups = vinylSidingColorGroupsForEstimate(est?.lines || []);
   return (
     <section className="card p-5 sm:p-6 mb-6" data-testid="job-info">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -85,7 +91,7 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-siding"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                {vinylColorGroups.map((g) => (
                   <optgroup key={g.label} label={g.label}>
                     {g.colors.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -117,7 +123,7 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-accessories"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                {vinylColorGroups.map((g) => (
                   <optgroup key={g.label} label={g.label}>
                     {g.colors.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -135,7 +141,7 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-outside-corner"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                {vinylColorGroups.map((g) => (
                   <optgroup key={g.label} label={g.label}>
                     {g.colors.map((c) => (
                       <option key={c} value={c}>{c}</option>
