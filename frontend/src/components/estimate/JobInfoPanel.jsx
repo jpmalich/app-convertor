@@ -159,8 +159,10 @@ export default function JobInfoPanel({ est, update, save }) {
           </div>
         </div>
 
-        {/* Window-product colors (Windows tab) — separate block so it
-            doesn't visually crowd the siding color row. */}
+        {/* Window-product colors — Windows-kind estimates only. Siding
+            estimates use the Window Wrap field above for capping color;
+            frame / interior / exterior are window-product attributes. */}
+        {est.kind === "windows" && (
         <div className="sm:col-span-2 lg:col-span-3 pt-2">
           <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-2">
             {t("est.colors.windows")}
@@ -198,6 +200,7 @@ export default function JobInfoPanel({ est, update, save }) {
             </div>
           </div>
         </div>
+        )}
       </div>
     </section>
   );
