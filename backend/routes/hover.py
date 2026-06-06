@@ -309,6 +309,18 @@ HOVER_MAPPING_SPEC = [
         ),
         "note": "Soffit & fascia LF ÷ 100 (per Howard)",
     },
+    # =====================================================================
+    # CAULKING — flat default of 2 tubes per job regardless of size (per
+    # Howard). Contractor can bump it up on bigger jobs.
+    # =====================================================================
+    {
+        "tabs": ["vinyl", "ascend"],
+        "section": "Siding Accessories",
+        "item": "Caulking (per color)",
+        "unit": "EA",
+        "extract": lambda m: 2,
+        "note": "Default 2 tubes per job (per Howard)",
+    },
     {
         "tabs": ["lp_smart"],
         "section": "LP SmartSide Soffit",
