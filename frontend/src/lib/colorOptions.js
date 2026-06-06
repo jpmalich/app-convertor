@@ -219,14 +219,17 @@ export const GUTTER_COLORS = [
 // Window wrap / cap stock — the full aluminum trim coil palette stocked
 // for capping window frames. Single flat collection (no Std/Arch split)
 // since it's a wide universal palette used across all brands.
+// White (Glacier White) is pinned to the top since it's the most-quoted
+// wrap color; the rest follow alphabetical.
 export const WINDOW_WRAP_COLORS = [
+  "Glacier White",
   "Adobe Cream", "Ageless Slate", "Almond", "American Terra",
   "Antique Parchment", "Architectural Bronze", "Black", "Brown",
   "Burgundy", "Burnished Red", "Canyon Clay", "Canyon Drift",
   "Cape Cod Gray", "Cast Iron", "Castle Gray", "Charcoal Gray",
   "Charcoal Smoke", "Coastal Sage", "Dakota Blue", "Deep Espresso",
   "Deep Moss", "Desert Clay", "Earthen Tan", "English Red",
-  "Fired Brick", "Flagship Brown", "Forest Green", "Glacier White",
+  "Fired Brick", "Flagship Brown", "Forest Green",
   "Golden Shadow", "Graphite", "Grecian Green", "Harbor Blue",
   "Hudson Khaki", "Juniper Ridge", "Laguna Blue", "Linen",
   "Maize", "Maple", "Midnight Blue", "Monterey Sand",
