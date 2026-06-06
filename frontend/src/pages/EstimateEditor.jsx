@@ -19,6 +19,7 @@ import CatalogSyncBanner from "@/components/estimate/CatalogSyncBanner";
 import EstimatorTabs from "@/components/estimate/EstimatorTabs";
 import { VISIBLE_TAB_IDS, ALL_TAB_DEFS } from "@/lib/tabsConfig";
 import QuoteModal from "@/components/QuoteModal";
+import TabPickerModal from "@/components/TabPickerModal";
 
 export default function EstimateEditor() {
   const { id } = useParams();
@@ -33,6 +34,12 @@ export default function EstimateEditor() {
   const [openSections, setOpenSections] = useState({});
   const [saving, setSaving] = useState(false);
   const [showQuote, setShowQuote] = useState(false);
+  // Tab-picker modal — appears when the contractor clicks Customer Quote
+  // or Material List on a hybrid estimate that spans multiple product
+  // lines. mode is "quote" or "materials"; quoteFilter / materialsFilter
+  // hold the array of tab ids selected.
+  const [pickerMode, setPickerMode] = useState(null);
+  const [tabFilter, setTabFilter] = useState(null); // null = include all tabs
   // Active product-line tab. Default depends on the estimate's `kind`:
   // window estimates start on the Windows tab and lock to just that one;
   // siding estimates start on Vinyl with all siding tabs visible.
@@ -41,11 +48,13 @@ export default function EstimateEditor() {
 
   // Force the active tab to "windows" the moment a windows-kind estimate
   // finishes loading (only if the user hasn't already switched somewhere
-  // legitimate). Using useMemo here would be wrong since this is a state
-  // change side-effect — but `est` is stable across renders so a flag
-  // suffices.
+  // legitimate). This IS a state-in-effect by design — we need the value
+  // to follow a prop derived from the async estimate load.
   useEffect(() => {
-    if (isWindowKind && activeTab !== "windows") setActiveTab("windows");
+    if (isWindowKind && activeTab !== "windows") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab("windows");
+    }
   }, [isWindowKind, activeTab]);
 
   // Visible tab set for THIS estimate. Windows kind → only the Windows
@@ -70,6 +79,43 @@ export default function EstimateEditor() {
       totals: calcTotals(est, { tab: id }),
     }));
   }, [est, visibleTabIds]);
+
+  // Compute which tabs actually have line items so the picker only shows
+  // tabs that have data — Vinyl-only estimates never see the picker.
+  const tabsWithData = useMemo(() => {
+    const s = new Set();
+    for (const l of est?.lines || []) {
+      if ((l.qty || 0) > 0) s.add(l.tab || "vinyl");
+    }
+    return Array.from(s);
+  }, [est]);
+
+  // Filtered estimate that the QuoteModal renders. When the picker isn't
+  // applied (single-tab estimate or quote was opened directly), tabFilter
+  // stays null and we pass the full estimate through.
+  const quoteEstimate = useMemo(() => {
+    if (!est) return est;
+    if (!tabFilter) return est;
+    return {
+      ...est,
+      lines: (est.lines || []).filter((l) =>
+        tabFilter.includes(l.tab || "vinyl")
+      ),
+      misc_labor: (est.misc_labor || []).filter((m) =>
+        tabFilter.includes(m.tab || "vinyl")
+      ),
+      misc_material: (est.misc_material || []).filter((m) =>
+        tabFilter.includes(m.tab || "vinyl")
+      ),
+    };
+  }, [est, tabFilter]);
+
+  // Totals for the customer quote — scoped to the picked tabs so the
+  // customer-facing PDF shows only the work-in-scope dollars.
+  const quoteTotals = useMemo(
+    () => (quoteEstimate ? calcTotals(quoteEstimate) : null),
+    [quoteEstimate]
+  );
 
   if (loading || !est) {
     if (est === false) {
@@ -123,12 +169,21 @@ export default function EstimateEditor() {
     }
   };
 
-  const handlePrintMaterials = async () => {
+  const handlePrintMaterials = async (tabsToInclude = null) => {
     // Save first so the server has the latest qty/color before we render the PDF.
     await handleSave();
-    // Build the material-list HTML on the client, then reuse the existing
-    // estimate-PDF endpoint (which accepts arbitrary html).
-    const html = buildMaterialListHtml({ estimate: est, company, branding, lang });
+    // Build the material-list HTML on the client. If the contractor picked
+    // a subset of tabs, filter the estimate's lines first so the PDF only
+    // contains those product lines.
+    const printEst = tabsToInclude
+      ? {
+          ...est,
+          lines: (est.lines || []).filter((l) =>
+            tabsToInclude.includes(l.tab || "vinyl")
+          ),
+        }
+      : est;
+    const html = buildMaterialListHtml({ estimate: printEst, company, branding, lang });
     try {
       const res = await fetch(
         `${process.env.REACT_APP_BACKEND_URL}/api/estimates/${id}/pdf`,
@@ -144,13 +199,56 @@ export default function EstimateEditor() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = materialListFilename(est);
+      // Suffix the filename with the tabs included so the contractor knows
+      // which file is which when they print Vinyl + Ascend separately.
+      const suffix =
+        tabsToInclude && tabsToInclude.length < 4
+          ? `_${tabsToInclude.join("-")}`
+          : "";
+      const baseName = materialListFilename(est).replace(/\.pdf$/i, "");
+      a.download = `${baseName}${suffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
       toast.error(`Could not generate material list: ${e.message}`);
+    }
+  };
+
+  // Compute which tabs actually have line items so the picker only shows
+  // tabs that have data — Vinyl-only estimates never see the picker.
+  // (tabsWithData, quoteEstimate, quoteTotals declared above the early
+  // return to keep hook order stable.)
+
+  // Click handler for the Customer Quote button — when the job spans more
+  // than one product line, ask the contractor which to include first.
+  const handleOpenQuote = async () => {
+    await handleSave();
+    if (tabsWithData.length > 1) {
+      setPickerMode("quote");
+    } else {
+      setTabFilter(null);
+      setShowQuote(true);
+    }
+  };
+
+  const handleOpenMaterials = async () => {
+    if (tabsWithData.length > 1) {
+      setPickerMode("materials");
+    } else {
+      await handlePrintMaterials(null);
+    }
+  };
+
+  const handlePickerConfirm = async (tabs) => {
+    const mode = pickerMode;
+    setPickerMode(null);
+    setTabFilter(tabs);
+    if (mode === "quote") {
+      setShowQuote(true);
+    } else if (mode === "materials") {
+      await handlePrintMaterials(tabs);
     }
   };
 
@@ -172,8 +270,8 @@ export default function EstimateEditor() {
           >
             <div className="section-tag mb-3">LP Smart Siding</div>
             <p className="text-sm text-[#52525B] max-w-md mx-auto">
-              The LP SmartSide catalog hasn't been loaded yet. Send Howard your
-              LP Smart Siding price sheet (Excel/CSV) and it'll populate here.
+              The LP SmartSide catalog hasn&apos;t been loaded yet. Send Howard your
+              LP Smart Siding price sheet (Excel/CSV) and it&apos;ll populate here.
             </p>
           </div>
         ) : (
@@ -200,20 +298,25 @@ export default function EstimateEditor() {
           activeTab={activeTab}
           saving={saving}
           onSave={handleSave}
-          onOpenQuote={async () => {
-            await handleSave();
-            setShowQuote(true);
-          }}
+          onOpenQuote={handleOpenQuote}
           onPrint={() => window.print()}
           onExportCsv={handleExportCsv}
-          onPrintMaterials={handlePrintMaterials}
+          onPrintMaterials={handleOpenMaterials}
         />
       </main>
 
+      <TabPickerModal
+        open={!!pickerMode}
+        mode={pickerMode}
+        tabsWithData={tabsWithData}
+        onClose={() => setPickerMode(null)}
+        onConfirm={handlePickerConfirm}
+      />
+
       {showQuote && (
         <QuoteModal
-          estimate={est}
-          totals={totals}
+          estimate={quoteEstimate}
+          totals={quoteTotals}
           onClose={() => setShowQuote(false)}
           emailConfigured={emailStatus.configured}
           onEmail={async ({ recipient_email, html, subject, accept_token }) => {
