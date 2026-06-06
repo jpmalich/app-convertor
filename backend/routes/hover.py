@@ -153,8 +153,8 @@ HOVER_MAPPING_SPEC = [
         "section": "Ascend Cladding/Accessories",
         "item": "Ascend - Starter",
         "unit": "LF",
-        "extract": lambda m: round(m.get("starter_lf") or 0),
-        "note": "Ascend starter LF along bottom course",
+        "extract": lambda m: round((m.get("starter_lf") or 0) / 100, 2),
+        "note": "Ascend Starter qty = HOVER starter LF ÷ 100 (per Howard)",
     },
     # =====================================================================
     # FINISH TRIM — left for manual entry on BOTH vinyl and Ascend per
