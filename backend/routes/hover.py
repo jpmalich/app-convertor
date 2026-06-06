@@ -104,10 +104,10 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["ascend"],
         "section": "Ascend Cladding/Accessories",
-        "item": "Ascend 3.5\" Outside Corner  - MATTE",
+        "item": "Ascend 5.5\" Outside Corner  - MATTE",
         "unit": "PCS",
         "extract": lambda m: max(1, round((m.get("outside_corner_lf") or 0) / 10)),
-        "note": "Ascend 10' outside-corner pieces / corner LF",
+        "note": "Ascend 10' outside-corner pieces / corner LF (5.5\" default)",
     },
     {
         "tabs": ["lp_smart"],
