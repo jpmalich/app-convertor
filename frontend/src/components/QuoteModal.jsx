@@ -59,10 +59,25 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
   const acceptUrl = `${window.location.origin}/accept/${acceptToken}?lang=${sendLang}`;
 
   const linesWithQty = (estimate.lines || []).filter((l) => (l.qty || 0) > 0);
-  const linesBySection = linesWithQty.reduce((acc, l) => {
-    (acc[l.section] = acc[l.section] || []).push(l);
+  // Group by TAB first, then by section within each tab. Some section names
+  // (e.g. "Siding Accessories", "Vinyl Soffit with Siding", "Misc.") are
+  // used on both the Vinyl and Ascend tabs — without the tab-level grouping
+  // their items would land in one mixed bucket, which is what Howard hit
+  // when he ran a hybrid Vinyl + Ascend estimate.
+  const TAB_LABEL = {
+    vinyl: "Vinyl Siding",
+    ascend: "Ascend Composite Siding",
+    lp_smart: "LP SmartSide",
+    windows: "Windows",
+  };
+  const TAB_ORDER = ["vinyl", "ascend", "lp_smart", "windows"];
+  const linesByTab = linesWithQty.reduce((acc, l) => {
+    const tab = l.tab || "vinyl";
+    (acc[tab] = acc[tab] || {});
+    (acc[tab][l.section] = acc[tab][l.section] || []).push(l);
     return acc;
   }, {});
+  const tabOrder = TAB_ORDER.filter((t) => linesByTab[t]);
 
   const handleEmail = async () => {
     if (!email) return;
@@ -268,17 +283,24 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
           )}
 
           <div className="px-8 sm:px-12 py-6">
-            {Object.entries(linesBySection).map(([section, items]) => (
-              <div key={section} className="mb-5">
-                <div className="text-xs uppercase tracking-[0.18em] font-bold text-[#F97316] border-b border-[#09090B] pb-1 mb-2">
-                  {tSection(section, sendLang)}
+            {tabOrder.map((tabId) => (
+              <div key={tabId} className="mb-6">
+                <div className="text-[10px] uppercase tracking-[0.25em] font-bold text-[#A1A1AA] mb-2">
+                  {TAB_LABEL[tabId]}
                 </div>
-                {items.map((l) => (
-                  <div key={l.name} className="flex justify-between py-1 text-sm">
-                    <span className="text-[#09090B]">{tItem(l.name, sendLang)}</span>
-                    <span className="text-[#52525B] font-mono-num">
-                      {l.qty} {tUnit(l.unit, sendLang)}
-                    </span>
+                {Object.entries(linesByTab[tabId]).map(([section, items]) => (
+                  <div key={section} className="mb-4">
+                    <div className="text-xs uppercase tracking-[0.18em] font-bold text-[#F97316] border-b border-[#09090B] pb-1 mb-2">
+                      {tSection(section, sendLang)}
+                    </div>
+                    {items.map((l) => (
+                      <div key={l.name} className="flex justify-between py-1 text-sm">
+                        <span className="text-[#09090B]">{tItem(l.name, sendLang)}</span>
+                        <span className="text-[#52525B] font-mono-num">
+                          {l.qty} {tUnit(l.unit, sendLang)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>

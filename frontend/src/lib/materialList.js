@@ -37,12 +37,26 @@ function absUrl(path) {
 
 export function buildMaterialListHtml({ estimate, company, branding, lang = "en" }) {
   const wastePct = Number(estimate.waste_pct) || 0;
-  const linesByCat = (estimate.lines || [])
+  // Group by TAB first, then by section. Section names like "Siding
+  // Accessories" and "Vinyl Soffit with Siding" are shared between the
+  // Vinyl and Ascend tabs — without a tab-level header the supplier
+  // material list would mix items from both into one bucket.
+  const TAB_LABEL = {
+    vinyl: "Vinyl Siding",
+    ascend: "Ascend Composite Siding",
+    lp_smart: "LP SmartSide",
+    windows: "Windows",
+  };
+  const TAB_ORDER = ["vinyl", "ascend", "lp_smart", "windows"];
+  const linesByTab = (estimate.lines || [])
     .filter((l) => (l.qty || 0) > 0)
     .reduce((acc, l) => {
-      (acc[l.section] = acc[l.section] || []).push(l);
+      const tab = l.tab || "vinyl";
+      (acc[tab] = acc[tab] || {});
+      (acc[tab][l.section] = acc[tab][l.section] || []).push(l);
       return acc;
     }, {});
+  const tabOrder = TAB_ORDER.filter((t) => linesByTab[t]);
 
   const supplierName = branding?.supplier_name || "Alside Supply";
   const companyName = company?.name || "Your Contractor";
@@ -93,8 +107,18 @@ export function buildMaterialListHtml({ estimate, company, branding, lang = "en"
     );
   };
 
-  const sectionsHtml = Object.entries(linesByCat).map(sectionRows).join("");
-  const hasLines = Object.keys(linesByCat).length > 0;
+  const sectionsHtml = tabOrder
+    .map((tabId) => {
+      const sectionsForTab = Object.entries(linesByTab[tabId])
+        .map(sectionRows)
+        .join("");
+      return (
+        `<tr class="tab-row"><td colspan="5">${esc(TAB_LABEL[tabId])}</td></tr>` +
+        sectionsForTab
+      );
+    })
+    .join("");
+  const hasLines = tabOrder.length > 0;
 
   const colorCell = (label, value) => `
     <td class="color-cell">
@@ -239,6 +263,16 @@ export function buildMaterialListHtml({ estimate, company, branding, lang = "en"
     font-weight: normal;
     color: ${C.muted};
     margin-top: 1px;
+  }
+  .materials .tab-row td {
+    padding: 22px 8px 6px 8px;
+    border-bottom: 3px solid ${C.ink};
+    font-size: 12.5px;
+    font-weight: bold;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    color: ${C.ink};
+    background: ${C.bg};
   }
   .materials .section-row td {
     padding: 14px 8px 5px 8px;
