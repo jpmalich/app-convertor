@@ -53,6 +53,12 @@ export default function useEstimate(id) {
   // by save() itself (e.g. status_label changes from the server).
   const [userEdits, setUserEdits] = useState(0);
   const savingRef = useRef(false);
+  // Tracks the userEdits value as of the last successful save (explicit
+  // OR debounced). The debounce effect skips firing when userEdits has
+  // NOT advanced past this — prevents double-saves like the HOVER Apply
+  // flow that explicitly saves immediately AND bumps the counter (which
+  // would otherwise re-fire 2 seconds later with the same data).
+  const savedUpToRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,8 +227,12 @@ export default function useEstimate(id) {
     const source = overrideEst || est;
     if (!source) return;
     savingRef.current = true;
+    // Snapshot the edit-count NOW so we can mark "saved up to here" even
+    // if more edits arrive while the PUT is in flight.
+    const editsAtSave = userEditsRef.current;
     try {
       const { data } = await api.put(`/estimates/${id}`, buildPayload(source));
+      savedUpToRef.current = editsAtSave;
       toast.success("Saved");
       return data;
     } catch (err) {
@@ -237,14 +247,23 @@ export default function useEstimate(id) {
   // debounce timer always saves the freshest state.
   const estRef = useRef(est);
   useEffect(() => { estRef.current = est; }, [est]);
+  // Same idea for userEdits — save() reads via ref so it can mark
+  // savedUpToRef without re-deriving deps.
+  const userEditsRef = useRef(userEdits);
+  useEffect(() => { userEditsRef.current = userEdits; }, [userEdits]);
 
   const autosave = useCallback(async () => {
     const source = estRef.current;
     if (!source) return;
     if (savingRef.current) return;
+    // Skip if nothing has changed since the last successful save (covers
+    // the HOVER-apply case where save() already persisted explicitly).
+    if (userEditsRef.current <= savedUpToRef.current) return;
     savingRef.current = true;
+    const editsAtSave = userEditsRef.current;
     try {
       await api.put(`/estimates/${id}`, buildPayload(source));
+      savedUpToRef.current = editsAtSave;
     } catch {
       // Silently swallow — user can hit Save manually for a toast.
       // Network blips shouldn't bug them every 2 seconds.
