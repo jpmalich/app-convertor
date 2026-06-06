@@ -48,7 +48,10 @@ export function buildMaterialListHtml({ estimate, company, branding, lang = "en"
   };
   const TAB_ORDER = ["vinyl", "ascend", "windows"];
   const linesByTab = (estimate.lines || [])
-    .filter((l) => (l.qty || 0) > 0)
+    // Material list goes to Alside to pull materials — skip qty=0 and skip
+    // labor-only items (mat=$0.00 like "Cap entry door") since there's
+    // nothing for the supplier to pull for those.
+    .filter((l) => (l.qty || 0) > 0 && (Number(l.mat) || 0) > 0)
     .reduce((acc, l) => {
       const tab = l.tab || "vinyl";
       (acc[tab] = acc[tab] || {});
