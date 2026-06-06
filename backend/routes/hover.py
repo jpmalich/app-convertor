@@ -296,6 +296,19 @@ HOVER_MAPPING_SPEC = [
         "note": "Matches Soffit & fascia LF — defaults to Standard color",
     },
     # =====================================================================
+    # FASCIA / RAKE / FRIEZE COVERAGE — driven off eaves LF (per Howard).
+    # Lives in the shared "Vinyl Soffit with Siding" section so one mapping
+    # lands the qty on both Vinyl and Ascend tabs.
+    # =====================================================================
+    {
+        "tabs": ["vinyl", "ascend"],
+        "section": "Vinyl Soffit with Siding",
+        "item": 'Fascia/rake or frieze up to 8" coverage',
+        "unit": "LF",
+        "extract": lambda m: round(m.get("eaves_lf") or 0),
+        "note": "Eaves LF (per Howard)",
+    },
+    # =====================================================================
     # .019 FASCIA COIL — 1 roll per 100 LF of soffit/fascia (per Howard).
     # Soffit/fascia LF = eaves LF + rakes LF.
     # =====================================================================
