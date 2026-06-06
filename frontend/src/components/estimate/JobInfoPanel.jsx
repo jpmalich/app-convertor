@@ -1,6 +1,6 @@
 import React from "react";
 import { useT } from "@/lib/i18n";
-import { VINYL_SIDING_COLORS, ASCEND_COLORS, SOFFIT_COLORS, GUTTER_COLORS } from "@/lib/colorOptions";
+import { VINYL_SIDING_COLOR_GROUPS, ASCEND_COLORS, SOFFIT_COLORS, GUTTER_COLORS } from "@/lib/colorOptions";
 import HoverImportButton from "@/components/estimate/HoverImportButton";
 
 export default function JobInfoPanel({ est, update, save }) {
@@ -85,8 +85,12 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-siding"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLORS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.colors.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -113,8 +117,12 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-accessories"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLORS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.colors.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -127,8 +135,12 @@ export default function JobInfoPanel({ est, update, save }) {
                 data-testid="color-outside-corner"
               >
                 <option value="">— Select —</option>
-                {VINYL_SIDING_COLORS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {VINYL_SIDING_COLOR_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.colors.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

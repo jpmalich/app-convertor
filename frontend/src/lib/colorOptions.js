@@ -6,37 +6,54 @@
 // matters: items are rendered in this order, so put the most common picks
 // at the top.
 
-export const VINYL_SIDING_COLORS = [
-  "Glacier White",
-  "Juniper Ridge",
-  "Platinum Gray",
-  "Monterey Sand",
-  "Tuscan Clay",
-  "Antique Parchment",
-  "Adobe Cream",
-  "Natural Linen",
-  "Cape Cod Gray",
-  "Maple",
-  "Vintage Wicker",
-  "Mystic Blue",
-  "Coastal Sage",
-  "Fired Brick",
-  "Harbor Blue",
-  "Deep Espresso",
-  "Riviera Dusk",
-  "Canyon Drift",
-  "Midnight Blue",
-  "Rustic Timber",
-  "Storm",
-  "Mountain Fern",
-  "Deep Moss",
-  "Sterling Gray",
-  "Ageless Slate",
-  "Flagship Brown",
-  "Laguna Blue",
-  "Charcoal Smoke",
-  "Cast Iron",
+// Vinyl siding colors split into Standard and Architectural collections.
+// The contractor sees them as two labelled groups in the dropdown so they
+// can quickly tell which palette they're picking from (and avoid the
+// Architectural-color upcharge by mistake).
+export const VINYL_SIDING_COLOR_GROUPS = [
+  {
+    label: "Standard Color Collection",
+    colors: [
+      "Glacier White",
+      "Juniper Ridge",
+      "Platinum Gray",
+      "Monterey Sand",
+      "Tuscan Clay",
+      "Antique Parchment",
+      "Adobe Cream",
+      "Natural Linen",
+      "Cape Cod Gray",
+      "Maple",
+      "Vintage Wicker",
+      "Mystic Blue",
+      "Coastal Sage",
+    ],
+  },
+  {
+    label: "Architectural Color Collection",
+    colors: [
+      "Fired Brick",
+      "Harbor Blue",
+      "Deep Espresso",
+      "Riviera Dusk",
+      "Canyon Drift",
+      "Midnight Blue",
+      "Rustic Timber",
+      "Storm",
+      "Mountain Fern",
+      "Deep Moss",
+      "Sterling Gray",
+      "Ageless Slate",
+      "Flagship Brown",
+      "Laguna Blue",
+      "Charcoal Smoke",
+      "Cast Iron",
+    ],
+  },
 ];
+
+// Flat fallback for any consumer that just needs the full list.
+export const VINYL_SIDING_COLORS = VINYL_SIDING_COLOR_GROUPS.flatMap((g) => g.colors);
 
 export const ASCEND_COLORS = [
   "Glacier White",
