@@ -62,6 +62,13 @@ class BrandingUpdate(BaseModel):
     default_pricing_mode: Optional[str] = None
 
 
+class InviteContractorIn(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+    app_url: Optional[str] = None  # Frontend origin (e.g. https://app.pro-quotes.com)
+    personal_note: Optional[str] = None  # Optional message from supplier admin
+
+
 class EstimateLine(BaseModel):
     section: str
     name: str

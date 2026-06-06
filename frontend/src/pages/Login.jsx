@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 import { useT } from "@/lib/i18n";
@@ -14,13 +14,18 @@ export default function Login() {
   const t = useT();
   const nav = useNavigate();
   const loc = useLocation();
-  const [mode, setMode] = useState("login");
-  const [email, setEmail] = useState("");
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState(() =>
+    (params.get("mode") || "").toLowerCase() === "register" ? "register" : "login"
+  );
+  const [email, setEmail] = useState(() => params.get("email") || "");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [signupCode, setSignupCode] = useState("");
+  const [signupCode, setSignupCode] = useState(() => params.get("code") || "");
+  // Default to 'create' (new company) when prefilled from invitation, since the
+  // supplier code only unlocks creating a new company. Stays 'create' otherwise.
   const [joinMode, setJoinMode] = useState("create"); // 'create' | 'join'
   const [busy, setBusy] = useState(false);
 

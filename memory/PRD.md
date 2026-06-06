@@ -101,6 +101,11 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Frontend**: New `EstimatorTabs.jsx` component (Excel-style tab strip with per-tab line count + subtotal). `useEstimate.js` refactored — merge logic now creates one line entry per `(tab, section, name)` tuple. Save key is `${tab}::${section}::${name}`. Legacy lines (no tab) auto-backfill on load. `SectionAccordion.jsx` is now tab-aware (filters misc rows by active tab, scopes new misc rows). `EstimateEditor.jsx` filters catalog sections by `s.product_lines.includes(activeTab)`.
   - **Limitations / known phase-deferred items**: PDF & email output (Phase 4) still renders all lines lumped together. HOVER importer (Phase 3) still populates only Vinyl tab. Per-tab homeowner Accept buttons (Phase 4) not yet built. Grand-total card + StickyBar still aggregate across all tabs.
  (Feb 2026): full bilingual support with EN/ES toggle. ESLint clean.
+
+- **Iter 35** — **Invite Contractors via Admin Email + HOVER `.019 Coil` formula** (Feb 2026): two contractor-onboarding wins.
+  - **`.019 Coil (1 per 5 Sq Siding)` HOVER formula** locked in for both Vinyl and Ascend tabs: `qty = siding_sqft / 500` (i.e. Squares ÷ 5, rounded to 2 decimals). Verified across 6 cases (25 Sq → 5 rolls, 12.5 Sq → 2.5 rolls, 0 → 0, etc.). 11/11 pricing parity tests still green.
+  - **New invite flow on `/branding-admin`**: supplier admin enters a contractor email (+ optional name + personal note), clicks **Send Invitation**, and the contractor receives a branded Resend email with a one-click signup link `https://app.pro-quotes.com/login?mode=register&email=...&code=ALSIDE-XXXXXX`. Login page parses those query params, auto-switches to register mode, pre-fills the email + access code so the contractor only types their name + password. Recent invitations list on the admin shows email · sent timestamp · pending/signed-up status · "Copy link" button. New backend routes (token-gated): `POST /api/admin/invite-contractor` (validates email, blocks duplicates with 409, renders branded HTML with inline styles + supplier logo, sends via Resend, persists to `db.invitations`), `GET /api/admin/invitations` (last 50 invites annotated with `registered=True/False`). New `InviteContractorIn` Pydantic model. Verified end-to-end: 7/7 new tests in `test_invite_contractor.py` pass (incl. real Resend delivery to `delivered@resend.dev`), screenshot confirms admin panel renders + Login URL `?mode=register&email=bob@example.com&code=ALSIDE-JR47Q8` correctly prefills both fields. Lint clean.
+
 ## Configuration (`backend/.env`)
 - `SUPPLIER_NAME=Alside Supply`
 - `SUPPLIER_TAGLINE=Howard Hunt · Territory Sales Manager · (724) 640-4333`
@@ -117,6 +122,7 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 ### P1
 - Resend open + click tracking via webhook (`email.opened`, `email.clicked`) → show contractors which quotes are being viewed
 - Real PWA app icons (still programmatic placeholder)
+- **DONE in Iter 35**: ~~Invite Contractors via Admin Tab~~ — supplier can now send branded email invites with one-click signup links
 
 ### P2
 - **Multi-Location support** (3–10 locations, e.g. Pittsburgh + Cleveland):

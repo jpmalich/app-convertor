@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
-import { Upload, Shield, Copy, ArrowLeft, Tags, Building2, Percent, Trash2 } from "lucide-react";
+import { Upload, Shield, Copy, ArrowLeft, Tags, Building2, Percent, Trash2, Send, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import PricingUpdatePanel from "@/components/admin/PricingUpdatePanel";
 
@@ -171,6 +171,9 @@ export default function BrandingAdmin() {
             To rotate: change SIGNUP_CODE in <span className="font-mono-num">backend/.env</span> &amp; restart backend.
           </p>
         </div>
+
+        {/* Invite a contractor by email */}
+        <InviteContractorPanel token={token} signupCode={signupCode} />
 
         {/* Supplier brand */}
         <div className="card p-6">
@@ -553,6 +556,171 @@ function PipelineStat({ label, value, sublabel, accent }) {
     </div>
   );
 }
+
+function InviteContractorPanel({ token, signupCode }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [invitations, setInvitations] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = React.useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/admin/invitations?token=${encodeURIComponent(token)}`);
+      setInvitations(data);
+      setLoaded(true);
+    } catch (e) {
+      // Non-fatal — sending still works even if the history list fails to load.
+      console.warn("Failed to load invitations", e);
+      setLoaded(true);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const send = async (e) => {
+    e?.preventDefault?.();
+    const clean = email.trim();
+    if (!clean) {
+      toast.error("Enter an email address first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await axios.post(`${API}/admin/invite-contractor?token=${encodeURIComponent(token)}`, {
+        email: clean,
+        name: name.trim() || undefined,
+        personal_note: note.trim() || undefined,
+        app_url: window.location.origin,
+      });
+      toast.success(`Invitation sent to ${clean}`);
+      setEmail("");
+      setName("");
+      setNote("");
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || err.message || "Failed to send invite");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card p-6" data-testid="invite-contractor-panel">
+      <div className="flex items-center gap-3 mb-3">
+        <Mail className="w-5 h-5 text-[#F97316]" />
+        <div className="section-tag">Invite a Contractor by Email</div>
+      </div>
+      <p className="text-sm text-[#52525B] mb-4">
+        We&apos;ll send a branded email with a one-click signup link (your access code{" "}
+        <span className="font-mono-num text-[#09090B]">{signupCode}</span> is pre-filled).
+      </p>
+      <form onSubmit={send} className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Email *</label>
+            <input
+              type="email"
+              className="input"
+              placeholder="contractor@example.com"
+              value={email}
+              required
+              onChange={(ev) => setEmail(ev.target.value)}
+              data-testid="invite-email-input"
+            />
+          </div>
+          <div>
+            <label className="label">Contractor name (optional)</label>
+            <input
+              className="input"
+              placeholder="e.g. Bob Smith"
+              value={name}
+              onChange={(ev) => setName(ev.target.value)}
+              data-testid="invite-name-input"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="label">Personal note (optional)</label>
+          <textarea
+            className="input"
+            rows={2}
+            maxLength={500}
+            placeholder="Hey Bob — wanted to get you onto our new quoting tool. Tier 2 pricing is loaded for your account."
+            value={note}
+            onChange={(ev) => setNote(ev.target.value)}
+            data-testid="invite-note-input"
+          />
+        </div>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={busy}
+          data-testid="invite-send-btn"
+        >
+          <Send className="w-4 h-4" /> {busy ? "Sending…" : "Send Invitation"}
+        </button>
+      </form>
+
+      {loaded && invitations.length > 0 && (
+        <div className="mt-6">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-2">
+            Recent invitations ({invitations.length})
+          </div>
+          <div className="border border-[#E4E4E7] max-h-72 overflow-y-auto" data-testid="invitations-list">
+            <div className="grid grid-cols-12 gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold bg-[#FAFAFA] sticky top-0">
+              <div className="col-span-5">Email</div>
+              <div className="col-span-3">Sent</div>
+              <div className="col-span-2 text-right">Status</div>
+              <div className="col-span-2 text-right">Link</div>
+            </div>
+            {invitations.map((inv) => (
+              <div
+                key={inv.id}
+                className="grid grid-cols-12 gap-3 px-3 py-2 border-t border-[#E4E4E7] items-center text-sm"
+                data-testid={`invitation-row-${inv.email}`}
+              >
+                <div className="col-span-5 truncate">
+                  <div className="font-semibold text-[#09090B] truncate">{inv.email}</div>
+                  {inv.name && <div className="text-[10px] text-[#A1A1AA] truncate">{inv.name}</div>}
+                </div>
+                <div className="col-span-3 text-xs text-[#52525B]">
+                  {new Date(inv.sent_at).toLocaleString()}
+                </div>
+                <div className="col-span-2 text-right">
+                  {inv.registered ? (
+                    <span className="inline-block px-2 py-0.5 bg-[#DCFCE7] text-[#15803D] text-[10px] uppercase tracking-wider font-bold">
+                      Signed up
+                    </span>
+                  ) : (
+                    <span className="inline-block px-2 py-0.5 bg-[#FEF3C7] text-[#92400E] text-[10px] uppercase tracking-wider font-bold">
+                      Pending
+                    </span>
+                  )}
+                </div>
+                <div className="col-span-2 text-right">
+                  <button
+                    type="button"
+                    className="text-[10px] text-[#52525B] hover:text-[#F97316] underline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(inv.register_url);
+                      toast.success("Signup link copied");
+                    }}
+                    title={inv.register_url}
+                  >
+                    Copy link
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function CompaniesPanel({ token }) {
   const [companies, setCompanies] = useState([]);
