@@ -10,26 +10,32 @@ export default function SettingsRow({ est, update }) {
   const effectiveMultiplier = isMargin
     ? 1 / (1 - pct / 100)
     : 1 + pct / 100;
+  // Windows-kind estimates price each opening individually (Vero W×H +
+  // Mezzo W×H + per-line install qty), so the % siding waste factor
+  // doesn't apply. Hide the card and let Sales Tax + Profit fill the row.
+  const showWaste = est.kind !== "windows";
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-      <div className="card p-5">
-        <div className="section-tag mb-3">{t("est.wasteFactor")}</div>
-        <div className="flex items-baseline gap-2">
-          <input
-            className="input num w-24"
-            type="number"
-            step="0.5"
-            value={est.waste_pct || 0}
-            onChange={(e) => update({ waste_pct: Number(e.target.value) || 0 })}
-            data-testid="waste-pct"
-          />
-          <span className="text-[#52525B]">{t("est.wasteSuffix")}</span>
+    <section className={`grid grid-cols-1 ${showWaste ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-6 mb-6`}>
+      {showWaste && (
+        <div className="card p-5" data-testid="waste-factor-card">
+          <div className="section-tag mb-3">{t("est.wasteFactor")}</div>
+          <div className="flex items-baseline gap-2">
+            <input
+              className="input num w-24"
+              type="number"
+              step="0.5"
+              value={est.waste_pct || 0}
+              onChange={(e) => update({ waste_pct: Number(e.target.value) || 0 })}
+              data-testid="waste-pct"
+            />
+            <span className="text-[#52525B]">{t("est.wasteSuffix")}</span>
+          </div>
+          <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+            {t("est.wasteHint")}
+          </p>
         </div>
-        <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
-          {t("est.wasteHint")}
-        </p>
-      </div>
+      )}
       <div className="card p-5">
         <div className="section-tag mb-3">{t("est.salesTax")}</div>
         <label className="flex items-center gap-3 mb-3 text-sm">
