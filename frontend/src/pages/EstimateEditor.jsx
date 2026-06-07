@@ -12,6 +12,7 @@ import { buildMaterialListHtml, materialListFilename } from "@/lib/materialList"
 import StickyBar from "@/components/estimate/StickyBar";
 import JobInfoPanel from "@/components/estimate/JobInfoPanel";
 import MezzoPanel from "@/components/estimate/MezzoPanel";
+import MezzoJobSnapshot from "@/components/estimate/MezzoJobSnapshot";
 import SettingsRow from "@/components/estimate/SettingsRow";
 import PhotosPanel from "@/components/estimate/PhotosPanel";
 import SectionAccordion from "@/components/estimate/SectionAccordion";
@@ -273,6 +274,7 @@ export default function EstimateEditor() {
 
         {activeTab === "mezzo" ? (
           <>
+            <MezzoJobSnapshot est={est} />
             <MezzoPanel est={est} update={update} />
             {visibleSections.map((s) => (
               <SectionAccordion
