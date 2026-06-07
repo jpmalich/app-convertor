@@ -9,6 +9,7 @@ from config import (
     SUPPLIER_ADMIN_TOKEN,
 )
 import mezzo_prices
+import vero_prices
 from db import db, logger
 from deps import hash_password, verify_password
 from services import create_company, ensure_tiers_seeded, get_default_tier_id
@@ -33,6 +34,10 @@ async def run_startup():
     # from the bundled JSON snapshot. Admin edits in Mongo are preserved.
     await db.mezzo_prices.create_index([("tier", 1), ("product_type", 1)], unique=True)
     await mezzo_prices.seed_mezzo_prices()
+
+    # Seed Vero prices (same pattern — bundled JSON snapshot, idempotent).
+    await vero_prices.ensure_indexes()
+    await vero_prices.seed_vero_prices()
 
     # Migrate old catalog docs that still have `sections` -> convert to empty overrides
     # (material now comes from tier; we keep their labor if it differed by storing as override).
