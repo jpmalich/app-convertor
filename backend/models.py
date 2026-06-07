@@ -135,10 +135,13 @@ class EstimateIn(BaseModel):
     gutter_color: str = ""
     # Window product colors (Windows tab) — appear on the material list so
     # the installer pulls the right Vero color stock for frames + interior
-    # + exterior trim.
+    # + exterior trim. The original `window_*_color` fields are the Vero
+    # palette; `mezzo_*_color` are added in Iter 38 for the Mezzo line.
     window_frame_color: str = ""
     window_interior_color: str = ""
     window_exterior_color: str = ""
+    mezzo_interior_color: str = ""
+    mezzo_exterior_color: str = ""
     waste_pct: float = 0
     tax_enabled: bool = True
     tax_rate: float = 7.0

@@ -320,6 +320,8 @@ export default function useEstimate(id) {
       window_frame_color: source.window_frame_color || "",
       window_interior_color: source.window_interior_color || "",
       window_exterior_color: source.window_exterior_color || "",
+      mezzo_interior_color: source.mezzo_interior_color || "",
+      mezzo_exterior_color: source.mezzo_exterior_color || "",
       waste_pct: source.waste_pct || 0,
       tax_enabled: !!source.tax_enabled,
       tax_rate: source.tax_rate || 0,

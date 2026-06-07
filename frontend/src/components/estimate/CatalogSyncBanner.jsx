@@ -93,6 +93,8 @@ export default function CatalogSyncBanner({ est, update }) {
         window_frame_color: est.window_frame_color || "",
         window_interior_color: est.window_interior_color || "",
         window_exterior_color: est.window_exterior_color || "",
+        mezzo_interior_color: est.mezzo_interior_color || "",
+        mezzo_exterior_color: est.mezzo_exterior_color || "",
         waste_pct: est.waste_pct || 0,
         tax_enabled: !!est.tax_enabled,
         tax_rate: est.tax_rate || 0,

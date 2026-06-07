@@ -1,6 +1,6 @@
 import React from "react";
 import { useT } from "@/lib/i18n";
-import { vinylSidingColorGroupsForEstimate, ASCEND_COLORS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS, WINDOW_WRAP_COLORS, MEZZO_EXTERIOR_COLOR_GROUPS, MEZZO_INTERIOR_COLOR_GROUPS } from "@/lib/colorOptions";
+import { vinylSidingColorGroupsForEstimate, ASCEND_COLORS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS, WINDOW_WRAP_COLORS, MEZZO_EXTERIOR_COLOR_GROUPS, MEZZO_INTERIOR_COLOR_GROUPS, VERO_EXTERIOR_COLOR_GROUPS, VERO_INTERIOR_COLOR_GROUPS, VERO_LAMINATE_NAMES } from "@/lib/colorOptions";
 import HoverImportButton from "@/components/estimate/HoverImportButton";
 
 export default function JobInfoPanel({ est, update, save, setInstallMethod, setHomePre1978 }) {
@@ -281,45 +281,135 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
           </div>
 
           <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-2">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-3">
             {t("est.colors.windows")}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">{t("est.color.windowExterior")}</label>
-              <select
-                className="input"
-                value={est.window_exterior_color || ""}
-                onChange={(e) => update({ window_exterior_color: e.target.value })}
-                data-testid="color-window-exterior"
-              >
-                <option value="">— Select —</option>
-                {MEZZO_EXTERIOR_COLOR_GROUPS.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+
+          {/* VERO color block — extruded vinyl + laminate + paint paths */}
+          <div className="border border-[#E4E4E7] bg-white p-4 mb-3">
+            <div className="text-[11px] uppercase tracking-wider text-[#09090B] font-bold mb-3">
+              Vero
+              <span className="ml-2 text-[#A1A1AA] font-normal normal-case tracking-normal">
+                vinyl base + laminate or painted finish
+              </span>
             </div>
-            <div>
-              <label className="label">{t("est.color.windowInterior")}</label>
-              <select
-                className="input"
-                value={est.window_interior_color || ""}
-                onChange={(e) => update({ window_interior_color: e.target.value })}
-                data-testid="color-window-interior"
-              >
-                <option value="">— Select —</option>
-                {MEZZO_INTERIOR_COLOR_GROUPS.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Exterior Color</label>
+                <select
+                  className="input"
+                  value={est.window_exterior_color || ""}
+                  onChange={(e) => update({ window_exterior_color: e.target.value })}
+                  data-testid="color-vero-exterior"
+                >
+                  <option value="">— Select —</option>
+                  {VERO_EXTERIOR_COLOR_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.colors.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Interior Color</label>
+                <select
+                  className="input"
+                  value={est.window_interior_color || ""}
+                  onChange={(e) => update({ window_interior_color: e.target.value })}
+                  data-testid="color-vero-interior"
+                >
+                  <option value="">— Select —</option>
+                  {VERO_INTERIOR_COLOR_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.colors.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {/* Laminate ⇒ white base only. Warn if a tan extruded base is
+                paired with a laminate exterior/interior. */}
+            {(() => {
+              const ext = est.window_exterior_color || "";
+              const intr = est.window_interior_color || "";
+              const hasLaminate = VERO_LAMINATE_NAMES.has(ext) || VERO_LAMINATE_NAMES.has(intr);
+              const conflictsWithTan =
+                (VERO_LAMINATE_NAMES.has(ext) && intr === "Tan") ||
+                (VERO_LAMINATE_NAMES.has(intr) && ext === "Tan");
+              if (conflictsWithTan) {
+                return (
+                  <div
+                    className="mt-2 px-3 py-2 bg-[#FEF2F2] border-l-2 border-[#DC2626] text-[11px] text-[#991B1B]"
+                    data-testid="vero-laminate-warning"
+                  >
+                    <strong>Heads up:</strong> Vero laminates are built on a <strong>white</strong> vinyl base only.
+                    Pair laminate with a white-base sister color, or switch the laminate side to a paint finish.
+                  </div>
+                );
+              }
+              if (hasLaminate) {
+                return (
+                  <div
+                    className="mt-2 px-3 py-2 bg-[#F0F9FF] border-l-2 border-[#0284C7] text-[11px] text-[#075985]"
+                    data-testid="vero-laminate-notice"
+                  >
+                    Laminate selected — manufacturing will use a <strong>white</strong> vinyl base.
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+
+          {/* MEZZO color block — solid extruded + FrameWorks / Woodgrain */}
+          <div className="border border-[#E4E4E7] bg-white p-4">
+            <div className="text-[11px] uppercase tracking-wider text-[#09090B] font-bold mb-3">
+              Mezzo
+              <span className="ml-2 text-[#A1A1AA] font-normal normal-case tracking-normal">
+                extruded solid · FrameWorks · woodgrain
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Exterior Color</label>
+                <select
+                  className="input"
+                  value={est.mezzo_exterior_color || ""}
+                  onChange={(e) => update({ mezzo_exterior_color: e.target.value })}
+                  data-testid="color-mezzo-exterior"
+                >
+                  <option value="">— Select —</option>
+                  {MEZZO_EXTERIOR_COLOR_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.colors.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Interior Color</label>
+                <select
+                  className="input"
+                  value={est.mezzo_interior_color || ""}
+                  onChange={(e) => update({ mezzo_interior_color: e.target.value })}
+                  data-testid="color-mezzo-interior"
+                >
+                  <option value="">— Select —</option>
+                  {MEZZO_INTERIOR_COLOR_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.colors.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           </div>

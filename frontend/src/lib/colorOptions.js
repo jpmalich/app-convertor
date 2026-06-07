@@ -275,7 +275,51 @@ export const MEZZO_INTERIOR_COLOR_GROUPS = [
   },
 ];
 
-// Flat exports for callers (PDF / email render) that just need the full
-// allow-list without optgroup hierarchy.
 export const MEZZO_EXTERIOR_COLORS = MEZZO_EXTERIOR_COLOR_GROUPS.flatMap((g) => g.colors);
 export const MEZZO_INTERIOR_COLORS = MEZZO_INTERIOR_COLOR_GROUPS.flatMap((g) => g.colors);
+
+// Vero replacement-window factory finishes (Howard's spec). Important
+// constraint: every laminate option is built on a WHITE vinyl base only
+// (no laminate over tan extruded). The optgroup label calls that out so
+// the contractor doesn't accidentally pair a tan interior with a black
+// laminate exterior on the same window. Paint finishes are a separate
+// process — different SKU, different lead time — even when the color
+// (e.g. "Black") visually matches a laminate option.
+export const VERO_EXTERIOR_COLOR_GROUPS = [
+  {
+    label: "Extruded Vinyl (color through)",
+    colors: ["White", "Tan"],
+  },
+  {
+    label: "Laminate · white base only",
+    colors: ["Black Laminate", "Brown Laminate"],
+  },
+  {
+    label: "Painted Finish",
+    colors: [
+      "White (Paint)", "Black (Paint)", "Graphite", "Sterling", "Forest",
+      "Bronze", "Royal Brown", "Terra", "Pebble", "Tan (Paint)", "Cream",
+    ],
+  },
+];
+
+export const VERO_INTERIOR_COLOR_GROUPS = [
+  {
+    label: "Extruded Vinyl (color through)",
+    colors: ["White", "Tan"],
+  },
+  {
+    label: "Laminate Woodgrain · white base only",
+    colors: ["Cavalier Oak", "Colonial Cherry"],
+  },
+];
+
+export const VERO_EXTERIOR_COLORS = VERO_EXTERIOR_COLOR_GROUPS.flatMap((g) => g.colors);
+export const VERO_INTERIOR_COLORS = VERO_INTERIOR_COLOR_GROUPS.flatMap((g) => g.colors);
+
+// Names that force a white vinyl base — used by the UI to surface an
+// inline warning when a contractor pairs a tan/non-white extruded base
+// with one of these laminates.
+export const VERO_LAMINATE_NAMES = new Set([
+  "Black Laminate", "Brown Laminate", "Cavalier Oak", "Colonial Cherry",
+]);
