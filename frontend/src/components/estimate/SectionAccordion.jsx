@@ -30,7 +30,7 @@ const CUSTOM_LINE_SECTIONS = new Set([
 // some (e.g. "Window Package Price") are job-specific bundles that need
 // to be priced per quote.
 const EDITABLE_MAT_ITEMS = new Set([
-  "Window Package Price",
+  "Vero Window Quote",
   "Vero - Sliding glass door Custom Size",
 ]);
 
