@@ -489,6 +489,18 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: 1 if (int(m.get("window_count") or 0) > 0 or int(m.get("patio_door_count") or 0) > 0) else 0,
         "note": "Disposal fee — one per job",
     },
+    # Iter 42f: siding-side disposal — fires on vinyl + ascend + lp_smart
+    # tabs when HOVER reports any siding to install. The "Tear-Off / Clean
+    # Up" section is shared across all 3 siding lines so one line covers
+    # whichever option the contractor quotes.
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Tear-Off / Clean Up",
+        "item": "clean up/ haul away job debris",
+        "unit": "JOB",
+        "extract": lambda m: 1 if (m.get("siding_sqft") or 0) > 0 else 0,
+        "note": "Disposal — one per job when siding work is present",
+    },
 ]
 
 
