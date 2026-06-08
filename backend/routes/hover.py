@@ -69,6 +69,21 @@ def _guess_vero_product_type(width_in: float, height_in: float) -> str:
     # Default everything else to DH (matches Howard's 99% bias for replacements)
     return "Vero Double Hung"
 
+
+# Vero → Mezzo product type map. Mezzo doesn't have a Casement option, so
+# small Casement-guessed openings fall back to DH on the Mezzo side.
+_VERO_TO_MEZZO = {
+    "Vero Double Hung":      "Mezzo Double Hung",
+    "Vero 2-Lite Slider":    "Mezzo 2-Lite Slider",
+    "Vero 3-Lite Slider":    "Mezzo 3-Lite Slider",
+    "Vero Picture":          "Mezzo Picture",
+    "Vero 1-Lite Casement":  "Mezzo Double Hung",  # no casement in Mezzo line
+}
+
+
+def _vero_to_mezzo_product_type(vero_type: str) -> str:
+    return _VERO_TO_MEZZO.get(vero_type, "Mezzo Double Hung")
+
 load_dotenv()
 
 router = APIRouter()
@@ -498,10 +513,28 @@ class HoverVeroOpening(BaseModel):
     hover_id: str = ""
 
 
+class HoverMezzoOpening(BaseModel):
+    """One Mezzo W×H per-opening row produced from a HOVER window. Mirrors
+    the `mezzo_openings[]` shape the estimator stores on the Estimate doc.
+    Mezzo doesn't have a Casement product type — Vero Casement guesses map
+    to Mezzo Double Hung in `_vero_to_mezzo_product_type`."""
+    id: str
+    product_type: str
+    label: str = ""
+    width: float
+    height: float
+    qty: int = 1
+    bucket_label: str = ""
+    base_mat: float = 0
+    adders: list = []
+    hover_id: str = ""
+
+
 class HoverImportResult(BaseModel):
     measurements: dict
     lines: list[HoverLine]
     vero_openings: list[HoverVeroOpening] = []
+    mezzo_openings: list[HoverMezzoOpening] = []
     raw_extract_chars: int
 
 
@@ -676,15 +709,18 @@ def _build_lines(measurements: dict) -> list[dict]:
     return out
 
 
-def _build_vero_openings(measurements: dict) -> list[dict]:
-    """Turn the extracted `windows[]` list into Vero opening rows with a
-    smart-guessed product_type per opening. HOVER doesn't tell us if a window
-    is DH vs slider vs casement, so `_guess_vero_product_type` picks a best
-    default from W × H. Contractors edit on the preview before applying."""
-    out: list[dict] = []
+def _build_window_openings(measurements: dict) -> tuple[list[dict], list[dict]]:
+    """Turn the extracted `windows[]` list into BOTH Vero and Mezzo opening
+    rows so the contractor can quote both brands side-by-side on the
+    paired windows estimate. The two arrays are paired 1:1 — they share
+    UUIDs and the same HOVER id, with product_type derived from the SAME
+    W×H guess (`_vero_to_mezzo_product_type` maps the Vero guess to the
+    nearest Mezzo product since Mezzo has no Casement)."""
+    vero_out: list[dict] = []
+    mezzo_out: list[dict] = []
     raw = measurements.get("windows") or []
     if not isinstance(raw, list):
-        return out
+        return vero_out, mezzo_out
     for w in raw:
         try:
             wid = float(w.get("width_in") or 0)
@@ -694,10 +730,16 @@ def _build_vero_openings(measurements: dict) -> list[dict]:
         if wid <= 0 or hgt <= 0:
             continue
         hover_id = str(w.get("id") or "").strip()
-        out.append({
-            "id": str(uuid.uuid4()),
+        vero_type = _guess_vero_product_type(wid, hgt)
+        mezzo_type = _vero_to_mezzo_product_type(vero_type)
+        # Share UUID + label across both brands so the FE preview can show
+        # one editable row that drives both, and so a contractor who skips
+        # one side can still identify the matching opening on the other.
+        opening_id = str(uuid.uuid4())
+        vero_out.append({
+            "id": opening_id,
             "hover_id": hover_id,
-            "product_type": _guess_vero_product_type(wid, hgt),
+            "product_type": vero_type,
             "label": hover_id,
             "width": wid,
             "height": hgt,
@@ -713,7 +755,19 @@ def _build_vero_openings(measurements: dict) -> list[dict]:
             "tempered_mat": 0,
             "premium_mat": 0,
         })
-    return out
+        mezzo_out.append({
+            "id": opening_id,
+            "hover_id": hover_id,
+            "product_type": mezzo_type,
+            "label": hover_id,
+            "width": wid,
+            "height": hgt,
+            "qty": 1,
+            "bucket_label": "",
+            "base_mat": 0,
+            "adders": [],
+        })
+    return vero_out, mezzo_out
 
 
 # -----------------------------------------------------------------------------
@@ -742,11 +796,12 @@ async def hover_import(
     # Pull the per-window list out of measurements so the FE measurements
     # iterator can safely render every remaining value as a primitive.
     windows_payload = measurements.pop("windows", None) or []
-    openings = _build_vero_openings({"windows": windows_payload})
+    vero_openings, mezzo_openings = _build_window_openings({"windows": windows_payload})
     lines = _build_lines(measurements)
     return HoverImportResult(
         measurements=measurements,
         lines=[HoverLine(**ln) for ln in lines],
-        vero_openings=[HoverVeroOpening(**op) for op in openings],
+        vero_openings=[HoverVeroOpening(**op) for op in vero_openings],
+        mezzo_openings=[HoverMezzoOpening(**op) for op in mezzo_openings],
         raw_extract_chars=len(text),
     )

@@ -50,6 +50,16 @@ const VERO_PRODUCT_TYPES = [
   "Vero Picture",
 ];
 
+// Mezzo has no Casement product type — fall back to DH on the Mezzo side
+// when the Vero guess is Casement. Lets one edit drive both brands.
+const VERO_TO_MEZZO = {
+  "Vero Double Hung":     "Mezzo Double Hung",
+  "Vero 2-Lite Slider":   "Mezzo 2-Lite Slider",
+  "Vero 3-Lite Slider":   "Mezzo 3-Lite Slider",
+  "Vero Picture":         "Mezzo Picture",
+  "Vero 1-Lite Casement": "Mezzo Double Hung",
+};
+
 const UNIT_BY_KEY = (k) => {
   if (k.endsWith("_sqft")) return "ft²";
   if (k.endsWith("_lf")) return "LF";
@@ -111,9 +121,26 @@ export default function HoverImportButton({ est, update, save }) {
 
     const sourceLines = srcKind === "windows" ? windowsLines : sidingLines;
     const pairedLines = srcKind === "windows" ? sidingLines : windowsLines;
-    // Vero openings always belong on a windows-kind estimate.
+    // Vero openings always belong on a windows-kind estimate; Mezzo openings
+    // mirror the same set so the contractor can quote both brands side-by-side.
     const sourceOpenings = srcKind === "windows" ? openings : [];
     const pairedOpenings = srcKind === "windows" ? [] : openings;
+    // Build the parallel Mezzo array from the same edits the contractor made
+    // on the Vero side — one edit drives both brands. Strip Vero-only fields
+    // (sister_color, glass_*, premium_*) since MezzoOpening has a leaner shape.
+    const veroToMezzo = (op) => ({
+      id: op.id,
+      product_type: VERO_TO_MEZZO[op.product_type] || "Mezzo Double Hung",
+      label: op.label || "",
+      width: op.width,
+      height: op.height,
+      qty: op.qty || 1,
+      bucket_label: "",
+      base_mat: 0,
+      adders: [],
+    });
+    const sourceMezzoOpenings = srcKind === "windows" ? openings.map(veroToMezzo) : [];
+    const pairedMezzoOpenings = srcKind === "windows" ? [] : openings.map(veroToMezzo);
 
     // ─── Merge SOURCE-side lines into the current estimate ─────────────────
     const existing = est.lines || [];
@@ -144,12 +171,21 @@ export default function HoverImportButton({ est, update, save }) {
       ...(est.vero_openings || []),
       ...sourceOpenings.map(({ hover_id, ...op }) => op),
     ];
+    const nextMezzoOpenings = [
+      ...(est.mezzo_openings || []),
+      ...sourceMezzoOpenings,
+    ];
 
-    update({ lines: nextLines, vero_openings: nextOpenings });
+    update({ lines: nextLines, vero_openings: nextOpenings, mezzo_openings: nextMezzoOpenings });
     setApplying(true);
     try {
       if (save) {
-        await save({ ...est, lines: nextLines, vero_openings: nextOpenings });
+        await save({
+          ...est,
+          lines: nextLines,
+          vero_openings: nextOpenings,
+          mezzo_openings: nextMezzoOpenings,
+        });
       }
 
       // ─── Route paired-side slice to a paired estimate of opposite kind ──
@@ -181,10 +217,15 @@ export default function HoverImportButton({ est, update, save }) {
           ...(pair.vero_openings || []),
           ...pairedOpenings.map(({ hover_id, ...op }) => op),
         ];
+        const pNextMezzoOpenings = [
+          ...(pair.mezzo_openings || []),
+          ...pairedMezzoOpenings,
+        ];
         await api.put(`/estimates/${pair.id}`, {
           ...pair,
           lines: pNext,
           vero_openings: pNextOpenings,
+          mezzo_openings: pNextMezzoOpenings,
         });
         const pairedKindLabel = pair.kind === "windows" ? "Windows" : "Siding";
         pairedMsg = ` · Also created paired ${pairedKindLabel} estimate ${pair.estimate_number || ""}`;
@@ -343,7 +384,7 @@ export default function HoverImportButton({ est, update, save }) {
                   </div>
                   <p className="text-[10px] text-[#52525B] leading-snug mb-2">
                     HOVER reports don&apos;t say if a window is double-hung, slider, casement, or picture — only the dimensions.
-                    Each row below was auto-guessed from W × H. <strong>Confirm or change</strong> the style per opening; they&apos;ll be added as a new Vero opening on the Windows tab.
+                    Each row below was auto-guessed from W × H. <strong>Confirm or change</strong> the style per opening; one pick fills <strong>both Mezzo and Vero</strong> tabs on the paired Windows estimate (Mezzo has no Casement, so Casement rows default to DH on the Mezzo side).
                   </p>
                   <table className="w-full text-sm">
                     <thead>
