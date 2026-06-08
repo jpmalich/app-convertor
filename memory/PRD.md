@@ -183,6 +183,16 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Verified live**: EST-863006 → expanded Upgrade Options → toggled Climatech Plus (auto-default) + Climatech TG2 Plus (auto-deselected CP via exclusive pair) + Solid Color Flat Grids + Foam Wrap + Sentry System. UI shows orange-highlighted cards, per-card qty input, badge count, total `+$22.93`. Autosave persists `adders: [{name, mat, qty}]` to `db.estimates.vero_openings[].adders`. Vero DH section total $287.57 → $310.50 (base + Foam Wrap), Job Snapshot Window Openings reflects in real time.
   - **Follow-up note**: `/branding-admin` `VeroPricingPanel.jsx` still references the old `glass_packages` / `tempered` / `premium_options` sections — its tabs will show empty grids until rewritten to use `adder_prices`. Howard can edit base prices directly in Mongo for now, or via re-seeding the JSON. Same applies to HOVER importer (`routes/hover.py`) which still produces legacy-shape openings — the frontend reconciliation hook auto-migrates them on first load, so functionally HOVER imports work fine.
 
+- **Iter 45 — Window-side line-item pricing aligned to canonical Excel** (Jun 2026, Howard's "Window app price layout page 6-8-26.xls"): audited every line in the 6 windows/mezzo-shared sections (Window Material List, Window Installation, Sliding Glass Door Install, Window Exterior/Interior Trim Work, Window Misc.) against the canonical Excel. Found 5 discrepancies — all in the Material List section where mat prices were $0 in the build but priced in the Excel. Fixed:
+  - `Windows - .019 Coil (1 per 5 Sq Siding)`: mat $0 → **$161.33**, lab $23 → **$0** (was inheriting a stale labor default; Excel says $0 lab)
+  - `Windows - PVC Trim Coil (1 per 5 Sq Siding)`: mat $0 → **$167.08**
+  - `Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)`: mat $0 → **$170.53**
+  - `Windows - Caulking (per color)`: mat $0 → **$8.23**
+  - All other 27 line items in the 5 labor-only sections (Installation, SGD, Trim, Misc.) already matched the Excel exactly.
+  - **Files touched**: `/app/backend/catalog_seed.py` (WINDOWS_PRICES + ITEM_META).
+  - **DB migration**: ran one-off script over `db.price_tiers` (4 docs × 4 fixes = 16 in-place mat updates + 4 lab updates). Idempotent — safe to re-run.
+  - **Verified live**: `GET /api/catalog` for Window Material List section returns exactly the Excel values. Section names, item names, units, and per-tier prices for all 4 tiers (whole-sale / Contractor / Builder-Dealer / one-opp) confirmed.
+
 ## Configuration (`backend/.env`)
 - `SUPPLIER_NAME=Alside Supply`
 - `SUPPLIER_TAGLINE=Howard Hunt · Territory Sales Manager · (724) 640-4333`

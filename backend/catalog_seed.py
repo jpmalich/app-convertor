@@ -514,7 +514,7 @@ ITEM_META = {
     "New Interior Jamb Extension": ("each", 89.13),
     "New Interior Sill - create or replace interior window sill - QUOTE ONLY": ("each", 120.0),
     # Window Material List (windows-tab copies of siding-tab coils)
-    "Windows - .019 Coil (1 per 5 Sq Siding)": ("ROLL", 23),
+    "Windows - .019 Coil (1 per 5 Sq Siding)": ("ROLL", 0),
     "Windows - PVC Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
     "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
     "Windows - Caulking (per color)": ("Each", 0),
@@ -796,12 +796,14 @@ WINDOWS_PRICES = {
     'Vero - Sliding glass door 72" x 80"': 1114.70,
     'Vero - Sliding glass door 96" x 80"': 1253.09,
     "Vero - Sliding glass door Custom Size": 0,
-    # Window Material List — windows-tab copies (siding-tab coils are
-    # priced; these start at $0 so Howard can set windows-specific prices).
-    "Windows - .019 Coil (1 per 5 Sq Siding)": 0,
-    "Windows - PVC Trim Coil (1 per 5 Sq Siding)": 0,
-    "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": 0,
-    "Windows - Caulking (per color)": 0,
+    # Window Material List — Iter 45: prices pulled from Howard's
+    # canonical "Window app price layout page 6-8-26.xls". Same prices
+    # as the siding-tab coils (same physical roll product), just exposed
+    # again on the windows / mezzo tabs.
+    "Windows - .019 Coil (1 per 5 Sq Siding)": 161.33,
+    "Windows - PVC Trim Coil (1 per 5 Sq Siding)": 167.08,
+    "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": 170.53,
+    "Windows - Caulking (per color)": 8.23,
 }
 
 for _tier_dict in TIER_PRICES.values():
