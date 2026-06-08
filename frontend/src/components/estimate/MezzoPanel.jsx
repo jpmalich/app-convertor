@@ -567,7 +567,7 @@ function OpeningRow({
                               value={adderQty || ""}
                               placeholder={`${Number(op.qty) || 0}`}
                               onChange={(ev) => onUpdateAdderQty(a.name, ev.target.value)}
-                              className="input num h-7 text-xs w-12 text-right flex-shrink-0"
+                              className="bg-white border border-[#E4E4E7] focus:border-[#F97316] outline-none h-7 text-xs w-12 px-1.5 text-right flex-shrink-0 font-mono-num"
                               data-testid={`mezzo-adder-qty-${op.id}-${a.name}`}
                               title={t("win.qty")}
                             />
