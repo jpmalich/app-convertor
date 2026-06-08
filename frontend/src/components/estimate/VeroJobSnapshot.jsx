@@ -32,11 +32,20 @@ export default function VeroJobSnapshot({ est }) {
     const openings = est?.vero_openings || [];
     const openingCount = openings.reduce((s, o) => s + (Number(o.qty) || 0), 0);
     const openingDollars = openings.reduce((sum, o) => {
-      const per = (Number(o.base_mat) || 0)
-        + (Number(o.glass_mat) || 0)
-        + (Number(o.tempered_mat) || 0)
-        + (Number(o.premium_mat) || 0);
-      return sum + (Number(o.qty) || 0) * per;
+      // Iter 44: Mezzo-style adders. Read legacy glass/temp/premium as
+      // a fallback so historical estimates retain their totals.
+      const base = (Number(o.qty) || 0) * (Number(o.base_mat) || 0);
+      const ads = (o.adders || []).reduce(
+        (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
+        0
+      );
+      const legacy =
+        (Number(o.qty) || 0) * (
+          (Number(o.glass_mat) || 0)
+          + (Number(o.tempered_mat) || 0)
+          + (Number(o.premium_mat) || 0)
+        );
+      return sum + base + ads + legacy;
     }, 0);
 
     // The windows-kind workspace uses "windows" as the Vero tab id (per

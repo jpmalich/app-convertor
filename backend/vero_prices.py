@@ -85,11 +85,11 @@ async def save_prices(
     allowed_keys = {
         "ui_bucket": {
             "_sister_colors", "_buckets",
-            "base_prices", "glass_packages", "tempered", "premium_options", "flat",
+            "base_prices", "adder_prices",
         },
         "fixed_model": {
             "_sister_colors", "_models",
-            "patio_prices", "glass_packages_patio",
+            "patio_prices", "adder_prices",
         },
     }[sizing]
     clean: dict = {k: payload[k] for k in allowed_keys if k in payload}

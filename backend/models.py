@@ -215,31 +215,31 @@ class MezzoOpening(BaseModel):
 class VeroOpening(BaseModel):
     """One quoted Vero window opening. UI-bucket products use width +
     height to derive United Inches → bucket → base price; the Patio Door
-    uses a fixed `model` instead. Sister color (e.g. White/White vs
-    Tan/Tan) selects the price column inside the bucket; glass package +
-    tempered + premium options are independently-priced adders snapshotted
-    at save time so PDF rendering stays cheap."""
+    uses a fixed `model` instead. Per Iter 44 Vero mirrors Mezzo's model:
+    a single `adders[]` list replaces the legacy glass / tempered /
+    premium fields (which remain on the schema for backward compat with
+    estimates saved before the migration)."""
     id: str  # UUID; frontend-generated so optimistic UI works
-    product_type: str  # e.g. "Vero Double Hung"
-    sizing: str = "ui_bucket"  # or "fixed_model" (Patio Door)
+    product_type: str
+    sizing: str = "ui_bucket"
     label: str = ""
-    # ui_bucket fields
     width: float = 0
     height: float = 0
-    # fixed_model fields
     model: str = ""
     qty: float = 1
-    # Color + glass selection
     sister_color: str = ""
+    # Iter 44: Mezzo-style per-opening adders.
+    adders: List[EstimateLineAdder] = []
+    # Snapshots (computed at save time so PDF / list rendering is cheap)
+    bucket_label: str = ""
+    base_mat: float = 0
+    # ─── Deprecated since Iter 44; kept for historical estimates only ───
     glass_package: str = ""
     tempered_upcharge: str = ""
     premium_options: List[str] = []
-    # Snapshots (computed at save time so PDF / list rendering is cheap)
-    bucket_label: str = ""
-    base_mat: float = 0          # per-window base
-    glass_mat: float = 0         # per-window glass package adder
-    tempered_mat: float = 0      # per-window tempered upcharge
-    premium_mat: float = 0       # SUM of all selected premium options (per window)
+    glass_mat: float = 0
+    tempered_mat: float = 0
+    premium_mat: float = 0
 
 
 EstimateIn.model_rebuild()

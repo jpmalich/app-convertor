@@ -60,17 +60,25 @@ export function calcTotals(est, { tab } = {}) {
           return s + base + ads;
         }, 0)
       : 0) +
-    // Iter 39: Vero openings — per-window price stacks base + glass +
-    // tempered + premium options; total = qty × stack. Only counted on
-    // the Vero tab (internal id "windows") or when computing the grand total.
+    // Iter 44: Vero now uses the Mezzo-style adders model. Per-window
+    // price = base + sum(adder.qty × adder.mat). Older openings still
+    // have glass_mat/tempered_mat/premium_mat fields — read those as a
+    // fallback so historical estimates don't suddenly go to $0 until the
+    // reconciliation hook migrates them.
     ((!tab || tab === "windows")
       ? (est?.vero_openings || []).reduce((s, op) => {
-          const perWindow =
-            (Number(op.base_mat) || 0)
-            + (Number(op.glass_mat) || 0)
-            + (Number(op.tempered_mat) || 0)
-            + (Number(op.premium_mat) || 0);
-          return s + (Number(op.qty) || 0) * perWindow;
+          const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
+          const ads = (op.adders || []).reduce(
+            (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
+            0
+          );
+          const legacy =
+            (Number(op.qty) || 0) * (
+              (Number(op.glass_mat) || 0)
+              + (Number(op.tempered_mat) || 0)
+              + (Number(op.premium_mat) || 0)
+            );
+          return s + base + ads + legacy;
         }, 0)
       : 0);
   const subLab =

@@ -406,6 +406,16 @@ export default function useEstimate(id) {
         model: op.model || "",
         qty: Number(op.qty) || 0,
         sister_color: op.sister_color || "",
+        // Iter 44: Mezzo-style adders array
+        adders: Array.isArray(op.adders)
+          ? op.adders.map((a) => ({
+              name: a.name,
+              mat: Number(a.mat) || 0,
+              lab: Number(a.lab) || 0,
+              qty: Number(a.qty) || 0,
+            }))
+          : [],
+        // Legacy fields preserved for historical estimates
         glass_package: op.glass_package || "",
         tempered_upcharge: op.tempered_upcharge || "",
         premium_options: Array.isArray(op.premium_options) ? op.premium_options : [],

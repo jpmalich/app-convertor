@@ -62,12 +62,8 @@ async def admin_get_vero_prices(request: Request):
                 "_buckets": [],
                 "_models": [],
                 "base_prices": {},
-                "glass_packages": {},
-                "tempered": {},
-                "premium_options": {},
-                "flat": {},
                 "patio_prices": {},
-                "glass_packages_patio": {},
+                "adder_prices": {},
             }
     products_meta: Dict[str, dict] = {
         pt: {**meta} for pt, meta in VERO_PRODUCT_TYPES.items()

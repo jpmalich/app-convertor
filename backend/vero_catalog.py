@@ -1,15 +1,19 @@
-"""Vero Series catalog metadata — buckets, sister colors, glass packages,
-patio-door fixed models, and the `catalog_for_tier_async` helper that the
-frontend `/api/vero/catalog` endpoint calls to build a contractor-facing
-matrix from the per-tier prices stored in `db.vero_prices`.
+"""Vero Series catalog metadata — buckets, sister colors, adders.
 
-This file is the structural source of truth. Prices live in Mongo (seeded
-from `vero_seed_prices.json` on first boot).
+After Iter 44 the Vero pricing model mirrors Mezzo 1:1:
+  - One `base_prices` matrix per (tier, product_type, bucket)
+  - One `adder_prices` matrix per (tier, product_type, adder_name, bucket)
+  - All adders are flat (no sqft-based rate on Vero)
+  - Patio Door stays fixed-model (just base prices on 3 panel sizes)
+
+This file is the structural source of truth. Prices live in Mongo
+(seeded from `vero_seed_prices.json` on first boot).
 """
 from __future__ import annotations
 from typing import Optional
 
 VERO_TIER_NAMES = ["whole-sale", "Contractor", "Builder-Dealer", "one-opp"]
+
 
 # ──────────────────── Bucket helpers ────────────────────
 
@@ -34,68 +38,83 @@ def buckets_to_objects(labels: list[str]) -> list[dict]:
     ]
 
 
-# ──────────────────── Product type registry ────────────────────
+# ──────────────────── Adder names per product ────────────────────
 
-# Each entry tells the catalog layer how to render the product (W×H bucketed
-# vs. fixed-model dropdown), and which optional sections to include.
-VERO_PRODUCT_TYPES: dict[str, dict] = {
-    "Vero Double Hung": {
-        "sizing": "ui_bucket",
-        "has_tempered_upcharge": True,
-        "has_premium_options": True,
-    },
-    "Vero 2-Lite Slider": {
-        "sizing": "ui_bucket",
-        "has_tempered_upcharge": True,
-        "has_premium_options": False,
-    },
-    "Vero 3-Lite Slider": {
-        "sizing": "ui_bucket",
-        "has_tempered_upcharge": False,
-        "has_premium_options": False,
-    },
-    "Vero Picture": {
-        "sizing": "ui_bucket",
-        "has_tempered_upcharge": False,
-        "has_premium_options": True,
-    },
-    "Vero Patio Door": {
-        "sizing": "fixed_model",
-        "has_tempered_upcharge": False,
-        "has_premium_options": False,
-    },
-    "Vero 1-Lite Casement": {
-        "sizing": "ui_bucket",
-        "has_tempered_upcharge": True,
-        "has_premium_options": False,
-    },
+# Canonical adder order — display order in the UI ("most common" rows
+# first). Howard's preference per the Iter-44 conversation:
+#   Row 1: Climatech Plus, Solid Color Flat Grids, Head Expander, Sentry System
+#   Row 2: Obscure Full, Climatech TG2 Plus, Foam Wrap, Foam Frame
+#   Row 3: Climatech Plus Tempered, Climatech TG2 Tempered, Integral Nailing Fin, Oriel Style Double Hung
+VERO_ADDER_NAMES = {
+    "Vero Double Hung": [
+        "Climatech Plus",
+        "Solid Color Flat Grids",
+        "Head Expander",
+        "Sentry System",
+        "Obscure Full",
+        "Climatech TG2 Plus",
+        "Foam Wrap",
+        "Foam Frame",
+        "Climatech Plus Tempered",
+        "Climatech TG2 Tempered",
+        "Integral Nailing Fin",
+        "Oriel Style Double Hung",
+    ],
+    "Vero 2-Lite Slider": [
+        "Climatech Plus",
+        "Solid Color Flat Grids",
+        "Head Expander",
+        "Obscure Full",
+        "Climatech TG2 Plus",
+        "Foam Wrap",
+        "Foam Frame",
+        "Climatech Plus Tempered",
+        "Climatech TG2 Tempered",
+        "Integral Nailing Fin",
+    ],
+    "Vero 3-Lite Slider": [
+        "Climatech Plus",
+        "Solid Color Flat Grids",
+        "Head Expander",
+        "Obscure Full",
+        "Climatech TG2 Plus",
+        "Foam Wrap",
+        "Foam Frame",
+        "Climatech Plus Tempered",
+        "Climatech TG2 Tempered",
+        "Integral Nailing Fin",
+    ],
+    "Vero Picture": [
+        "Climatech Plus",
+        "Solid Color Flat Grids",
+        "Head Expander",
+        "Obscure Full",
+        "Climatech TG2 Plus",
+        "Foam Wrap",
+        "Foam Frame",
+        "Climatech Plus Tempered",
+        "Climatech TG2 Tempered",
+        "Integral Nailing Fin",
+    ],
+    "Vero Patio Door": [],  # fixed-model; adders not applicable
 }
 
 
-# Glass packages are a flat list (the same 6 names appear across DH/2-Lite/
-# 3-Lite/Picture/Casement). Prices vary per (product, tier, bucket) and are
-# stored in Mongo. Patio Door has its own narrower set (X, X3).
-VERO_GLASS_PACKAGES = [
-    "IntelliGlass",
-    "IntelliGlass N",
-    "IntelliGlass X",
-    "IntelliGlass C",
-    "IntelliGlass X3",
-    "IntelliGlass Plus",
-]
+# ──────────────────── Product type registry ────────────────────
 
-VERO_PATIO_GLASS = ["IntelliGlass X", "IntelliGlass X3"]
+VERO_PRODUCT_TYPES: dict[str, dict] = {
+    "Vero Double Hung":   {"sizing": "ui_bucket"},
+    "Vero 2-Lite Slider": {"sizing": "ui_bucket"},
+    "Vero 3-Lite Slider": {"sizing": "ui_bucket"},
+    "Vero Picture":       {"sizing": "ui_bucket"},
+    "Vero Patio Door":    {"sizing": "fixed_model"},
+}
 
 
 # ──────────────────── Catalog assembly ────────────────────
 
 async def catalog_for_tier_async(tier_name: str, prices_module) -> dict:
-    """Build the contractor-facing catalog payload for one tier. Returns the
-    list of 6 product types — each with metadata + base price grid + glass
-    package grid + (optional) tempered/premium grids.
-
-    `prices_module` must expose `await get_prices(tier, product_type) -> dict`.
-    """
+    """Build the contractor-facing catalog payload for one tier."""
     product_types: list[dict] = []
     for pt_name, meta in VERO_PRODUCT_TYPES.items():
         prices = await prices_module.get_prices(tier_name, pt_name)
@@ -106,46 +125,70 @@ async def catalog_for_tier_async(tier_name: str, prices_module) -> dict:
 def _assemble_product(pt_name: str, meta: dict, prices: dict) -> dict:
     sizing = meta["sizing"]
     sister_colors: list[str] = prices.get("_sister_colors") or []
+    adder_prices = prices.get("adder_prices") or {}
+
     if sizing == "ui_bucket":
         bucket_labels: list[str] = prices.get("_buckets") or list((prices.get("base_prices") or {}).keys())
-        out = {
+        # Pull (almost-flat) sister-color price out of the {bucket: {color: $}} shape
+        flat_base = {}
+        for b, payload in (prices.get("base_prices") or {}).items():
+            if isinstance(payload, dict):
+                flat_base[b] = float(payload.get(sister_colors[0], 0.0)) if sister_colors else 0.0
+            else:
+                flat_base[b] = float(payload or 0.0)
+        # Build adder list in canonical display order; fall back to any
+        # extra adders the doc has but the canonical list doesn't.
+        canonical = VERO_ADDER_NAMES.get(pt_name, [])
+        seen = set()
+        adders_out: list[dict] = []
+        for ad_name in canonical + [a for a in adder_prices.keys() if a not in canonical]:
+            if ad_name in seen:
+                continue
+            seen.add(ad_name)
+            prices_by_bucket = adder_prices.get(ad_name) or {}
+            adders_out.append({
+                "name": ad_name,
+                "kind": "flat",
+                "prices_by_bucket": {
+                    b: float(prices_by_bucket.get(b, 0.0))
+                    for b in bucket_labels
+                },
+            })
+        return {
             "name": pt_name,
             "sizing": "ui_bucket",
             "buckets": buckets_to_objects(bucket_labels),
             "sister_colors": sister_colors,
-            "base_prices": prices.get("base_prices") or {},
-            "glass_packages": prices.get("glass_packages") or {},
-            "tempered": prices.get("tempered") or {},
+            "base_prices": flat_base,
+            "adders": adders_out,
         }
-        if meta.get("has_premium_options"):
-            out["premium_options"] = prices.get("premium_options") or {}
-        return out
+
     # Fixed-model (Patio Door)
     models: list[str] = prices.get("_models") or list((prices.get("patio_prices") or {}).keys())
+    flat_patio: dict[str, float] = {}
+    for m, payload in (prices.get("patio_prices") or {}).items():
+        if isinstance(payload, dict):
+            flat_patio[m] = float(payload.get(sister_colors[0], 0.0)) if sister_colors else 0.0
+        else:
+            flat_patio[m] = float(payload or 0.0)
     return {
         "name": pt_name,
         "sizing": "fixed_model",
         "models": models,
         "sister_colors": sister_colors,
-        "patio_prices": prices.get("patio_prices") or {},
-        "glass_packages": prices.get("glass_packages_patio") or {},
+        "patio_prices": flat_patio,
+        "adders": [],
     }
 
 
 def get_empty_shell(product_type: str) -> dict:
-    """Used by `get_prices` when a (tier, product) doc is missing so the
-    catalog endpoint still emits valid structure with all-zero numbers."""
     return {
         "_sister_colors": [],
         "_buckets": [],
         "_models": [],
         "base_prices": {},
         "patio_prices": {},
-        "glass_packages": {},
-        "glass_packages_patio": {},
-        "tempered": {},
-        "premium_options": {},
-        "flat": {},
+        "adder_prices": {},
     }
 
 
