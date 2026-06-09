@@ -279,9 +279,9 @@ SECTION_LAYOUT = [
         "Oversize Vinyl Door - (greater than 8' width)",
     ]),
     ("Window Material List", False, [
-        "Windows - .019 Coil (1 per 5 Sq Siding)",
-        "Windows - PVC Trim Coil (1 per 5 Sq Siding)",
-        "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)",
+        "Windows - .019 Coil",
+        "Windows - PVC Trim Coil",
+        "Windows - Performance G8 Trim Coil",
         "Windows - Caulking (per color)",
     ]),
     ("Window Exterior Trim Work", False, [
@@ -514,9 +514,9 @@ ITEM_META = {
     "New Interior Jamb Extension": ("each", 89.13),
     "New Interior Sill - create or replace interior window sill - QUOTE ONLY": ("each", 120.0),
     # Window Material List (windows-tab copies of siding-tab coils)
-    "Windows - .019 Coil (1 per 5 Sq Siding)": ("ROLL", 0),
-    "Windows - PVC Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
-    "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
+    "Windows - .019 Coil": ("ROLL", 0),
+    "Windows - PVC Trim Coil": ("ROLL", 0),
+    "Windows - Performance G8 Trim Coil": ("ROLL", 0),
     "Windows - Caulking (per color)": ("Each", 0),
     # Window Misc.
     "Interior Blinds - Remove For Window Install & Reinstall": ("each", 53.85),
@@ -800,9 +800,11 @@ WINDOWS_PRICES = {
     # canonical "Window app price layout page 6-8-26.xls". Same prices
     # as the siding-tab coils (same physical roll product), just exposed
     # again on the windows / mezzo tabs.
-    "Windows - .019 Coil (1 per 5 Sq Siding)": 161.33,
-    "Windows - PVC Trim Coil (1 per 5 Sq Siding)": 167.08,
-    "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": 170.53,
+    # Iter 45b: dropped "(1 per 5 Sq Siding)" suffix per Howard — the
+    # windows quote doesn't measure siding, so the qualifier is noise.
+    "Windows - .019 Coil": 161.33,
+    "Windows - PVC Trim Coil": 167.08,
+    "Windows - Performance G8 Trim Coil": 170.53,
     "Windows - Caulking (per color)": 8.23,
 }
 

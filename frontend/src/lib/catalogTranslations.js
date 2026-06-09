@@ -118,9 +118,9 @@ const ITEMS_ES = {
   "Oversize Vinyl Door - (greater than 8' width)": "Puerta de vinil de gran tamaño (más de 8' de ancho)",
 
   // Window Material List
-  "Windows - .019 Coil (1 per 5 Sq Siding)": "Ventanas – Bobina .019 (1 por cada 5 MC de vinil)",
-  "Windows - PVC Trim Coil (1 per 5 Sq Siding)": "Ventanas – Bobina de PVC para moldura (1 por cada 5 MC de vinil)",
-  "Windows - Performance G8 Trim Coil (1 per 5 Sq Siding)": "Ventanas – Bobina G8 Performance (1 por cada 5 MC de vinil)",
+  "Windows - .019 Coil": "Ventanas – Bobina .019",
+  "Windows - PVC Trim Coil": "Ventanas – Bobina de PVC para moldura",
+  "Windows - Performance G8 Trim Coil": "Ventanas – Bobina G8 Performance",
   "Windows - Caulking (per color)": "Ventanas – Sellador (por color)",
 
   // Window Exterior Trim Work
