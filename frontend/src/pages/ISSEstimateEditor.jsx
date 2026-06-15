@@ -606,73 +606,6 @@ export default function ISSEstimateEditor() {
           })()}
         </section>
 
-        {/* Summary — same layout as the Siding estimator's TotalsSummary,
-            minus the Tax field (ISS prices are tax-exclusive on quote). */}
-        <section className="card p-6 mb-4" data-testid="iss-totals-summary">
-          <div className="section-tag mb-4 flex items-center gap-2">
-            <span>Summary</span>
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 bg-orange-50 border border-[#F97316] text-[#F97316]"
-              data-testid="iss-summary-tab-badge"
-            >
-              ISS Quote
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-            <Stat label="Subtotal" val={fmt(totals.subTotal)} testid="iss-subtotal" />
-            <Stat
-              label={`Waste (${est.waste_pct || 0}%)`}
-              val={fmt(totals.wasteAdd)}
-              testid="iss-waste-add"
-            />
-            <Stat label="Base Cost" val={fmt(totals.base)} testid="iss-base-cost" bold />
-            <Stat
-              label={`Profit (${est.margin_pct || 0}% ${(est.pricing_mode || "margin")})`}
-              val={fmt(totals.profit)}
-              testid="iss-profit"
-            />
-            <Stat label="Sell Price" val={fmt(totals.sell)} testid="iss-sell-price" orange />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="btn-primary"
-              onClick={() => flush({ force: true })}
-              disabled={saving}
-              data-testid="iss-summary-save-btn"
-            >
-              <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={handleOpenQuote}
-              data-testid="iss-summary-quote-btn"
-            >
-              <FileText className="w-4 h-4" /> Customer Quote
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={handlePrintMaterials}
-              data-testid="iss-summary-materials-btn"
-            >
-              <ClipboardList className="w-4 h-4" /> Material List
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={() => window.print()}
-              data-testid="iss-summary-print-btn"
-            >
-              <Printer className="w-4 h-4" /> Print
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={handleExportCsv}
-              data-testid="iss-summary-export-csv-btn"
-            >
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
-          </div>
-        </section>
-
         {(catalog.sections || []).map((sec) => {
           const isOpen = !!openSections[sec.title];
           const sectionTotal = sec.items.reduce((s, it) => {
@@ -782,6 +715,73 @@ export default function ISSEstimateEditor() {
             </section>
           );
         })}
+
+        {/* Summary — bottom of the editor, mirrors the Siding estimator's
+            position. No Tax field per supplier request. */}
+        <section className="card p-6 mt-4" data-testid="iss-totals-summary">
+          <div className="section-tag mb-4 flex items-center gap-2">
+            <span>Summary</span>
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 bg-orange-50 border border-[#F97316] text-[#F97316]"
+              data-testid="iss-summary-tab-badge"
+            >
+              ISS Quote
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+            <Stat label="Subtotal" val={fmt(totals.subTotal)} testid="iss-subtotal" />
+            <Stat
+              label={`Waste (${est.waste_pct || 0}%)`}
+              val={fmt(totals.wasteAdd)}
+              testid="iss-waste-add"
+            />
+            <Stat label="Base Cost" val={fmt(totals.base)} testid="iss-base-cost" bold />
+            <Stat
+              label={`Profit (${est.margin_pct || 0}% ${(est.pricing_mode || "margin")})`}
+              val={fmt(totals.profit)}
+              testid="iss-profit"
+            />
+            <Stat label="Sell Price" val={fmt(totals.sell)} testid="iss-sell-price" orange />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="btn-primary"
+              onClick={() => flush({ force: true })}
+              disabled={saving}
+              data-testid="iss-summary-save-btn"
+            >
+              <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={handleOpenQuote}
+              data-testid="iss-summary-quote-btn"
+            >
+              <FileText className="w-4 h-4" /> Customer Quote
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={handlePrintMaterials}
+              data-testid="iss-summary-materials-btn"
+            >
+              <ClipboardList className="w-4 h-4" /> Material List
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => window.print()}
+              data-testid="iss-summary-print-btn"
+            >
+              <Printer className="w-4 h-4" /> Print
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={handleExportCsv}
+              data-testid="iss-summary-export-csv-btn"
+            >
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+          </div>
+        </section>
       </div>
 
       {showQuote && (
