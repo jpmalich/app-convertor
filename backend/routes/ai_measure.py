@@ -59,9 +59,15 @@ Schema:
 {
   "scale_confidence": "high" | "medium" | "low",
   "reference_used": "<short description of the reference you anchored scale on, or 'none'>",
+  "story_count": 1 | 1.5 | 2 | 2.5 | 3,
+  "story_count_reasoning": "<1 sentence — what visual cue told you the story count>",
+  "avg_wall_height_ft": number,           // average eave height used for area math
+  "siding_coverage_pct": number,          // 0-100, % of gross wall area actually clad in siding (NOT brick, stone, etc.)
   "walls": [
     {"label": "front" | "back" | "left" | "right" | "other",
-     "width_ft": number, "height_ft": number}
+     "width_ft": number, "height_ft": number,
+     "siding_pct_this_wall": number       // 0-100 — siding only, not brick/garage door/etc.
+    }
   ],
   "openings": [
     {"type": "window" | "entry_door" | "patio_door" | "garage_door" | "vent" | "other",
@@ -72,22 +78,47 @@ Schema:
   "notes": "<1-2 sentences flagging anything the contractor should verify>"
 }
 
-Estimation rules:
-- If the contractor provided a reference dimension, anchor all scale to it
-  and set scale_confidence to "high".
-- Standard residential proxies (only use when no reference is given):
-    - Front door: ~80 inches tall
-    - Standard brick course: ~8 inches wide
-    - Single-car garage door: ~84 inches tall × 108 inches wide
-    - One-story wall height: ~9 ft floor-to-eave
-    - Two-story wall height: ~18 ft floor-to-eave
-  When using proxies, set scale_confidence to "medium" or "low".
-- Round widths/heights to the nearest 6 inches (0.5 ft) for walls,
-  and the nearest 2 inches for openings.
-- If a wall is partially obscured (trees, neighboring house, angle),
-  still emit your best guess and mention it in notes.
-- It's OK to return 0 walls / 0 openings if the photos truly do not show
-  the house exterior — just say so in notes.
+CRITICAL accuracy rules (read every time):
+
+1. SCALE: If the contractor provided ANY reference dimension (door width,
+   wall width, garage height, brick course), anchor scale to it and set
+   scale_confidence to "high". When you compute wall area, use the
+   contractor-provided width VERBATIM — do not round it.
+
+2. STORY COUNT: Look at the photos and explicitly count visible floors.
+   Cues: number of window rows, height vs the garage door, attic / gable
+   triangle vs eave line, etc. State the cue in story_count_reasoning.
+   Default story heights when you can't see better evidence:
+     1 story:    9 ft floor-to-eave
+     1.5 story: 12 ft (with kneewall) — used for Cape Cod / story-and-a-half
+     2 story:  18 ft
+   Use these ONLY when the photos clearly show that story count. If
+   uncertain, bias DOWN (one story) and reflect it in scale_confidence.
+
+3. SIDING COVERAGE: A wall area is NOT the same as a siding area.
+   Examine every wall for:
+     - Brick / stone wainscot or full-wall masonry (NO siding)
+     - Garage doors (NO siding behind them)
+     - Stucco / EIFS panels (NO siding)
+   For each wall, set siding_pct_this_wall to the visible fraction of
+   the wall actually clad in siding. Compute the global
+   siding_coverage_pct as a weighted average. If a house is 100% siding,
+   that's fine — but DON'T assume it.
+
+4. CONSERVATIVE BIAS: When in doubt, under-estimate. Contractors over-buy
+   to cover waste; you don't need to add buffer. If your math gives a
+   range, return the LOW end and flag it in notes.
+
+5. SHOW YOUR WORK: In notes, briefly explain:
+   "X walls × Y ft avg height = Z ft² gross; siding coverage A% → final
+   siding area B ft²."
+
+6. ROUNDING: Walls to nearest 0.5 ft. Openings to nearest 2 in. Final
+   siding area to nearest 10 ft².
+
+7. WHAT TO RETURN as siding_sqft (computed downstream from your walls):
+   ONLY the portion of wall area that's actually siding (after applying
+   siding_pct_this_wall per wall). Do not include brick/garage/etc.
 
 Return ONLY the JSON object. No explanation, no code fences."""
 
@@ -114,14 +145,26 @@ def _json_from_reply(text: str) -> dict:
 def _aggregate_to_hover_shape(raw: dict) -> dict:
     """Roll up Claude's per-wall / per-opening estimates into the same
     measurements dict that the HOVER PDF importer returns. The frontend
-    diff modal is reused 1-for-1."""
+    diff modal is reused 1-for-1.
+
+    Each wall now carries an optional `siding_pct_this_wall` (0-100). If
+    Claude saw brick / garage / stucco on part of a wall, that fraction
+    is dropped from the siding area — otherwise the legacy 100% siding
+    behavior holds.
+    """
     walls = raw.get("walls") or []
     openings = raw.get("openings") or []
 
     siding_sqft = 0.0
     for w in walls:
-        siding_sqft += (float(w.get("width_ft") or 0)
-                        * float(w.get("height_ft") or 0))
+        gross = (float(w.get("width_ft") or 0)
+                 * float(w.get("height_ft") or 0))
+        pct = float(w.get("siding_pct_this_wall") or 100.0)
+        # Clamp to a sane range and treat null/zero defensively as 100%.
+        if pct <= 0:
+            pct = 100.0
+        pct = min(pct, 100.0)
+        siding_sqft += gross * (pct / 100.0)
     # The HOVER importer also surfaces siding_with_openings_sqft (gross
     # ft² incl. door/window openings). For AI walls we already counted
     # gross wall area, so use the same value.
@@ -160,6 +203,10 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
         # AI-specific surfaced fields
         "_ai_scale_confidence": raw.get("scale_confidence") or "low",
         "_ai_reference_used": raw.get("reference_used") or "none",
+        "_ai_story_count": raw.get("story_count"),
+        "_ai_story_count_reasoning": raw.get("story_count_reasoning") or "",
+        "_ai_avg_wall_height_ft": raw.get("avg_wall_height_ft"),
+        "_ai_siding_coverage_pct": raw.get("siding_coverage_pct"),
         "_ai_notes": raw.get("notes") or "",
     }
     return measurements

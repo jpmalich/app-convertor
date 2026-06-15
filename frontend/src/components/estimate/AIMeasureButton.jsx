@@ -34,6 +34,8 @@ export default function AIMeasureButton({ kind, onApply, address }) {
   const fileRef = useRef();
   const [files, setFiles] = useState([]);
   const [refDim, setRefDim] = useState("");
+  const [wallHeight, setWallHeight] = useState("");
+  const [sidingPct, setSidingPct] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(null); // {measurements, raw_ai}
@@ -53,7 +55,15 @@ export default function AIMeasureButton({ kind, onApply, address }) {
     try {
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
-      if (refDim) fd.append("reference_dim", refDim);
+      // Roll the optional fields into a single reference_dim string so
+      // the backend doesn't need extra plumbing — Claude reads it as
+      // contractor-provided context inside the user prompt.
+      const refBits = [];
+      if (refDim) refBits.push(refDim);
+      if (wallHeight) refBits.push(`average wall height = ${wallHeight} ft`);
+      if (sidingPct) refBits.push(`siding covers ~${sidingPct}% of total wall area (rest is brick / stone / garage / etc.)`);
+      const refCombined = refBits.join("; ");
+      if (refCombined) fd.append("reference_dim", refCombined);
       if (address) fd.append("address", address);
       fd.append("kind", kind || "siding");
       const { data } = await api.post("/measure/ai-measure", fd, {
@@ -81,6 +91,8 @@ export default function AIMeasureButton({ kind, onApply, address }) {
       setPreview(null);
       setFiles([]);
       setRefDim("");
+      setWallHeight("");
+      setSidingPct("");
     } catch (e) {
       toast.error(e.message || "Apply failed");
     } finally {
@@ -94,6 +106,8 @@ export default function AIMeasureButton({ kind, onApply, address }) {
     setPreview(null);
     setFiles([]);
     setRefDim("");
+    setWallHeight("");
+    setSidingPct("");
   };
 
   const conf = preview?.measurements?._ai_scale_confidence || "low";
@@ -211,6 +225,43 @@ export default function AIMeasureButton({ kind, onApply, address }) {
                       data-testid="ai-measure-ref-dim"
                     />
                   </label>
+
+                  {/* Wall height + Siding coverage — the two biggest
+                      accuracy levers when photos alone aren't enough. */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <label className="block">
+                      <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
+                        Avg wall height (ft)
+                      </div>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="6"
+                        max="40"
+                        className="input text-sm"
+                        placeholder="9 = 1-story · 18 = 2-story"
+                        value={wallHeight}
+                        onChange={(e) => setWallHeight(e.target.value)}
+                        data-testid="ai-measure-wall-height"
+                      />
+                    </label>
+                    <label className="block">
+                      <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
+                        Siding coverage (%)
+                      </div>
+                      <input
+                        type="number"
+                        step="5"
+                        min="0"
+                        max="100"
+                        className="input text-sm"
+                        placeholder="100 = all siding · 60 = part brick"
+                        value={sidingPct}
+                        onChange={(e) => setSidingPct(e.target.value)}
+                        data-testid="ai-measure-siding-pct"
+                      />
+                    </label>
+                  </div>
                 </>
               )}
 
@@ -224,7 +275,27 @@ export default function AIMeasureButton({ kind, onApply, address }) {
                     <span className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
                       Reference: {preview.measurements._ai_reference_used || "none"}
                     </span>
+                    {preview.measurements._ai_story_count != null && (
+                      <span className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        {preview.measurements._ai_story_count}-story
+                      </span>
+                    )}
+                    {preview.measurements._ai_avg_wall_height_ft != null && (
+                      <span className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        wall ht {preview.measurements._ai_avg_wall_height_ft} ft
+                      </span>
+                    )}
+                    {preview.measurements._ai_siding_coverage_pct != null && (
+                      <span className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        siding {preview.measurements._ai_siding_coverage_pct}%
+                      </span>
+                    )}
                   </div>
+                  {preview.measurements._ai_story_count_reasoning && (
+                    <div className="text-[11px] text-[#71717A] mb-2 italic">
+                      Story count: {preview.measurements._ai_story_count_reasoning}
+                    </div>
+                  )}
                   {preview.measurements._ai_notes && (
                     <div className="text-xs text-[#52525B] mb-3 italic border-l-2 border-[#7C3AED] pl-3" data-testid="ai-measure-notes">
                       {preview.measurements._ai_notes}
