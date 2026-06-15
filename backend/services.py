@@ -306,13 +306,27 @@ async def ensure_tiers_seeded():
         )
     # Iter 44: split the legacy "J-blocks, Dryer vents" rollup into 4 SKUs
     # (Split/Light/UL/Jumbo). Idempotent migration: pull the old name and
-    # push the 4 new lines into the Vinyl Accessories section on every
+    # push the 4 new lines into the Siding Accessories section on every
     # tier doc. Existing estimates keep their snapshot of the old line.
+    # Iter 44b: name shortened from "J-blocks, Dryer vents - X" to "J-blocks - X"
+    # per supplier preference — rename any pre-existing rows in place.
+    JBLOCK_RENAMES = {
+        "J-blocks, Dryer vents - Split Blocks (82A009)": "J-blocks - Split Blocks (82A009)",
+        "J-blocks, Dryer vents - Light Blocks (82A010)": "J-blocks - Light Blocks (82A010)",
+        "J-blocks, Dryer vents - UL Blocks (82A017)":    "J-blocks - UL Blocks (82A017)",
+        "J-blocks, Dryer vents - Jumbo Blocks (82A011)": "J-blocks - Jumbo Blocks (82A011)",
+    }
+    for old_name, new_name in JBLOCK_RENAMES.items():
+        await db.price_tiers.update_many(
+            {"sections.items.name": old_name},
+            {"$set": {"sections.$[].items.$[it].name": new_name}},
+            array_filters=[{"it.name": old_name}],
+        )
     NEW_J_BLOCK_ITEMS = [
-        {"name": "J-blocks, Dryer vents - Split Blocks (82A009)",  "unit": "Each", "mat": 13.49, "lab": 0.0, "ami_part": "82A009"},
-        {"name": "J-blocks, Dryer vents - Light Blocks (82A010)",  "unit": "Each", "mat": 11.72, "lab": 0.0, "ami_part": "82A010"},
-        {"name": "J-blocks, Dryer vents - UL Blocks (82A017)",     "unit": "Each", "mat": 21.51, "lab": 0.0, "ami_part": "82A017"},
-        {"name": "J-blocks, Dryer vents - Jumbo Blocks (82A011)",  "unit": "Each", "mat": 11.72, "lab": 0.0, "ami_part": "82A011"},
+        {"name": "J-blocks - Split Blocks (82A009)",  "unit": "Each", "mat": 13.49, "lab": 0.0, "ami_part": "82A009"},
+        {"name": "J-blocks - Light Blocks (82A010)",  "unit": "Each", "mat": 11.72, "lab": 0.0, "ami_part": "82A010"},
+        {"name": "J-blocks - UL Blocks (82A017)",     "unit": "Each", "mat": 21.51, "lab": 0.0, "ami_part": "82A017"},
+        {"name": "J-blocks - Jumbo Blocks (82A011)",  "unit": "Each", "mat": 11.72, "lab": 0.0, "ami_part": "82A011"},
     ]
     new_names = {it["name"] for it in NEW_J_BLOCK_ITEMS}
     async for doc in db.price_tiers.find({}, {"sections": 1}):
@@ -341,10 +355,10 @@ async def ensure_tiers_seeded():
     # migration (with $0 mat) gets corrected. Idempotent — only writes when
     # the DB value disagrees with the supplier-confirmed price.
     J_BLOCK_PRICES = {
-        "J-blocks, Dryer vents - Split Blocks (82A009)": 13.49,
-        "J-blocks, Dryer vents - Light Blocks (82A010)": 11.72,
-        "J-blocks, Dryer vents - UL Blocks (82A017)": 21.51,
-        "J-blocks, Dryer vents - Jumbo Blocks (82A011)": 11.72,
+        "J-blocks - Split Blocks (82A009)": 13.49,
+        "J-blocks - Light Blocks (82A010)": 11.72,
+        "J-blocks - UL Blocks (82A017)": 21.51,
+        "J-blocks - Jumbo Blocks (82A011)": 11.72,
     }
     for jname, jprice in J_BLOCK_PRICES.items():
         await db.price_tiers.update_many(
