@@ -31,6 +31,8 @@ async def list_estimates(
     q = {"company_id": user["company_id"]}
     if kind == "windows":
         q["kind"] = "windows"
+    elif kind == "iss":
+        q["kind"] = "iss"
     elif kind == "siding":
         # Include both explicit "siding" AND legacy estimates with no kind.
         q["$or"] = [{"kind": "siding"}, {"kind": {"$exists": False}}, {"kind": ""}]

@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Home as HomeIcon, RectangleHorizontal } from "lucide-react";
+import { Home as HomeIcon, RectangleHorizontal, Layers } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -30,7 +30,7 @@ export default function HomePicker() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <button
           type="button"
           onClick={() => nav("/dashboard/siding")}
@@ -76,6 +76,30 @@ export default function HomePicker() {
           </p>
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#F97316] group-hover:underline">
             Open Windows Workspace →
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => nav("/dashboard/iss")}
+          className="card text-left p-6 sm:p-8 group hover:border-[#F97316] transition-colors"
+          data-testid="home-card-iss"
+        >
+          <div className="flex items-center gap-3 mb-4 text-[#F97316]">
+            <Layers className="w-8 h-8" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
+              Workspace
+            </span>
+          </div>
+          <h2 className="font-heading text-2xl sm:text-3xl text-[#09090B] mb-2">
+            ISS Quotes
+          </h2>
+          <p className="text-sm text-[#52525B] mb-6">
+            Single-tier siding estimator using the 2026 ISS price book. One
+            combined material + labor price per line, 9 standard sections.
+          </p>
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#F97316] group-hover:underline">
+            Open ISS Workspace →
           </div>
         </button>
       </div>

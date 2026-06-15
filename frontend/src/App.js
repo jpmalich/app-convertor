@@ -9,7 +9,7 @@ import { LangProvider } from "@/lib/i18n";
 import Login from "@/pages/Login";
 import HomePicker from "@/pages/HomePicker";
 import Dashboard from "@/pages/Dashboard";
-import EstimateEditor from "@/pages/EstimateEditor";
+import EstimateRouter from "@/pages/EstimateRouter";
 import Catalog from "@/pages/Catalog";
 import Team from "@/pages/Team";
 import BrandingAdmin from "@/pages/BrandingAdmin";
@@ -56,10 +56,11 @@ function App() {
                     <Route path="/" element={<HomePicker />} />
                     <Route path="/dashboard/siding" element={<Dashboard kind="siding" />} />
                     <Route path="/dashboard/windows" element={<Dashboard kind="windows" />} />
+                    <Route path="/dashboard/iss" element={<Dashboard kind="iss" />} />
                     {/* Back-compat: old bookmarks pointing to /dashboard hit
                         the siding workspace (legacy default). */}
                     <Route path="/dashboard" element={<Navigate to="/dashboard/siding" replace />} />
-                    <Route path="/estimate/:id" element={<EstimateEditor />} />
+                    <Route path="/estimate/:id" element={<EstimateRouter />} />
                     <Route path="/catalog" element={<Catalog />} />
                     <Route path="/team" element={<Team />} />
                   </Route>
