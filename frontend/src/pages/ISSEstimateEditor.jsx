@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Lightbulb } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Lightbulb, Save } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import {
   vinylSidingColorGroupsForEstimate,
@@ -69,16 +69,15 @@ export default function ISSEstimateEditor() {
   const userEdits = useRef(0);
   const savedUpTo = useRef(0);
   const savingNow = useRef(false);
-  const flush = useCallback(async () => {
+  const flush = useCallback(async ({ force = false } = {}) => {
     if (!est) return;
     if (savingNow.current) return;
-    if (userEdits.current <= savedUpTo.current) return;
-    const target = userEdits.current;
+    if (!force && userEdits.current <= savedUpTo.current) return;
+    const target = Math.max(userEdits.current, savedUpTo.current + 1);
     savingNow.current = true;
     setSaving(true);
     try {
       const payload = { ...est };
-      // Strip read-only fields the API rejects.
       delete payload.id;
       delete payload.created_at;
       delete payload.updated_at;
@@ -88,7 +87,9 @@ export default function ISSEstimateEditor() {
       delete payload.estimate_number;
       const { data } = await api.put(`/estimates/${id}`, payload);
       savedUpTo.current = target;
+      userEdits.current = target;
       setEst((cur) => ({ ...(cur || {}), ...data, lines: data.lines || [] }));
+      if (force) toast.success("Estimate saved");
     } catch (e) {
       toast.error(formatApiError(e?.response?.data?.detail));
     } finally {
@@ -251,11 +252,17 @@ export default function ISSEstimateEditor() {
               <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold">Grand Total</div>
               <div className="font-mono-num text-lg font-bold text-[#09090B]" data-testid="iss-grand-total">{fmt(grandTotal)}</div>
             </div>
-            {saving && (
-              <span className="text-[10px] uppercase tracking-wider text-[#F97316] font-bold" data-testid="iss-saving">
-                Saving…
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => flush({ force: true })}
+              disabled={saving}
+              className="px-4 py-2 bg-[#09090B] text-white hover:bg-[#27272A] disabled:opacity-60 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+              data-testid="iss-save-btn"
+              title="Save changes now (also auto-saves after each edit)"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {saving ? "Saving…" : "Save"}
+            </button>
           </div>
         </div>
       </div>
