@@ -246,6 +246,65 @@ async def ensure_tiers_seeded():
         {"$set": {"sections.$[].items.$[it].mat": 0.0}},
         array_filters=[{"it.name": "Vero - Double Hung 0-101 UI"}],
     )
+    # Iter 43: Howard wants all default labor on Vinyl + Ascend lines to be
+    # $0 so contractors fill in labor per job. Zero `lab` on every item that
+    # belongs ONLY to vinyl/ascend (and shared lp_smart) sections — leave
+    # the Windows tab labor alone since those defaults come from the Excel
+    # and contractors expect them. Idempotent: only writes when lab != 0.
+    from catalog_seed import SECTION_PRODUCT_LINES, product_lines_for, ITEM_META
+    VINYL_ASCEND_ITEM_NAMES = []
+    for name, (_unit, lab_default) in ITEM_META.items():
+        # Skip window-tab items — they're identified by either a "(Windows)"
+        # suffix, a "Vero" prefix, or by appearing in a Windows section.
+        if name.startswith("Vero") or "(Windows)" in name or name.startswith("Windows -"):
+            continue
+        # Skip the few window-only entries that don't follow the naming
+        # convention above.
+        if name in {
+            "Window DH/Slider - Pocket Install",
+            "Window - Full Fin Replacement",
+            "Window - Block Frame Replacement",
+            "Large Window - adder for windows 30 sq-ft or larger",
+            "Field Mull Assembly and/or Field Glaze (adder per each opening)",
+            "Lead Safe Installation Practices For Window Installation",
+            "Lead Safe - Test Fee (all homes 1978 and older are tested)",
+            "Vinyl Sliding Glass Door (5' & 6' width)",
+            "Vinyl Sliding Glass Door (8' width -or- a sliding door that needs to be field assembled)",
+            "Oversize Vinyl Door - (greater than 8' width)",
+            "New Exterior Primed Stops or Snap Trim",
+            "New Exterior Primed Wood Trim",
+            "New Exterior Composite Trim",
+            "New Interior Stops or Flat Trim",
+            "New Interior Casing",
+            "New Interior Jamb Extension",
+            "New Interior Sill - create or replace interior window sill - QUOTE ONLY",
+            "Interior Blinds - Remove For Window Install & Reinstall",
+            "Mullion Removal & Cut-Out of Non-Structural Framing Members",
+            "Second/Third/Clear Story Fee",
+            "Job Measure Standard Fee 4 days+",
+            "Job Measure Rush Fee 3 days or less",
+            "Add New Channel on ALL, Close up opening to match master Front opening",
+            "Minimum Job Charge For Window Installs",
+            "Disposal Fee (Windows)",
+            "Shutters - Take Down & Put Up (REUSE EXISTING ONLY)",
+            "Storm Window Removal",
+        }:
+            continue
+        if lab_default != 0:
+            continue  # only need to clear ITEM_META-zero rows; but keep below to clear DB too
+        VINYL_ASCEND_ITEM_NAMES.append(name)
+    # Build the full set of every name we just zeroed in ITEM_META so the
+    # DB migration matches both — items that were already 0 and items we
+    # newly zeroed (since the source file now reads 0 for both).
+    if VINYL_ASCEND_ITEM_NAMES:
+        await db.price_tiers.update_many(
+            {"sections.items": {"$elemMatch": {
+                "name": {"$in": VINYL_ASCEND_ITEM_NAMES},
+                "lab": {"$ne": 0},
+            }}},
+            {"$set": {"sections.$[].items.$[it].lab": 0.0}},
+            array_filters=[{"it.name": {"$in": VINYL_ASCEND_ITEM_NAMES}}],
+        )
     BACKFILL = [
         TRIM, "ASCEND Finish Trim", "Ascend - Starter",
         ".019 Coil (1 per 50' fascia)",
