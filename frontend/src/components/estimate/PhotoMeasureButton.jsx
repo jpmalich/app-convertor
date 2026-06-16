@@ -101,6 +101,10 @@ function buildMeasurements(measures, openings) {
     siding_with_openings_sqft: sidingSqft,
     eaves_lf: Math.round(sum("eave_lf")),
     rakes_lf: Math.round(rakesLf),
+    // Starter strip mirrors the eave perimeter on a basic house — same
+    // assumption the AI aggregator uses so `_build_lines` populates the
+    // Vinyl Accessories → Starter row when measurements flow through.
+    starter_lf: Math.round(sum("eave_lf")),
     opening_perimeter_lf: Math.round(openingPerim),
     opening_count: counts.window + counts.entry_door + counts.patio_door + counts.garage_door,
     window_count: counts.window,

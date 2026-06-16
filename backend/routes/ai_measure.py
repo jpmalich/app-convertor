@@ -75,6 +75,9 @@ Schema:
   ],
   "eaves_lf": number,          // sum of horizontal soffit/gutter run, linear feet
   "rakes_lf": number,          // sum of sloped roof edges, linear feet
+  "starter_lf": number,        // linear feet of starter strip at the base of the siding (typically ≈ eaves_lf for a basic 1-story; can differ on porches, walk-outs, or multi-section homes)
+  "outside_corner_lf": number, // linear feet of OUTSIDE corner posts visible across all elevations (typically 4 corners × wall height on a simple rectangular house)
+  "inside_corner_lf": number,  // linear feet of INSIDE corner posts (L-shaped wing additions, dormers, returns — often 0 for a basic rectangle)
   "notes": "<1-2 sentences flagging anything the contractor should verify>"
 }
 
@@ -200,6 +203,19 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
         "opening_sqft": round(opening_sqft, 1),
         "eaves_lf": round(float(raw.get("eaves_lf") or 0), 1),
         "rakes_lf": round(float(raw.get("rakes_lf") or 0), 1),
+        # Starter strip: AI value if Claude gave one, otherwise fall back
+        # to eaves_lf since the starter perimeter runs along the same base
+        # course as the eaves on a basic 1-story rectangle. The contractor
+        # can adjust on the line item if the house has porches / walk-outs.
+        "starter_lf": round(float(raw.get("starter_lf") or raw.get("eaves_lf") or 0), 1),
+        # Corners — AI estimates from visible elevations. Fall back to a
+        # reasonable default for a basic rectangular house (4 outside
+        # corners × avg wall height, 0 inside corners).
+        "outside_corner_lf": round(float(
+            raw.get("outside_corner_lf")
+            or 4 * float(raw.get("avg_wall_height_ft") or 0)
+        ), 1),
+        "inside_corner_lf": round(float(raw.get("inside_corner_lf") or 0), 1),
         "opening_perimeter_lf": round(perimeter_lf, 1),
         "opening_count": sum(counts.values()),
         "window_count": counts["window"],
