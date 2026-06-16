@@ -80,6 +80,12 @@ Schema:
 
 CRITICAL accuracy rules (read every time):
 
+0. ONLY COUNT WHAT YOU SEE. If the contractor uploaded 2 photos (e.g. side
+   + back), do NOT mirror-extrapolate the front or other side. Return walls
+   ONLY for the elevations clearly visible in the supplied photos. In notes
+   say which elevations are MISSING so the contractor knows to add them.
+   Never inflate `walls[]` by guessing unseen sides.
+
 1. SCALE: If the contractor provided ANY reference dimension (door width,
    wall width, garage height, brick course), anchor scale to it and set
    scale_confidence to "high". When you compute wall area, use the

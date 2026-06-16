@@ -171,8 +171,9 @@ export default function AIMeasureButton({ kind, onApply, address }) {
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
                   AI photo measurement is an <strong>estimate, not a survey</strong>.
-                  Accuracy improves dramatically when you provide a reference dimension
-                  below. Always verify before sending a quote.
+                  Upload <strong>all 4 elevations</strong> (front, back, left, right) for best
+                  accuracy — Claude will only count walls it can actually see and will
+                  flag any missing sides in the result.
                 </div>
               </div>
 
