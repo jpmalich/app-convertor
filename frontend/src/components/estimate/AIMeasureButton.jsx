@@ -41,6 +41,62 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn }) 
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(null); // {measurements, raw_ai}
   const [refineOpen, setRefineOpen] = useState(false);
+  // Iter 47: contractor can override Claude's wall geometry inline.
+  // Tracks whether walls were edited so apply() refreshes lines via
+  // /measure/map (otherwise the pre-rolled lines are reused).
+  const [wallsDirty, setWallsDirty] = useState(false);
+
+  // Apply Howard's geometry math to the edited wall list and update
+  // siding_sqft / gable / dormer totals on the preview in-place. Mirrors
+  // backend `_aggregate_to_hover_shape` so the headline number tracks
+  // every keystroke without a round-trip.
+  const recomputeFromWalls = (walls) => {
+    let sidingSqft = 0;
+    let gableSqft = 0;
+    let dormerSqft = 0;
+    for (const w of walls) {
+      const width = Number(w.width_ft) || 0;
+      const eave = Number(w.height_ft) || 0;
+      const gross = width * eave;
+      let pct = Number(w.siding_pct_this_wall);
+      if (!pct || pct <= 0) pct = 100;
+      if (pct > 100) pct = 100;
+      sidingSqft += gross * (pct / 100);
+      const gableH = Number(w.gable_triangle_height_ft) || 0;
+      if (gableH > 0 && width > 0) gableSqft += 0.5 * width * gableH;
+      dormerSqft += Number(w.dormer_face_sqft) || 0;
+    }
+    sidingSqft += gableSqft + dormerSqft;
+    return {
+      siding_sqft: Math.round(sidingSqft * 10) / 10,
+      _ai_gable_sqft: Math.round(gableSqft * 10) / 10,
+      _ai_dormer_sqft: Math.round(dormerSqft * 10) / 10,
+    };
+  };
+
+  // Edit one cell on one wall and recompute totals so the headline
+  // sqft figure on the preview shifts immediately.
+  const setWall = (idx, key, val) => {
+    setPreview((p) => {
+      if (!p?.raw_ai?.walls) return p;
+      const walls = p.raw_ai.walls.map((w, i) =>
+        i === idx ? { ...w, [key]: val === "" ? 0 : Number(val) } : w
+      );
+      const totals = recomputeFromWalls(walls);
+      return {
+        ...p,
+        raw_ai: { ...p.raw_ai, walls },
+        measurements: {
+          ...p.measurements,
+          siding_sqft: totals.siding_sqft,
+          siding_with_openings_sqft: totals.siding_sqft,
+          _ai_gable_sqft: totals._ai_gable_sqft,
+          _ai_dormer_sqft: totals._ai_dormer_sqft,
+        },
+      };
+    });
+    setWallsDirty(true);
+  };
 
   const pickFiles = (e) => {
     const arr = Array.from(e.target.files || []).slice(0, 8);
@@ -75,6 +131,7 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn }) 
         timeout: 120000,
       });
       setPreview(data);
+      setWallsDirty(false);
     } catch (e) {
       toast.error(e?.response?.data?.detail || e.message || "AI measure failed");
     } finally {
@@ -86,10 +143,24 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn }) 
     if (!preview?.measurements) return;
     setBusy(true);
     try {
+      let toApply = preview;
+      // If the contractor edited wall geometry, refresh the line items
+      // via /measure/map so Charter Oak qty etc. reflect the override
+      // before the page merges them into the estimate.
+      if (wallsDirty) {
+        try {
+          const { data } = await api.post("/measure/map", {
+            measurements: preview.measurements,
+          });
+          toApply = { ...preview, lines: data.lines || preview.lines };
+        } catch {
+          // Non-fatal: fall back to original lines if /measure/map fails.
+        }
+      }
       // Pass the full preview {measurements, lines, vero_openings, raw_ai}
       // so the page can choose how to merge. ISS uses just measurements;
       // siding/windows merge `lines` directly.
-      await onApply(preview);
+      await onApply(toApply);
       toast.success("AI measurements applied — verify all quantities before quoting");
       // Close the modal but KEEP state — re-opening AI Measure lets the
       // contractor add more photos / refine more values without starting
@@ -338,25 +409,88 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn }) 
                       ))}
                   </div>
                   {preview.raw_ai?.walls?.length > 0 && (
-                    <details className="text-xs mb-3">
+                    <details className="text-xs mb-3" open>
                       <summary className="cursor-pointer text-[#7C3AED] font-bold uppercase tracking-wider">
-                        Wall breakdown ({preview.raw_ai.walls.length})
+                        Wall breakdown ({preview.raw_ai.walls.length}) — tap to edit
                       </summary>
-                      <table className="w-full mt-2 text-xs">
+                      <div className="text-[11px] text-[#71717A] mt-2 italic">
+                        If the AI got the geometry wrong (e.g. called a 1-story dormer a 2-story wall),
+                        edit the numbers below. Siding ft² updates live. Apply re-runs the line math.
+                      </div>
+                      <table className="w-full mt-2 text-xs" data-testid="ai-measure-wall-table">
                         <thead className="text-left text-[#A1A1AA] uppercase tracking-wider text-[10px]">
-                          <tr><th>Wall</th><th>W (ft)</th><th>H (ft)</th><th>Area (ft²)</th></tr>
+                          <tr>
+                            <th>Wall</th>
+                            <th>W (ft)</th>
+                            <th>H eave (ft)</th>
+                            <th>Gable h (ft)</th>
+                            <th>Dormer (ft²)</th>
+                            <th>Area (ft²)</th>
+                          </tr>
                         </thead>
                         <tbody>
-                          {preview.raw_ai.walls.map((w, i) => (
-                            <tr key={i} className="border-b border-[#F4F4F5]">
-                              <td className="py-1">{w.label}</td>
-                              <td className="font-mono-num">{w.width_ft}</td>
-                              <td className="font-mono-num">{w.height_ft}</td>
-                              <td className="font-mono-num">{((w.width_ft||0)*(w.height_ft||0)).toFixed(1)}</td>
-                            </tr>
-                          ))}
+                          {preview.raw_ai.walls.map((w, i) => {
+                            const width = Number(w.width_ft) || 0;
+                            const eave = Number(w.height_ft) || 0;
+                            const gable = Number(w.gable_triangle_height_ft) || 0;
+                            const dormer = Number(w.dormer_face_sqft) || 0;
+                            const area = width * eave + 0.5 * width * gable + dormer;
+                            return (
+                              <tr key={i} className="border-b border-[#F4F4F5]">
+                                <td className="py-1 font-bold text-[#52525B] uppercase tracking-wider text-[10px]">{w.label}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    className="w-16 px-1 py-0.5 border border-[#E4E4E7] font-mono-num text-xs"
+                                    value={width}
+                                    onChange={(e) => setWall(i, "width_ft", e.target.value)}
+                                    data-testid={`ai-measure-wall-w-${i}`}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    className="w-16 px-1 py-0.5 border border-[#E4E4E7] font-mono-num text-xs"
+                                    value={eave}
+                                    onChange={(e) => setWall(i, "height_ft", e.target.value)}
+                                    data-testid={`ai-measure-wall-h-${i}`}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    className="w-16 px-1 py-0.5 border border-[#E4E4E7] font-mono-num text-xs"
+                                    value={gable}
+                                    onChange={(e) => setWall(i, "gable_triangle_height_ft", e.target.value)}
+                                    data-testid={`ai-measure-wall-gable-${i}`}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    className="w-16 px-1 py-0.5 border border-[#E4E4E7] font-mono-num text-xs"
+                                    value={dormer}
+                                    onChange={(e) => setWall(i, "dormer_face_sqft", e.target.value)}
+                                    data-testid={`ai-measure-wall-dormer-${i}`}
+                                  />
+                                </td>
+                                <td className="font-mono-num font-bold">{area.toFixed(0)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
+                      {wallsDirty && (
+                        <div className="text-[10px] text-[#F97316] uppercase tracking-wider font-bold mt-2" data-testid="ai-measure-walls-dirty">
+                          ✎ Edited — line items will refresh on Apply
+                        </div>
+                      )}
                     </details>
                   )}
                 </>
