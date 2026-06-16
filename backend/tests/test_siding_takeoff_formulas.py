@@ -71,17 +71,6 @@ def test_starter_ascend_matches_vinyl():
     assert v["extract"](m) == a["extract"](m) == 14
 
 
-def test_soffit_j_channel_two_sides():
-    """F-channel runs along both the wall-side and fascia-side of the
-    soffit, so qty = 2 × eaves_lf."""
-    s = _spec('3/4" Soffit J-Channel (Charter Oak) Standard color', "vinyl")
-    assert s["extract"]({"eaves_lf": 100}) == 200
-    # Rakes are intentionally NOT included — gable rakes get fascia trim,
-    # not soffit channel.
-    assert s["extract"]({"eaves_lf": 100, "rakes_lf": 60}) == 200
-    assert s["extract"]({}) == 0
-
-
 def test_finish_trim_ceil_12_5_with_window_widths():
     """Use the per-window width sum from HOVER when available."""
     s = _spec("Finish Trim Standard color", "vinyl")
