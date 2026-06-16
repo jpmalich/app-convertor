@@ -240,9 +240,14 @@ async def ai_measure(
     reference_dim: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
     kind: str = Form("siding"),
+    overhang_in: float = Form(12.0),
     user: dict = Depends(get_current_user),
 ):
-    """Run an AI photo-measure pass on 2-8 uploaded photos."""
+    """Run an AI photo-measure pass on 2-8 uploaded photos.
+
+    `overhang_in` (inches) flows into the soffit piece-count formula so
+    the imported qty matches the estimate's current Overhang setting.
+    """
     if not files:
         raise HTTPException(status_code=400, detail="At least one photo is required")
     if len(files) > MAX_FILES:
@@ -308,6 +313,7 @@ async def ai_measure(
 
     raw = _json_from_reply(reply_text or "")
     measurements = _aggregate_to_hover_shape(raw)
+    measurements["overhang_in"] = float(overhang_in)
 
     # Re-use the HOVER importer's measurement → catalog-line mapper so the
     # siding/windows estimator can merge AI results identically to a real

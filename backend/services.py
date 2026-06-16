@@ -368,6 +368,95 @@ async def ensure_tiers_seeded():
             {"$set": {"sections.$[].items.$[it].mat": float(jprice)}},
             array_filters=[{"it.name": jname}],
         )
+    # ------------------------------------------------------------------
+    # Iter 45: Soffit & fascia LF → PCS conversion.
+    #
+    # Howard's pricing convention puts per-piece prices into the sheet
+    # divided by 10 (uniform across all 4 SKUs), so the LF→PCS swap is
+    # qty/10 + mat*10, which preserves dollar totals on every existing
+    # estimate. The legacy "13"-30" wide" wide-soffit variants are
+    # dropped entirely — they were never auto-populated and Howard
+    # decided wider soffits get the same SKU at a higher overhang.
+    # ------------------------------------------------------------------
+    SOFFIT_RENAMES = {
+        'Soffit & fascia up to 13" wide Charter Oak Standard color': "Charter Oak Soffit Standard color",
+        'Soffit & fascia up to 13" wide Charter Oak Architectural color': "Charter Oak Soffit Architectural color",
+        'Soffit & fascia up to 13" wide Greenbriar': "Greenbriar Soffit",
+        'Soffit & fascia up to 13" T2': "T2 Soffit",
+    }
+    SOFFIT_DROPS = [
+        'Soffit & fascia up to 13"-30" wide Charter Oak Standard color',
+        'Soffit & fascia up to 13"-30" wide Charter Oak Architectural color',
+        'Soffit & fascia up to 13"-30" wide Greenbriar',
+        'Soffit & fascia up to 13"-30" T2',
+    ]
+    # 1) DROP wide variants from every tier's Vinyl Soffit section.
+    await db.price_tiers.update_many(
+        {"sections.items.name": {"$in": SOFFIT_DROPS}},
+        {"$pull": {"sections.$[].items": {"name": {"$in": SOFFIT_DROPS}}}},
+    )
+    # 2) Rename narrow variants in-place and flip unit LF → PCS,
+    #    multiplying mat by 10. Done as 4 targeted update_many calls
+    #    (one per SKU) so we can set a per-SKU new mat without
+    #    fighting Mongo positional operators.
+    for old_name, new_name in SOFFIT_RENAMES.items():
+        await db.price_tiers.update_many(
+            {"sections.items.name": old_name},
+            {
+                "$set": {
+                    "sections.$[].items.$[it].name": new_name,
+                    "sections.$[].items.$[it].unit": "PCS",
+                }
+            },
+            array_filters=[{"it.name": old_name}],
+        )
+        # mat × 10 (per Howard's pricing convention).
+        async for doc in db.price_tiers.find(
+            {"sections.items.name": new_name}, {"sections": 1}
+        ):
+            dirty = False
+            sections = doc.get("sections", [])
+            for sec in sections:
+                for it in sec.get("items", []):
+                    if it.get("name") == new_name and it.get("unit") != "LF":
+                        # Only bump if mat looks "small" (per-LF range),
+                        # otherwise it's already been migrated.
+                        cur = float(it.get("mat") or 0)
+                        if 0 < cur < 5:
+                            it["mat"] = round(cur * 10, 2)
+                            dirty = True
+            if dirty:
+                await db.price_tiers.update_one(
+                    {"_id": doc["_id"]}, {"$set": {"sections": sections}}
+                )
+    # 3) Estimate-line migration: rename old names, change unit, divide
+    #    qty by 10 (one-shot, idempotent — only acts when unit is still
+    #    "LF"). Drop any lines that point at the wide-variant SKUs since
+    #    those are gone from the catalog.
+    await db.estimates.update_many(
+        {"lines.name": {"$in": SOFFIT_DROPS}},
+        {"$pull": {"lines": {"name": {"$in": SOFFIT_DROPS}}}},
+    )
+    for old_name, new_name in SOFFIT_RENAMES.items():
+        async for est in db.estimates.find(
+            {"lines.name": old_name}, {"lines": 1}
+        ):
+            lines = est.get("lines", [])
+            dirty = False
+            for ln in lines:
+                if ln.get("name") != old_name:
+                    continue
+                ln["name"] = new_name
+                if ln.get("unit") == "LF":
+                    ln["unit"] = "PCS"
+                    ln["qty"] = max(1, round(float(ln.get("qty") or 0) / 10))
+                    ln["mat"] = round(float(ln.get("mat") or 0) * 10, 2)
+                    dirty = True
+            if dirty:
+                await db.estimates.update_one(
+                    {"_id": est["_id"]}, {"$set": {"lines": lines}}
+                )
+
     BACKFILL = [
         TRIM, "ASCEND Finish Trim", "Ascend - Starter",
         ".019 Coil (1 per 50' fascia)",
@@ -414,11 +503,11 @@ async def ensure_tiers_seeded():
         '3/4" J-Channel Architectural color (2 per Sq of siding)',
         "Finish Trim Standard color",
         "Finish Trim Architectural color",
-        # Vinyl Soffit with Siding
-        'Soffit & fascia up to 13" wide Charter Oak Standard color',
-        'Soffit & fascia up to 13" wide Charter Oak Architectural color',
-        'Soffit & fascia up to 13"-30" wide Charter Oak Standard color',
-        'Soffit & fascia up to 13"-30" wide Charter Oak Architectural color',
+        # Vinyl Soffit with Siding — Iter 45: renamed and converted to PCS
+        'Charter Oak Soffit Standard color',
+        'Charter Oak Soffit Architectural color',
+        'Greenbriar Soffit',
+        'T2 Soffit',
         '3/4" Soffit J-Channel (Charter Oak) Standard color',
         '3/4" Soffit J-Channel (Charter Oak) Architectural color',
     ]

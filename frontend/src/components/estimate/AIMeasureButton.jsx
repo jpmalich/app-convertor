@@ -31,7 +31,7 @@ const fmt = (n) => Number(n || 0).toLocaleString();
 const unitOf = (k) =>
   k.endsWith("_sqft") ? "ft²" : k.endsWith("_lf") ? "LF" : "";
 
-export default function AIMeasureButton({ kind, onApply, address }) {
+export default function AIMeasureButton({ kind, onApply, address, overhangIn }) {
   const fileRef = useRef();
   const [files, setFiles] = useState([]);
   const [refDim, setRefDim] = useState("");
@@ -68,6 +68,8 @@ export default function AIMeasureButton({ kind, onApply, address }) {
       if (refCombined) fd.append("reference_dim", refCombined);
       if (address) fd.append("address", address);
       fd.append("kind", kind || "siding");
+      // Soffit pieces are computed server-side using this overhang.
+      fd.append("overhang_in", String(overhangIn ?? 12));
       const { data } = await api.post("/measure/ai-measure", fd, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 120000,

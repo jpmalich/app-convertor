@@ -34,6 +34,30 @@ export default function SettingsRow({ est, update }) {
           <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
             {t("est.wasteHint")}
           </p>
+          {/* Iter 45: soffit overhang in inches — drives the
+              Pieces = (Overhang × Length) ÷ panel-area formula on the
+              Vinyl Soffit line. Lives in the same card as Waste Factor
+              since it's the other knob that affects qty-not-price. */}
+          <div className="mt-4 pt-4 border-t border-[#E4E4E7]">
+            <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-2">
+              {t("est.overhang")}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <input
+                className="input num w-24"
+                type="number"
+                step="1"
+                min="0"
+                value={est.overhang_in ?? 12}
+                onChange={(e) => update({ overhang_in: Number(e.target.value) || 0 })}
+                data-testid="overhang-in"
+              />
+              <span className="text-[#52525B]">in</span>
+            </div>
+            <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+              {t("est.overhangHint")}
+            </p>
+          </div>
         </div>
       )}
       <div className="card p-5">

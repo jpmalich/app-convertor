@@ -339,6 +339,7 @@ export default function ISSEstimateEditor() {
             <AIMeasureButton
               kind="iss"
               address={est?.customer_address}
+              overhangIn={est?.overhang_in ?? 12}
               onApply={async ({ measurements }) => {
                 const { buildISSLinesFromMeasurements } = await import(
                   "@/components/estimate/ISSHoverImportButton"
@@ -546,6 +547,22 @@ export default function ISSEstimateEditor() {
             <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
               Applied to Install Vinyl Siding subtotal · ${totals.sidingSub.toFixed(2)} × {Number(est.waste_pct) || 0}% = ${totals.wasteAdd.toFixed(2)}
             </p>
+            {/* Iter 45: soffit overhang for the PCS formula. */}
+            <div className="mt-3 pt-3 border-t border-[#E4E4E7]">
+              <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-2">Eave Overhang</div>
+              <div className="flex items-baseline gap-2">
+                <input
+                  className="input num h-9 text-sm w-24"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={est.overhang_in ?? 12}
+                  onChange={(e) => updateField("overhang_in", Number(e.target.value) || 0)}
+                  data-testid="iss-overhang-in"
+                />
+                <span className="text-sm text-[#52525B]">in · drives soffit piece count</span>
+              </div>
+            </div>
           </div>
           {(() => {
             const mode = est.pricing_mode || "margin";

@@ -82,6 +82,7 @@ export default function HoverImportButton({ est, update, save }) {
     try {
       const fd = new FormData();
       fd.append("file", f);
+      fd.append("overhang_in", String(est?.overhang_in ?? 12));
       const { data } = await api.post("/estimates/hover-import", fd, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 60000,

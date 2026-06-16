@@ -347,6 +347,9 @@ export default function useEstimate(id) {
       mezzo_interior_color: source.mezzo_interior_color || "",
       mezzo_exterior_color: source.mezzo_exterior_color || "",
       waste_pct: source.waste_pct || 0,
+      // Soffit eave overhang (inches) — drives the soffit piece-count
+      // formula. Default 12" matches a basic single-family eave.
+      overhang_in: source.overhang_in ?? 12,
       tax_enabled: !!source.tax_enabled,
       tax_rate: source.tax_rate || 0,
       margin_pct: source.margin_pct || 0,

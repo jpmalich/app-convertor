@@ -31,7 +31,7 @@ from typing import Optional
 import pdfplumber
 from dotenv import load_dotenv
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from deps import get_current_user
@@ -355,16 +355,29 @@ HOVER_MAPPING_SPEC = [
         "note": "1 box per job (standard)",
     },
     # =====================================================================
-    # SOFFIT — vinyl + ascend share the standard soffit/fascia line; LP
-    # has its own panel-based soffit (16' boards).
+    # SOFFIT — vinyl + ascend share the soffit line; LP has its own
+    # panel-based soffit. Iter 45: switched LF → PCS using Howard's
+    # formula: Pieces = (Overhang × Length) ÷ ((Exposure/12) × Panel length)
+    # Charter Oak default uses 10"-exposure × 12' panel = 10 sqft/pc;
+    # overhang is read from the estimate (defaults to 12" if absent).
+    # Length = eaves + rakes since soffit wraps both the level eave and
+    # the gable rake undersides. Waste% is left for the Waste Factor
+    # card downstream so we don't double-apply.
     # =====================================================================
     {
         "tabs": ["vinyl", "ascend"],
         "section": "Vinyl Soffit with Siding",
-        "item": "Soffit & fascia up to 13\" wide Charter Oak Standard color",
-        "unit": "LF",
-        "extract": lambda m: round((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)),
-        "note": "Eaves LF + Rakes LF — defaults to Standard color",
+        "item": "Charter Oak Soffit Standard color",
+        "unit": "PCS",
+        "extract": lambda m: max(
+            0,
+            math.ceil(
+                ((float(m.get("overhang_in") or 12) / 12.0)
+                 * ((m.get("eaves_lf") or 0) + (m.get("rakes_lf") or 0)))
+                / 10.0
+            ),
+        ),
+        "note": "Pieces = (Overhang × (Eaves+Rakes)) ÷ panel area (10 sqft/pc); Standard color default",
     },
     {
         "tabs": ["vinyl", "ascend"],
@@ -851,10 +864,16 @@ def _build_window_openings(measurements: dict) -> tuple[list[dict], list[dict]]:
 @router.post("/estimates/hover-import", response_model=HoverImportResult)
 async def hover_import(
     file: UploadFile = File(...),
+    overhang_in: float = Form(12.0),
     user: dict = Depends(get_current_user),
 ) -> HoverImportResult:
     """Upload a HOVER PDF, return parsed measurements + a draft `lines[]`
-    payload the frontend can preview before committing to the estimate."""
+    payload the frontend can preview before committing to the estimate.
+
+    `overhang_in` (inches) flows into the soffit piece-count formula —
+    frontend sends the estimate's current overhang so the imported qty
+    matches what the contractor will see in Job Info.
+    """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Please upload a .pdf file")
     raw = await file.read()
@@ -872,6 +891,7 @@ async def hover_import(
     # iterator can safely render every remaining value as a primitive.
     windows_payload = measurements.pop("windows", None) or []
     vero_openings, mezzo_openings = _build_window_openings({"windows": windows_payload})
+    measurements["overhang_in"] = overhang_in
     lines = _build_lines(measurements)
     return HoverImportResult(
         measurements=measurements,

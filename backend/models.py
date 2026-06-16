@@ -185,6 +185,10 @@ class EstimateIn(BaseModel):
     vero_openings: List["VeroOpening"] = []
     photos: List[str] = []
     status_label: str = "draft"
+    # Soffit eave overhang in inches (12" default). Drives the
+    # `Pieces = (Overhang × Length) ÷ panel area` math on the Vinyl
+    # Soffit line — contractor adjusts once per job in Job Info.
+    overhang_in: float = 12.0
     # Photo Measure: human-readable summary of masked-out "no-siding"
     # zones (e.g. "Brick: 220 ft²; Garage door: 168 ft²") so the
     # customer PDF / email can show what was excluded from the siding
