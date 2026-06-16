@@ -42,9 +42,32 @@ const OPENING_TYPES = [
   { key: "garage_door", name: "Garage door", color: "#FBBF24" },
 ];
 
+// "No-siding" mask categories. Each zone is deducted from siding_sqft and
+// surfaced on the line item so contractors can see exactly what came off.
+const ZONE_CATEGORIES = [
+  { key: "brick",       name: "Brick",       color: "#B45309" },
+  { key: "stone",       name: "Stone",       color: "#57534E" },
+  { key: "garage_door", name: "Garage door", color: "#FBBF24" },
+  { key: "stucco",      name: "Stucco",      color: "#A8A29E" },
+  { key: "other",       name: "Other",       color: "#DC2626" },
+];
+
 const MODE_CALIBRATE = "calibrate";
 const MODE_MEASURE = "measure";
 const MODE_OPENING = "opening";
+const MODE_ZONE = "zone";
+
+// Shoelace formula for polygon area in pixel-squared units.
+function polygonAreaPx2(pts) {
+  if (pts.length < 3) return 0;
+  let s = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    s += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(s) / 2;
+}
 
 function dist(p1, p2) {
   return Math.hypot(p2.x - p1.x, p2.y - p1.y);
@@ -53,7 +76,9 @@ function dist(p1, p2) {
 // Aggregate the marked measurements into HOVER-shape totals.
 // Heuristic: pair wall_w with wall_h to compute siding area; eave_lf /
 // rake_lf sums map straight across; openings count drives perimeters.
-function buildMeasurements(measures, openings) {
+// `zones` is a list of masked-out regions (brick / stone / garage etc.)
+// whose ft² is deducted from the final siding figure.
+function buildMeasurements(measures, openings, zones = []) {
   const sum = (key) =>
     measures.filter((m) => m.label === key).reduce((a, m) => a + m.feet, 0);
   const widths = measures.filter((m) => m.label === "wall_w").map((m) => m.feet);
@@ -73,7 +98,20 @@ function buildMeasurements(measures, openings) {
   for (let i = 0; i < gableWidths.length; i++) {
     gableArea += gableWidths[i] * (gableHeights[i] || gableHeights[0] || 0) * 0.7;
   }
-  const sidingSqft = Math.round(wallArea + gableArea);
+  const grossSqft = wallArea + gableArea;
+
+  // Roll up zone deductions. Zones already store their area in ft² at
+  // creation time (so the value survives a photo swap).
+  const zonesDeducted = zones.reduce((a, z) => a + (z.area_sqft || 0), 0);
+  const zonesByCat = {};
+  for (const z of zones) {
+    zonesByCat[z.category] = (zonesByCat[z.category] || 0) + (z.area_sqft || 0);
+  }
+  const zonesSummary = Object.entries(zonesByCat)
+    .map(([k, v]) => `${ZONE_CATEGORIES.find((c) => c.key === k)?.name || k}: ${Math.round(v)} ft²`)
+    .join("; ");
+
+  const sidingSqft = Math.max(0, Math.round(grossSqft - zonesDeducted));
 
   // Rakes: 2 × √((gw/2)² + gh²) per gable when widths/heights known,
   // otherwise use any explicit rake measurements the contractor marked.
@@ -112,6 +150,9 @@ function buildMeasurements(measures, openings) {
     patio_door_count: counts.patio_door,
     garage_door_count: counts.garage_door,
     _photo_avg_wall_height_ft: Math.round(avgHeight * 10) / 10,
+    _photo_gross_wall_sqft: Math.round(grossSqft),
+    _photo_zones_deducted_sqft: Math.round(zonesDeducted),
+    _photo_zones_summary: zonesSummary,
   };
 }
 
@@ -147,6 +188,13 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
   const [measures, setMeasures] = useState([]); // [{p1, p2, feet, label}]
   const [openings, setOpenings] = useState([]); // [{x, y, type}]
   const [openingType, setOpeningType] = useState("window");
+  // Zones (masked-out / no-siding regions). Stored once finalized so the
+  // computed area survives photo swaps and zoom/pan.
+  // shape: { id, photoUrl, category, kind: "rect"|"poly", points: [{x,y}], area_sqft }
+  const [zones, setZones] = useState([]);
+  const [zoneCategory, setZoneCategory] = useState("brick");
+  const [zoneShape, setZoneShape] = useState("rect"); // "rect" | "poly"
+  const [polyPoints, setPolyPoints] = useState([]);   // in-progress polygon vertices
   const [busy, setBusy] = useState(false);
   // Tracks any photo the user has explicitly navigated away from, so the
   // single-photo auto-load effect doesn't immediately reload it.
@@ -162,6 +210,8 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
     setPending(null);
     setMeasures([]);
     setOpenings([]);
+    setZones([]);
+    setPolyPoints([]);
   };
 
   const pickPhoto = (e) => {
@@ -213,6 +263,48 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
         ...prev,
         { x: p.x, y: p.y, type: openingType, photoUrl: photo.url, id: `o-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` },
       ]);
+      return;
+    }
+    if (mode === MODE_ZONE) {
+      if (!pxPerFt) {
+        toast.error("Calibrate first — zones use the px/ft scale to compute ft²");
+        return;
+      }
+      if (zoneShape === "rect") {
+        // Two-click rectangle: first click drops `pending` (top-left
+        // corner), second click closes the box and finalizes the zone.
+        if (!pending) {
+          setPending(p);
+          return;
+        }
+        const x1 = Math.min(pending.x, p.x);
+        const y1 = Math.min(pending.y, p.y);
+        const x2 = Math.max(pending.x, p.x);
+        const y2 = Math.max(pending.y, p.y);
+        const w_px = x2 - x1;
+        const h_px = y2 - y1;
+        const area_sqft = (w_px / pxPerFt) * (h_px / pxPerFt);
+        if (area_sqft <= 0) {
+          setPending(null);
+          return;
+        }
+        const points = [
+          { x: x1, y: y1 }, { x: x2, y: y1 },
+          { x: x2, y: y2 }, { x: x1, y: y2 },
+        ];
+        setZones((prev) => [
+          ...prev,
+          {
+            id: `z-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            photoUrl: photo.url, category: zoneCategory, kind: "rect",
+            points, area_sqft,
+          },
+        ]);
+        setPending(null);
+        return;
+      }
+      // Polygon: accumulate points; user clicks "Close polygon" to commit.
+      setPolyPoints((prev) => [...prev, p]);
       return;
     }
     // Calibrate or Measure both need two clicks
@@ -289,25 +381,52 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
     setMode(MODE_CALIBRATE);
     setPxPerFt(0);
     setPending(null);
+    setPolyPoints([]);
   };
 
   const removeMeasurement = (id) =>
     setMeasures((prev) => prev.filter((m) => m.id !== id));
   const removeOpening = (id) =>
     setOpenings((prev) => prev.filter((o) => o.id !== id));
+  const removeZone = (id) =>
+    setZones((prev) => prev.filter((z) => z.id !== id));
+
+  // Commit the polygon currently being drawn into a zone.
+  const closePolygon = () => {
+    if (polyPoints.length < 3) {
+      toast.error("Polygon needs at least 3 points");
+      return;
+    }
+    if (!pxPerFt) {
+      toast.error("Calibrate first");
+      return;
+    }
+    const area_px2 = polygonAreaPx2(polyPoints);
+    const area_sqft = area_px2 / (pxPerFt * pxPerFt);
+    setZones((prev) => [
+      ...prev,
+      {
+        id: `z-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        photoUrl: photo.url, category: zoneCategory, kind: "poly",
+        points: polyPoints, area_sqft,
+      },
+    ]);
+    setPolyPoints([]);
+  };
+  const cancelPolygon = () => setPolyPoints([]);
 
   const apply = async () => {
-    if (!measures.length && !openings.length) {
-      toast.error("Mark at least one measurement or opening first");
+    if (!measures.length && !openings.length && !zones.length) {
+      toast.error("Mark at least one measurement, opening, or zone first");
       return;
     }
     setBusy(true);
     try {
-      const measurements = buildMeasurements(measures, openings);
+      const measurements = buildMeasurements(measures, openings, zones);
       // Hand back the same shape AI Measure produces so the page-level
       // onApply callback (in JobInfoPanel / ISSEstimateEditor) just works.
       await onApply({ measurements, lines: [], vero_openings: [], raw_photo: {
-        measures, openings, pxPerFt,
+        measures, openings, zones, pxPerFt,
       } });
       toast.success("Photo measurements applied");
       closeAll();
@@ -326,11 +445,47 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
     if (!photo) return null;
     const visibleMeasures = measures.filter((m) => !m.photoUrl || m.photoUrl === photo.url);
     const visibleOpenings = openings.filter((o) => !o.photoUrl || o.photoUrl === photo.url);
+    const visibleZones = zones.filter((z) => !z.photoUrl || z.photoUrl === photo.url);
+    const hatchSize = Math.max(8, photo.width / 120);
     return (
       <svg
         viewBox={`0 0 ${photo.width} ${photo.height}`}
         className="absolute inset-0 w-full h-full pointer-events-none"
       >
+        <defs>
+          {ZONE_CATEGORIES.map((c) => (
+            <pattern
+              key={c.key}
+              id={`zone-hatch-${c.key}`}
+              patternUnits="userSpaceOnUse"
+              width={hatchSize}
+              height={hatchSize}
+              patternTransform="rotate(45)"
+            >
+              <rect width={hatchSize} height={hatchSize} fill={c.color} fillOpacity={0.22} />
+              <line x1="0" y1="0" x2="0" y2={hatchSize} stroke={c.color} strokeWidth={Math.max(2, hatchSize / 4)} />
+            </pattern>
+          ))}
+        </defs>
+        {visibleZones.map((z) => {
+          const c = ZONE_CATEGORIES.find((x) => x.key === z.category) || ZONE_CATEGORIES[0];
+          const pathD = z.points
+            .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
+            .join(" ") + " Z";
+          const xs = z.points.map((p) => p.x);
+          const ys = z.points.map((p) => p.y);
+          const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+          const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+          return (
+            <g key={z.id}>
+              <path d={pathD} fill={`url(#zone-hatch-${c.key})`} stroke={c.color} strokeWidth={Math.max(3, photo.width / 600)} />
+              <rect x={cx - 70} y={cy - 18} width={140} height={28} fill="#09090B" rx={3} />
+              <text x={cx} y={cy + 3} fill="#FFFFFF" fontSize={Math.max(13, photo.width / 75)} textAnchor="middle" fontWeight="bold">
+                -{Math.round(z.area_sqft)} ft² {c.name}
+              </text>
+            </g>
+          );
+        })}
         {visibleMeasures.map((m) => {
           const mx = (m.p1.x + m.p2.x) / 2;
           const my = (m.p1.y + m.p2.y) / 2;
@@ -359,7 +514,28 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
             </g>
           );
         })}
-        {pending && (
+        {/* In-progress polygon preview */}
+        {mode === MODE_ZONE && zoneShape === "poly" && polyPoints.length > 0 && (() => {
+          const c = ZONE_CATEGORIES.find((x) => x.key === zoneCategory) || ZONE_CATEGORIES[0];
+          const d = polyPoints.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+          return (
+            <g>
+              <path d={d} fill="none" stroke={c.color} strokeWidth={Math.max(3, photo.width / 600)} strokeDasharray="8 4" />
+              {polyPoints.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r={Math.max(5, photo.width / 350)} fill={c.color} />
+              ))}
+            </g>
+          );
+        })()}
+        {/* Rectangle first-corner preview */}
+        {mode === MODE_ZONE && zoneShape === "rect" && pending && (() => {
+          const c = ZONE_CATEGORIES.find((x) => x.key === zoneCategory) || ZONE_CATEGORIES[0];
+          return (
+            <circle cx={pending.x} cy={pending.y} r={Math.max(6, photo.width / 300)}
+                    fill="none" stroke={c.color} strokeWidth={Math.max(3, photo.width / 600)} strokeDasharray="6 4" />
+          );
+        })()}
+        {pending && mode !== MODE_ZONE && (
           <circle cx={pending.x} cy={pending.y} r={Math.max(6, photo.width / 300)}
                   fill="none" stroke="#F97316" strokeWidth={Math.max(3, photo.width / 600)} strokeDasharray="6 4" />
         )}
@@ -377,7 +553,7 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
     };
   }, [photo, prefillThumbs]);
 
-  const totals = buildMeasurements(measures, openings);
+  const totals = buildMeasurements(measures, openings, zones);
 
   return (
     <div data-testid="photo-measure">
@@ -416,6 +592,10 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
                       ? "Step 2 · Tap two points on a known reference, then enter its real length"
                       : mode === MODE_MEASURE
                       ? `Step 3 · ${pxPerFt.toFixed(1)} px/ft · Tap two points to measure`
+                      : mode === MODE_ZONE
+                      ? (zoneShape === "rect"
+                          ? `Step 4 · Tap top-left then bottom-right to mask ${ZONE_CATEGORIES.find((c) => c.key === zoneCategory)?.name}`
+                          : `Step 4 · Tap polygon points then "Close" to mask ${ZONE_CATEGORIES.find((c) => c.key === zoneCategory)?.name}`)
                       : `Step 4 · Tap to mark ${OPENING_TYPES.find((t) => t.key === openingType)?.name}s`}
                   </div>
                 </div>
@@ -494,25 +674,35 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
               <div className="space-y-3">
                 {photo && (
                   <>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-3 gap-1">
                       <button
                         type="button"
-                        className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
+                        className={`px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
                           mode === MODE_MEASURE ? "bg-[#0EA5E9] text-white border-[#0EA5E9]" : "bg-white text-[#52525B] border-[#E4E4E7] hover:bg-[#F4F4F5]"
                         }`}
-                        onClick={() => { setMode(MODE_MEASURE); setPending(null); }}
+                        onClick={() => { setMode(MODE_MEASURE); setPending(null); setPolyPoints([]); }}
                         disabled={!pxPerFt}
                         data-testid="photo-measure-mode-measure"
                       >Measure</button>
                       <button
                         type="button"
-                        className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
+                        className={`px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
                           mode === MODE_OPENING ? "bg-[#0EA5E9] text-white border-[#0EA5E9]" : "bg-white text-[#52525B] border-[#E4E4E7] hover:bg-[#F4F4F5]"
                         }`}
-                        onClick={() => { setMode(MODE_OPENING); setPending(null); }}
+                        onClick={() => { setMode(MODE_OPENING); setPending(null); setPolyPoints([]); }}
                         disabled={!pxPerFt}
                         data-testid="photo-measure-mode-opening"
-                      >Mark openings</button>
+                      >Openings</button>
+                      <button
+                        type="button"
+                        className={`px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
+                          mode === MODE_ZONE ? "bg-[#DC2626] text-white border-[#DC2626]" : "bg-white text-[#52525B] border-[#E4E4E7] hover:bg-[#F4F4F5]"
+                        }`}
+                        onClick={() => { setMode(MODE_ZONE); setPending(null); setPolyPoints([]); }}
+                        disabled={!pxPerFt}
+                        data-testid="photo-measure-mode-zone"
+                        title="Mask out brick / stone / garage / stucco — area gets deducted from siding sqft"
+                      >Mask zone</button>
                     </div>
 
                     {mode === MODE_OPENING && (
@@ -531,6 +721,69 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
                             {t.name}
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {mode === MODE_ZONE && (
+                      <div className="space-y-2" data-testid="photo-measure-zone-controls">
+                        {/* Shape toggle */}
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setZoneShape("rect"); setPending(null); setPolyPoints([]); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${
+                              zoneShape === "rect" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"
+                            }`}
+                            data-testid="photo-measure-zone-shape-rect"
+                          >Rectangle</button>
+                          <button
+                            type="button"
+                            onClick={() => { setZoneShape("poly"); setPending(null); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${
+                              zoneShape === "poly" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"
+                            }`}
+                            data-testid="photo-measure-zone-shape-poly"
+                          >Polygon</button>
+                        </div>
+                        {/* Category picker */}
+                        <div className="grid grid-cols-2 gap-1">
+                          {ZONE_CATEGORIES.map((c) => (
+                            <button
+                              key={c.key}
+                              type="button"
+                              onClick={() => setZoneCategory(c.key)}
+                              className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${
+                                zoneCategory === c.key ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"
+                              } flex items-center gap-1`}
+                              data-testid={`photo-measure-zone-cat-${c.key}`}
+                            >
+                              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: c.color }} />
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Polygon close / cancel */}
+                        {zoneShape === "poly" && polyPoints.length > 0 && (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={closePolygon}
+                              disabled={polyPoints.length < 3}
+                              className="flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#DC2626] text-white border border-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-40"
+                              data-testid="photo-measure-zone-close"
+                            >
+                              Close ({polyPoints.length} pts)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelPolygon}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5]"
+                              data-testid="photo-measure-zone-cancel"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -606,6 +859,39 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
                       </ul>
                     </div>
 
+                    {/* Zone list (deductions) */}
+                    <div className="border-t border-[#E4E4E7] pt-2">
+                      <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
+                        No-siding zones ({zones.length})
+                      </div>
+                      <ul className="space-y-1 max-h-24 overflow-y-auto" data-testid="photo-measure-zone-list">
+                        {zones.map((z) => {
+                          const c = ZONE_CATEGORIES.find((x) => x.key === z.category);
+                          const offPhoto = z.photoUrl && photo && z.photoUrl !== photo.url;
+                          return (
+                            <li key={z.id} className="text-xs flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: c?.color }} />
+                                <span className="font-mono-num font-bold">-{Math.round(z.area_sqft)} ft²</span>{" "}
+                                <span className="text-[#71717A]">{c?.name}</span>
+                                {offPhoto && (
+                                  <span className="ml-1 text-[9px] uppercase tracking-wider text-[#A1A1AA] border border-[#E4E4E7] px-1 py-px rounded-sm" title="Placed on a different photo">
+                                    other photo
+                                  </span>
+                                )}
+                              </span>
+                              <button onClick={() => removeZone(z.id)} className="text-[#A1A1AA] hover:text-[#DC2626]">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                        {!zones.length && (
+                          <li className="text-[11px] text-[#A1A1AA] italic">No zones yet — switch to &quot;Mask zone&quot; to draw brick/stone/garage/etc.</li>
+                        )}
+                      </ul>
+                    </div>
+
                     {/* Live totals */}
                     <div className="border-t border-[#E4E4E7] pt-2 bg-[#FAFAFA] -mx-1 px-2 py-1.5">
                       <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">Live Totals</div>
@@ -615,6 +901,15 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
                         <div>Rakes: <span className="font-mono-num font-bold">{totals.rakes_lf} LF</span></div>
                         <div>Openings: <span className="font-mono-num font-bold">{totals.opening_count}</span></div>
                       </div>
+                      {totals._photo_zones_deducted_sqft > 0 && (
+                        <div className="text-[11px] text-[#71717A] mt-1.5 pt-1.5 border-t border-[#E4E4E7]" data-testid="photo-measure-deductions">
+                          <span className="font-bold text-[#DC2626]">
+                            -{totals._photo_zones_deducted_sqft} ft²
+                          </span>{" "}
+                          deducted from {totals._photo_gross_wall_sqft} ft² gross
+                          {totals._photo_zones_summary && ` (${totals._photo_zones_summary})`}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -635,7 +930,7 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
                 <button
                   type="button"
                   onClick={apply}
-                  disabled={busy || (!measures.length && !openings.length)}
+                  disabled={busy || (!measures.length && !openings.length && !zones.length)}
                   className="px-3 py-2 bg-[#F97316] text-white hover:bg-[#EA580C] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
                   data-testid="photo-measure-apply-btn"
                 >
