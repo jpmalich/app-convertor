@@ -46,7 +46,12 @@ router = APIRouter(prefix="/measure", tags=["measure"])
 ACCEPTED_MIMES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 MAX_FILES = 8
 MAX_BYTES_PER_FILE = 8 * 1024 * 1024  # 8 MB pre-base64
-MODEL_NAME = "claude-sonnet-4-5-20250929"  # same as the HOVER PDF flow
+# Iter 49: bumped from claude-sonnet-4-5-20250929 to claude-opus-4-5
+# at Howard's request — ~3× cost per measure but materially better at
+# distinguishing dormers / gables / 2nd-story walls on residential
+# exteriors. The image schema and `_aggregate_to_hover_shape` math
+# are unchanged.
+MODEL_NAME = "claude-opus-4-5-20251101"
 
 
 SYSTEM_PROMPT = """\
