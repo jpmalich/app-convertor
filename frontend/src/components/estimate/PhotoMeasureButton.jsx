@@ -156,7 +156,7 @@ function buildMeasurements(measures, openings, zones = []) {
   };
 }
 
-export default function PhotoMeasureButton({ onApply, externalOpen, onExternalClose, hideTrigger, prefillFiles }) {
+export default function PhotoMeasureButton({ onApply, externalOpen, onExternalClose, hideTrigger, prefillFiles, prefillUrls }) {
   const fileRef = useRef();
   const canvasRef = useRef();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -169,14 +169,28 @@ export default function PhotoMeasureButton({ onApply, externalOpen, onExternalCl
     }
   };
   // Pre-built thumbnails for AI photos handed down from the parent so the
-  // contractor can pick one to refine without re-uploading.
+  // contractor can pick one to refine without re-uploading. Two sources:
+  //   • `prefillFiles`: local File objects (legacy / desktop drag-drop).
+  //   • `prefillUrls`:  server-side URLs from /api/uploads (the session-
+  //     persistent path). When the AI Measure modal uploads photos to
+  //     disk on selection, it hands the URLs down here so Refine on
+  //     Photo doesn't ask the contractor to re-pick. No blob URLs are
+  //     created in this case — the <img> can hit /api/uploads/<name>
+  //     directly.
   const prefillThumbs = useMemo(() => {
+    if (prefillUrls?.length) {
+      return prefillUrls.map((name) => ({ file: null, url: `/api/uploads/${name}` }));
+    }
     if (!prefillFiles?.length) return [];
     return prefillFiles.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
-  }, [prefillFiles]);
+  }, [prefillFiles, prefillUrls]);
   useEffect(() => {
     return () => {
-      prefillThumbs.forEach((t) => URL.revokeObjectURL(t.url));
+      // Only revoke blob URLs — server URLs from /api/uploads must stay
+      // live for the rest of the session.
+      prefillThumbs.forEach((t) => {
+        if (t.url.startsWith("blob:")) URL.revokeObjectURL(t.url);
+      });
     };
   }, [prefillThumbs]);
 

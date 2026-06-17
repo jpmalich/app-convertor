@@ -1024,13 +1024,13 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
       )}
       {/* Child modal: tap-on-photo refinement. Overrides any subset of
           the AI measurements with hand-measured values. The AI photos
-          are handed down via prefillFiles so the user can skip the
-          re-upload step. */}
+          are handed down via prefillUrls (session-persistent server
+          URLs) so the user can skip the re-upload step. */}
       <PhotoMeasureButton
         hideTrigger
         externalOpen={refineOpen}
         onExternalClose={() => setRefineOpen(false)}
-        prefillFiles={files}
+        prefillUrls={photoUrls}
         onApply={async ({ measurements: refined }) => {
           // Merge: any non-zero refined value overrides the AI's number.
           setPreview((prev) => {
