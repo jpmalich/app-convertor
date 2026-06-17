@@ -294,8 +294,31 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 120000,
       });
+      // Iter 57: trust the walls. Claude occasionally returns
+      // siding_pct_this_wall in a way the aggregator can't recover
+      // (e.g. 0.5 meaning 50% but post-clamp becomes 0.5%, deflating
+      // siding_sqft by 100×). The wall table totals — computed from
+      // width × eave height directly — are the honest geometry. Apply
+      // recomputeFromWalls right away so measurements.siding_sqft
+      // matches what the contractor sees in the Wall Breakdown.
+      if (data?.raw_ai?.walls?.length) {
+        const totals = recomputeFromWalls(data.raw_ai.walls);
+        data.measurements = {
+          ...data.measurements,
+          siding_sqft: totals.siding_sqft,
+          siding_with_openings_sqft: totals.siding_sqft,
+          _ai_gable_sqft: totals._ai_gable_sqft,
+          _ai_dormer_sqft: totals._ai_dormer_sqft,
+        };
+        // Lines came back from the backend with the OLD tiny qty — flag
+        // dirty so Apply re-runs /measure/map with the corrected
+        // measurements. ISS apply already re-derives from measurements
+        // directly, so that path is fine without /measure/map.
+        setWallsDirty(true);
+      } else {
+        setWallsDirty(false);
+      }
       setPreview(data);
-      setWallsDirty(false);
     } catch (e) {
       toast.error(e?.response?.data?.detail || e.message || "AI measure failed");
     } finally {
