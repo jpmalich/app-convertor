@@ -52,6 +52,11 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // main Charter Oak / Ascend siding qty so we don't double-count.
   const [quoteGablesAsShake, setQuoteGablesAsShake] = useState(false);
   const [shakeSku, setShakeSku] = useState("Pelican Bay Shakes 9\"");
+  // Iter 52: Same idea for dormer faces — homeowners often want shake or
+  // an accent siding on the dormer for visual interest. Independent
+  // toggle + SKU from gables so they can be quoted differently.
+  const [quoteDormersAsShake, setQuoteDormersAsShake] = useState(false);
+  const [dormerShakeSku, setDormerShakeSku] = useState("Pelican Bay Shakes 9\"");
   // Iter 47: contractor can override Claude's wall geometry inline.
   // Tracks whether walls were edited so apply() refreshes lines via
   // /measure/map (otherwise the pre-rolled lines are reused).
@@ -297,55 +302,49 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
         }
       }
 
-      // "Quote gables as shake" — replace the gable ft² portion of the
-      // main siding line with the chosen shake SKU. Math:
-      //   gable_sq    = ceil(total_gable_ft² / 100)
-      //   shake line  = qty: gable_sq, unit SQ
-      //   siding line = max(0, original_qty - gable_sq)
-      // We pick the shake SKU's tab/section based on its name so it
-      // lands in the right tab (Vinyl Siding for Pelican Bay, LP for LP).
-      const gableSqft = preview?.measurements?._ai_gable_sqft || 0;
-      if (quoteGablesAsShake && gableSqft > 0) {
-        const isLpShake = shakeSku.startsWith("LP");
-        const shakeTab = isLpShake ? "lp_smart" : "vinyl";
-        const shakeSection = isLpShake ? "LP Smart Siding" : "Vinyl Siding";
-        const shakeUnit = isLpShake ? "PCS" : "SQ";
-        // For vinyl SQ math; LP shake panels are 4 sqft each (12" × 4').
-        const shakeQty = isLpShake
-          ? Math.ceil(gableSqft / 4)
-          : Math.ceil(gableSqft / 100);
-        const gableSq = Math.ceil(gableSqft / 100);
-        const lines = (toApply.lines || []).map((ln) => ({ ...ln }));
-        // Find the headline siding line in this tab to deduct from
-        // (Charter Oak Clap by default). We match by name prefix.
-        const sidingPrefix = isLpShake ? "LP Smart Side" : "Charter Oak";
+      // Shared swap routine: pull `swapSqft` ft² out of the headline
+      // siding line and add it as a separate shake line. Used for both
+      // the gable and dormer toggles below.
+      const swapSidingToShake = (currentToApply, swapSqft, sku) => {
+        if (!sku || swapSqft <= 0) return currentToApply;
+        const isLp = sku.startsWith("LP");
+        const tab = isLp ? "lp_smart" : "vinyl";
+        const section = isLp ? "LP Smart Siding" : "Vinyl Siding";
+        const unit = isLp ? "PCS" : "SQ";
+        const qty = isLp ? Math.ceil(swapSqft / 4) : Math.ceil(swapSqft / 100);
+        const deductSq = Math.ceil(swapSqft / 100);
+        const lines = (currentToApply.lines || []).map((ln) => ({ ...ln }));
+        const sidingPrefix = isLp ? "LP Smart Side" : "Charter Oak";
         const idx = lines.findIndex(
-          (l) => (l.tab || "vinyl") === shakeTab && (l.name || "").startsWith(sidingPrefix)
+          (l) => (l.tab || "vinyl") === tab && (l.name || "").startsWith(sidingPrefix)
         );
         if (idx >= 0) {
           lines[idx] = {
             ...lines[idx],
-            qty: Math.max(0, (Number(lines[idx].qty) || 0) - gableSq),
+            qty: Math.max(0, (Number(lines[idx].qty) || 0) - deductSq),
           };
         }
-        // Append the shake line (deduped by name+tab).
-        const existingShake = lines.findIndex(
-          (l) => (l.tab || "vinyl") === shakeTab && l.name === shakeSku
+        const existing = lines.findIndex(
+          (l) => (l.tab || "vinyl") === tab && l.name === sku
         );
-        if (existingShake >= 0) {
-          lines[existingShake] = { ...lines[existingShake], qty: shakeQty };
+        if (existing >= 0) {
+          lines[existing] = {
+            ...lines[existing],
+            qty: (Number(lines[existing].qty) || 0) + qty,
+          };
         } else {
-          lines.push({
-            tab: shakeTab,
-            section: shakeSection,
-            name: shakeSku,
-            unit: shakeUnit,
-            qty: shakeQty,
-            mat: 0,
-            lab: 0,
-          });
+          lines.push({ tab, section, name: sku, unit, qty, mat: 0, lab: 0 });
         }
-        toApply = { ...toApply, lines };
+        return { ...currentToApply, lines };
+      };
+
+      const gableSqft = preview?.measurements?._ai_gable_sqft || 0;
+      const dormerSqft = preview?.measurements?._ai_dormer_sqft || 0;
+      if (quoteGablesAsShake && gableSqft > 0) {
+        toApply = swapSidingToShake(toApply, gableSqft, shakeSku);
+      }
+      if (quoteDormersAsShake && dormerSqft > 0) {
+        toApply = swapSidingToShake(toApply, dormerSqft, dormerShakeSku);
       }
 
       // Pass the full preview {measurements, lines, vero_openings, raw_ai}
@@ -803,6 +802,38 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                         <div className="text-[10px] text-[#F97316] uppercase tracking-wider font-bold mt-2" data-testid="ai-measure-walls-dirty">
                           ✎ Edited — line items will refresh on Apply
                         </div>
+                      )}
+                      {preview.raw_ai.walls.some((w) => Number(w.dormer_face_sqft) > 0) && (
+                        <>
+                          <label className="mt-2 flex items-center gap-2 cursor-pointer p-2 border border-[#E4E4E7] hover:border-[#7C3AED] transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={quoteDormersAsShake}
+                              onChange={(e) => setQuoteDormersAsShake(e.target.checked)}
+                              data-testid="ai-measure-quote-dormers-shake"
+                            />
+                            <span className="text-xs font-bold uppercase tracking-wider text-[#52525B]">
+                              Quote dormers as shake
+                            </span>
+                            {quoteDormersAsShake && (
+                              <select
+                                value={dormerShakeSku}
+                                onChange={(e) => setDormerShakeSku(e.target.value)}
+                                className="ml-2 px-1 py-0.5 border border-[#E4E4E7] text-xs"
+                                data-testid="ai-measure-dormer-shake-sku"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value={'Pelican Bay Shakes 9"'}>Pelican Bay Shakes 9&quot; (vinyl)</option>
+                                <option value={'LP Strand Shake 3/8" x 12" x 4\''}>LP Strand Shake 3/8&quot; × 12&quot; × 4&apos;</option>
+                              </select>
+                            )}
+                          </label>
+                          {quoteDormersAsShake && (
+                            <div className="text-[10px] text-[#52525B] mt-1 ml-7" data-testid="ai-measure-dormer-shake-preview">
+                              On Apply: <span className="font-bold">{dormerShakeSku}</span> qty = {dormerShakeSku.startsWith("LP") ? Math.ceil((preview?.measurements?._ai_dormer_sqft || 0) / 4) + " PCS" : Math.ceil((preview?.measurements?._ai_dormer_sqft || 0) / 100) + " SQ"} · main siding reduced by {Math.ceil((preview?.measurements?._ai_dormer_sqft || 0) / 100)} SQ
+                            </div>
+                          )}
+                        </>
                       )}
                     </details>
                   )}
