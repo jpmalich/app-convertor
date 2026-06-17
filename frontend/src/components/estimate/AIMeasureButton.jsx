@@ -904,6 +904,53 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                     </details>
                   )}
 
+                  {/* Iter 56: Raw AI JSON for debugging — collapsed by
+                      default. Useful when the numbers look wrong and we
+                      need to see exactly what Claude returned. */}
+                  {(preview.raw_ai || preview.measurements) && (
+                    <details className="text-xs mb-3" data-testid="ai-measure-raw-debug">
+                      <summary className="cursor-pointer text-[#71717A] font-bold uppercase tracking-wider text-[10px]">
+                        🔍 Show raw AI output (debug)
+                      </summary>
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
+                            raw_ai (what Claude returned)
+                          </div>
+                          <pre className="bg-[#09090B] text-[#22D3EE] p-2 text-[10px] overflow-auto max-h-64 whitespace-pre-wrap break-all" data-testid="ai-measure-raw-ai-json">
+{JSON.stringify(preview.raw_ai || {}, null, 2)}
+                          </pre>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
+                            measurements (post-aggregator)
+                          </div>
+                          <pre className="bg-[#09090B] text-[#A78BFA] p-2 text-[10px] overflow-auto max-h-64 whitespace-pre-wrap break-all" data-testid="ai-measure-measurements-json">
+{JSON.stringify(preview.measurements || {}, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            JSON.stringify(
+                              { raw_ai: preview.raw_ai, measurements: preview.measurements },
+                              null,
+                              2,
+                            ),
+                          );
+                          toast.success("Raw AI output copied to clipboard");
+                        }}
+                        className="mt-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white border border-[#E4E4E7] hover:bg-[#FAFAFA]"
+                        data-testid="ai-measure-copy-raw"
+                      >
+                        Copy to clipboard
+                      </button>
+                    </details>
+                  )}
+
+
                 </>
               )}
             </div>
