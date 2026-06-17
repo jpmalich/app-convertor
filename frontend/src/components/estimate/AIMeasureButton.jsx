@@ -613,7 +613,8 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                             <th>H eave (ft)</th>
                             <th>Gable h (ft)</th>
                             <th>Dormer (ft²)</th>
-                            <th>Area (ft²)</th>
+                            <th>Gable ft²</th>
+                            <th>Total ft²</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -622,7 +623,8 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                             const eave = Number(w.height_ft) || 0;
                             const gable = Number(w.gable_triangle_height_ft) || 0;
                             const dormer = Number(w.dormer_face_sqft) || 0;
-                            const area = width * eave + 0.5 * width * gable + dormer;
+                            const gableArea = 0.5 * width * gable;
+                            const area = width * eave + gableArea + dormer;
                             return (
                               <tr key={i} className="border-b border-[#F4F4F5]">
                                 <td className="py-1 font-bold text-[#52525B] uppercase tracking-wider text-[10px]">{w.label}</td>
@@ -668,12 +670,48 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                                     data-testid={`ai-measure-wall-dormer-${i}`}
                                   />
                                 </td>
+                                <td className="font-mono-num font-bold text-[#7C3AED]" data-testid={`ai-measure-wall-gable-ft2-${i}`}>
+                                  {gableArea > 0 ? gableArea.toFixed(0) : "—"}
+                                </td>
                                 <td className="font-mono-num font-bold">{area.toFixed(0)}</td>
                               </tr>
                             );
                           })}
+                          {/* Totals row — emphasizes the gable ft² so the
+                              contractor can spec shake siding for those
+                              areas if the homeowner wants it. */}
+                          {(() => {
+                            const totalGable = preview.raw_ai.walls.reduce((a, w) => {
+                              const ww = Number(w.width_ft) || 0;
+                              const gh = Number(w.gable_triangle_height_ft) || 0;
+                              return a + 0.5 * ww * gh;
+                            }, 0);
+                            const totalArea = preview.raw_ai.walls.reduce((a, w) => {
+                              const ww = Number(w.width_ft) || 0;
+                              const eh = Number(w.height_ft) || 0;
+                              const gh = Number(w.gable_triangle_height_ft) || 0;
+                              const dr = Number(w.dormer_face_sqft) || 0;
+                              return a + ww * eh + 0.5 * ww * gh + dr;
+                            }, 0);
+                            return (
+                              <tr className="border-t-2 border-[#09090B]" data-testid="ai-measure-wall-totals">
+                                <td colSpan={5} className="py-1 text-[10px] uppercase tracking-wider font-bold text-[#52525B] text-right">
+                                  Totals
+                                </td>
+                                <td className="font-mono-num font-bold text-[#7C3AED]" data-testid="ai-measure-total-gable-ft2">
+                                  {totalGable > 0 ? totalGable.toFixed(0) : "—"}
+                                </td>
+                                <td className="font-mono-num font-bold">{totalArea.toFixed(0)}</td>
+                              </tr>
+                            );
+                          })()}
                         </tbody>
                       </table>
+                      {preview.raw_ai.walls.some((w) => Number(w.gable_triangle_height_ft) > 0) && (
+                        <div className="text-[11px] text-[#7C3AED] mt-2" data-testid="ai-measure-gable-shake-hint">
+                          💡 Gable ft² is broken out so you can quote shake / scallop siding for those triangles if the homeowner wants a different look up top.
+                        </div>
+                      )}
                       {wallsDirty && (
                         <div className="text-[10px] text-[#F97316] uppercase tracking-wider font-bold mt-2" data-testid="ai-measure-walls-dirty">
                           ✎ Edited — line items will refresh on Apply
