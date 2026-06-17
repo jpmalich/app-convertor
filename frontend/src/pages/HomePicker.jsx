@@ -40,18 +40,17 @@ export default function HomePicker() {
           <div className="flex items-center gap-3 mb-4 text-[#F97316]">
             <Layers className="w-8 h-8" />
             <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
-              Workspace
+              {t("home.workspaceTag")}
             </span>
           </div>
           <h2 className="font-heading text-2xl sm:text-3xl text-[#09090B] mb-2">
-            ISS Quotes
+            {t("home.issTitle")}
           </h2>
           <p className="text-sm text-[#52525B] mb-6">
-            Single-tier siding estimator using the 2026 ISS price book. One
-            combined material + labor price per line, 9 standard sections.
+            {t("home.issDesc")}
           </p>
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#F97316] group-hover:underline">
-            Open ISS Workspace →
+            {t("home.issCta")}
           </div>
         </button>
 
@@ -64,18 +63,17 @@ export default function HomePicker() {
           <div className="flex items-center gap-3 mb-4 text-[#F97316]">
             <HomeIcon className="w-8 h-8" />
             <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
-              Workspace
+              {t("home.workspaceTag")}
             </span>
           </div>
           <h2 className="font-heading text-2xl sm:text-3xl text-[#09090B] mb-2">
-            Siding Quotes
+            {t("home.sidingTitle")}
           </h2>
           <p className="text-sm text-[#52525B] mb-6">
-            Vinyl, Ascend Composite, soffit, gutters, accessories. Multi-tab
-            estimator with HOVER auto-fill, color palettes, and material lists.
+            {t("home.sidingDesc")}
           </p>
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#F97316] group-hover:underline">
-            Open Siding Workspace →
+            {t("home.sidingCta")}
           </div>
         </button>
 
@@ -88,18 +86,17 @@ export default function HomePicker() {
           <div className="flex items-center gap-3 mb-4 text-[#F97316]">
             <RectangleHorizontal className="w-8 h-8" />
             <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
-              Workspace
+              {t("home.workspaceTag")}
             </span>
           </div>
           <h2 className="font-heading text-2xl sm:text-3xl text-[#09090B] mb-2">
-            Window Quotes
+            {t("home.windowsTitle")}
           </h2>
           <p className="text-sm text-[#52525B] mb-6">
-            Vero windows + sliding glass doors with install labor, upgrade
-            options, lead-safe practices, and per-window color selection.
+            {t("home.windowsDesc")}
           </p>
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#F97316] group-hover:underline">
-            Open Windows Workspace →
+            {t("home.windowsCta")}
           </div>
         </button>
       </div>
