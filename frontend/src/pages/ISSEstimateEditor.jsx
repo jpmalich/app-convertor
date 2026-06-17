@@ -340,6 +340,7 @@ export default function ISSEstimateEditor() {
               kind="iss"
               address={est?.customer_address}
               overhangIn={est?.overhang_in ?? 12}
+              estimateId={est?.id}
               onApply={async ({ measurements }) => {
                 const { buildISSLinesFromMeasurements } = await import(
                   "@/components/estimate/ISSHoverImportButton"

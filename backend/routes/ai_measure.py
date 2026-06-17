@@ -305,7 +305,8 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
 
 @router.post("/ai-measure")
 async def ai_measure(
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File(default=[]),
+    photo_paths: Optional[str] = Form(None),
     reference_dim: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
     kind: str = Form("siding"),
@@ -316,34 +317,56 @@ async def ai_measure(
 
     `overhang_in` (inches) flows into the soffit piece-count formula so
     the imported qty matches the estimate's current Overhang setting.
+
+    Photos can be passed two ways:
+      • Legacy: `files` multipart upload (one per photo).
+      • Session-friendly: `photo_paths` — a comma-separated list of
+        filenames already uploaded via /api/uploads (lives in UPLOAD_DIR).
+        This is how the resumable AI Measure session avoids re-uploading.
     """
-    if not files:
+    # Resolve raw image bytes from either source.
+    image_payloads: list[tuple[str, bytes]] = []  # [(content_type, raw_bytes)]
+    if photo_paths:
+        from config import UPLOAD_DIR  # local import to avoid top-level cycle
+        for name in [p.strip() for p in photo_paths.split(",") if p.strip()]:
+            target = UPLOAD_DIR / name
+            if not target.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Uploaded photo {name!r} not found on server",
+                )
+            data = target.read_bytes()
+            ext = name.rsplit(".", 1)[-1].lower()
+            ctype = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(ext, "image/jpeg")
+            image_payloads.append((ctype, data))
+    if files:
+        for f in files:
+            ctype = (f.content_type or "").lower()
+            if ctype not in ACCEPTED_MIMES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file type {ctype!r} — use JPG, PNG, or WEBP",
+                )
+            raw = await f.read()
+            if len(raw) == 0:
+                continue
+            image_payloads.append((ctype, raw))
+
+    if not image_payloads:
         raise HTTPException(status_code=400, detail="At least one photo is required")
-    if len(files) > MAX_FILES:
+    if len(image_payloads) > MAX_FILES:
         raise HTTPException(
             status_code=400, detail=f"Maximum {MAX_FILES} photos per request",
         )
 
     image_contents = []
-    for f in files:
-        ctype = (f.content_type or "").lower()
-        if ctype not in ACCEPTED_MIMES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type {ctype!r} — use JPG, PNG, or WEBP",
-            )
-        raw = await f.read()
+    for ctype, raw in image_payloads:
         if len(raw) > MAX_BYTES_PER_FILE:
             raise HTTPException(
                 status_code=413,
-                detail=f"{f.filename}: file exceeds 8 MB limit",
+                detail="Photo exceeds 8 MB limit",
             )
-        if len(raw) == 0:
-            continue
         image_contents.append(ImageContent(image_base64=base64.b64encode(raw).decode("ascii")))
-
-    if not image_contents:
-        raise HTTPException(status_code=400, detail="No valid photos after filtering")
 
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:

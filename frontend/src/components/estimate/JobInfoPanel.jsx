@@ -29,6 +29,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             kind={est.kind || "siding"}
             address={est?.customer_address}
             overhangIn={est?.overhang_in ?? 12}
+            estimateId={est?.id}
             onApply={async ({ lines: aiLines, measurements }) => {
               const existing = est.lines || [];
               const keyOf = (l) => `${l.tab || "vinyl"}::${l.section}::${l.name}`;
