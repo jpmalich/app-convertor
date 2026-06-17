@@ -388,9 +388,14 @@ async def ai_measure(
         system_message=SYSTEM_PROMPT,
     ).with_model("anthropic", MODEL_NAME)
 
-    prompt_parts = [
-        f"Workspace: {kind} estimate.",
-    ]
+    prompt_parts = []
+    # Iter 54: the previous prompt leaked the workspace key ("iss") to
+    # Claude as `Workspace: iss estimate.` which made Opus return
+    # comically tiny wall dimensions on ISS jobs (Charter Oak came out
+    # 0.2 SQ on a 25 SQ house). The measurements should be identical
+    # regardless of which workspace the contractor is in — they always
+    # describe the same physical house. So we no longer mention the
+    # workspace; the same Python aggregator drives every flow.
     if address:
         prompt_parts.append(f"Property address: {address}")
     if reference_dim:
