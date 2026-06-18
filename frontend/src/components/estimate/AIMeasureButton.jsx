@@ -107,6 +107,22 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   useEffect(() => {
     try { localStorage.setItem("aiMeasureRefineMergeMode", refineMergeMode); } catch { /* ignore */ }
   }, [refineMergeMode]);
+  // Iter 57: hide Refine on Photo behind an Advanced Tools toggle.
+  // Now that pre-AI annotations (Iter 56) cover most use cases, Refine
+  // on Photo is the rare-case escape hatch — keep it accessible but out
+  // of the primary flow.
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    try {
+      return localStorage.getItem("aiMeasureShowAdvanced") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("aiMeasureShowAdvanced", showAdvanced ? "1" : "0");
+    } catch { /* ignore */ }
+  }, [showAdvanced]);
 
   // Apply Howard's geometry math to the edited wall list and update
   // siding_sqft / gable / dormer totals on the preview in-place. Mirrors
@@ -1226,11 +1242,28 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                   </button>
                 ) : (
                   <>
+                    {/* Advanced tools toggle — gates Refine on Photo.
+                        Pre-AI annotations (Iter 56) cover most use cases;
+                        Refine is the manual-measure escape hatch. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced((v) => !v)}
+                      className={`px-2 py-2 text-[10px] font-bold uppercase tracking-wider border ${
+                        showAdvanced
+                          ? "bg-[#FAFAFA] text-[#52525B] border-[#A1A1AA]"
+                          : "bg-white text-[#A1A1AA] border-[#E4E4E7] hover:text-[#52525B]"
+                      } mr-1`}
+                      data-testid="ai-measure-advanced-toggle"
+                      title="Show / hide the Refine on Photo manual-measure tool"
+                    >
+                      {showAdvanced ? "Hide" : "Advanced"}
+                    </button>
                     {/* Merge-mode picker — controls how Refine on Photo
                         deltas roll into the AI's aggregate measurements.
-                        Add (default) accumulates LFs/counts across
-                        per-elevation refines; Max keeps the larger of
-                        the two; Replace is the legacy overwrite. */}
+                        Add accumulates LFs/counts across per-elevation
+                        refines; Max keeps the larger of the two; Replace
+                        is the legacy overwrite. */}
+                    {showAdvanced && (
                     <div className="flex items-center gap-1 mr-1 border border-[#E4E4E7] rounded-sm overflow-hidden" data-testid="refine-merge-mode">
                       <span className="px-2 py-2 text-[9px] uppercase tracking-wider text-[#A1A1AA] font-bold bg-[#FAFAFA]" title="How to merge values from Refine on Photo into the AI aggregate">
                         Refine merge
@@ -1256,6 +1289,8 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                         </button>
                       ))}
                     </div>
+                    )}
+                    {showAdvanced && (
                     <button
                       type="button"
                       onClick={() => setRefineOpen(true)}
@@ -1267,6 +1302,7 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                       <Ruler className="w-3.5 h-3.5" />
                       Refine on Photo
                     </button>
+                    )}
                     <button
                       type="button"
                       onClick={apply}
