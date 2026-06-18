@@ -45,7 +45,7 @@ router = APIRouter(prefix="/measure", tags=["measure"])
 
 ACCEPTED_MIMES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 MAX_FILES = 8
-MAX_BYTES_PER_FILE = 8 * 1024 * 1024  # 8 MB pre-base64
+MAX_BYTES_PER_FILE = 12 * 1024 * 1024  # 12 MB pre-base64 (Iter 56b: bumped from 8 MB to accommodate modern phone photos + annotated re-renders)
 # Iter 49: bumped from claude-sonnet-4-5-20250929 to claude-opus-4-5
 # at Howard's request — ~3× cost per measure but materially better at
 # distinguishing dormers / gables / 2nd-story walls on residential
@@ -90,6 +90,30 @@ Schema:
 }
 
 CRITICAL accuracy rules (read every time):
+
+0a. PRE-AI PHOTO ANNOTATIONS (highest-priority signal):
+   The contractor may have marked up some photos BEFORE sending them.
+   Look for these visual marks — they are ground truth, NOT guesses:
+   • Purple corner badge "FRONT/BACK/LEFT/RIGHT ELEVATION" — this is the
+     authoritative elevation tag for that photo. Use it to label the
+     `walls[]` entry. If a badge says "FRONT ELEVATION", the wall in
+     that photo IS the front wall — do not relabel it as "other".
+   • Red line with red endpoints + red label like 'REF = 80"' — this is
+     a contractor-confirmed scale anchor. The red line spans a real-world
+     distance of exactly that many inches in the photo. Use it to lock
+     scale for that ENTIRE photo with high confidence. Set
+     scale_confidence to "high" and reference_used to "contractor red-line ref".
+   • Colored hatched zones with a black label like "NO SIDING · Brick"
+     or "NO SIDING · Stone" or "NO SIDING · Garage door" — these areas
+     are NOT clad in siding. They must be EXCLUDED from
+     siding_pct_this_wall calculations for the wall they appear on.
+     Example: a wall is 32×9 = 288 ft² gross, with a "NO SIDING · Brick"
+     hatched zone covering the lower 3 ft (≈96 ft²) → the remaining
+     siding is 192 ft² → siding_pct_this_wall = round(192 / 288 * 100) = 67.
+   Trust the annotations OVER your own visual judgment of the same photo.
+   If a photo has a red ref line you must use it; if it has a NO SIDING
+   zone you must subtract it. These were placed deliberately by the
+   contractor — they know the house.
 
 0. ONLY COUNT WHAT YOU SEE. If the contractor uploaded 2 photos (e.g. side
    + back), do NOT mirror-extrapolate the front or other side. Return walls
@@ -392,7 +416,7 @@ async def ai_measure(
         if len(raw) > MAX_BYTES_PER_FILE:
             raise HTTPException(
                 status_code=413,
-                detail="Photo exceeds 8 MB limit",
+                detail="Photo exceeds 12 MB limit",
             )
         image_contents.append(ImageContent(image_base64=base64.b64encode(raw).decode("ascii")))
 

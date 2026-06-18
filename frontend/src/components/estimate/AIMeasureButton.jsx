@@ -9,10 +9,23 @@
 // shape as HOVER, so we hand it to the same `onApply` callback the page
 // already uses for HOVER.
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw } from "lucide-react";
+import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import PhotoMeasureButton from "@/components/estimate/PhotoMeasureButton";
+import PhotoAnnotateModal from "@/components/estimate/PhotoAnnotateModal";
+import { renderAnnotated, describeAnnotations } from "@/lib/photoAnnotate";
+
+const ELEVATION_OPTIONS = [
+  { key: "",       label: "Untagged" },
+  { key: "front",  label: "Front" },
+  { key: "back",   label: "Back" },
+  { key: "left",   label: "Left" },
+  { key: "right",  label: "Right" },
+  { key: "detail", label: "Detail" },
+];
+const annotEmpty = (a) =>
+  !a || (!a.reference && (!a.zones || a.zones.length === 0) && (!a.elevation || a.elevation === ""));
 
 const KEY_LABELS = {
   siding_sqft: "Siding",
@@ -39,6 +52,15 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // appended to photoUrls and the local File is discarded.
   const [files, setFiles] = useState([]);
   const [photoUrls, setPhotoUrls] = useState([]); // ["/api/uploads/<uuid>.jpg", …]
+  // Iter 56: per-photo pre-AI annotations. Keyed by photo filename
+  // (matches the value stored in photoUrls). Each entry holds:
+  //   { elevation: "front"|"back"|"left"|"right"|"detail"|"",
+  //     reference: { p1, p2, inches } | null,
+  //     zones: Array<{ kind, category, points }> }
+  // Annotations are burned into the photo via Canvas in runMeasure()
+  // before sending to Claude, and described as text alongside.
+  const [photoAnnotations, setPhotoAnnotations] = useState({});
+  const [annotateOpenFor, setAnnotateOpenFor] = useState(null); // filename or null
   const [resumePrompt, setResumePrompt] = useState(false); // shows banner
   const [refDim, setRefDim] = useState("");
   const [wallHeight, setWallHeight] = useState("");
@@ -74,9 +96,9 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   const [refineMergeMode, setRefineMergeMode] = useState(() => {
     try {
       const v = localStorage.getItem("aiMeasureRefineMergeMode");
-      return v === "max" || v === "replace" || v === "add" ? v : "add";
+      return v === "max" || v === "replace" || v === "add" ? v : "max";
     } catch {
-      return "add";
+      return "max";
     }
   });
   useEffect(() => {
@@ -295,16 +317,55 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
     setPreview(null);
     try {
       const fd = new FormData();
-      // Reference the already-uploaded files by name so we don't have to
-      // re-upload bytes that already live on the server.
-      fd.append("photo_paths", photoUrls.join(","));
-      // Roll the optional fields into a single reference_dim string so
-      // the backend doesn't need extra plumbing — Claude reads it as
-      // contractor-provided context inside the user prompt.
+
+      // Iter 56: photo annotations. For each photo that has annotations
+      // (scale anchor, no-siding zones, or elevation tag), we render an
+      // annotated PNG client-side and upload it as a fresh file. The
+      // un-annotated photos stay referenced by their existing
+      // /api/uploads path for free.
+      const annotatedFiles = [];   // [{ name (original), file }]
+      const passThroughUrls = [];  // original photoUrls that have no annot
+      const elevations = {};       // { originalName: elevation }
+      for (const name of photoUrls) {
+        const a = photoAnnotations[name];
+        if (annotEmpty(a)) {
+          passThroughUrls.push(name);
+          continue;
+        }
+        try {
+          const blob = await renderAnnotated(`/api/uploads/${name}`, a);
+          const file = new File([blob], `annotated-${name.replace(/\.\w+$/, "")}.jpg`, { type: "image/jpeg" });
+          annotatedFiles.push({ name, file });
+          if (a.elevation) elevations[name] = a.elevation;
+        } catch (e) {
+          // Render failed (e.g. CORS) — fall back to the original photo
+          // path. Still pass the structured description as text so
+          // Claude has at least that.
+          console.warn("annotate render failed for", name, e);
+          passThroughUrls.push(name);
+        }
+      }
+      if (passThroughUrls.length) {
+        fd.append("photo_paths", passThroughUrls.join(","));
+      }
+      for (const { file } of annotatedFiles) {
+        fd.append("files", file);
+      }
+
+      // Reference dim + structured annotation description go into the
+      // SAME reference_dim field — Claude reads it as contractor-
+      // provided context inside the user prompt.
       const refBits = [];
       if (refDim) refBits.push(refDim);
       if (wallHeight) refBits.push(`average wall height = ${wallHeight} ft`);
       if (sidingPct) refBits.push(`siding covers ~${sidingPct}% of total wall area (rest is brick / stone / garage / etc.)`);
+      // Build a per-photo description from the annotations so Claude has
+      // BOTH visual (burned-in marks) and structured (text) cues.
+      const annotEntries = photoUrls
+        .map((name) => ({ photoName: name, ...(photoAnnotations[name] || {}) }))
+        .filter((e) => !annotEmpty(e));
+      const annotText = describeAnnotations(annotEntries);
+      if (annotText) refBits.push(`Pre-AI photo annotations:\n${annotText}`);
       const refCombined = refBits.join("; ");
       if (refCombined) fd.append("reference_dim", refCombined);
       if (address) fd.append("address", address);
@@ -598,25 +659,74 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                         </div>
                       )}
                       {photoUrls.length > 0 && (
-                        <div className="mt-3 grid grid-cols-4 gap-2" data-testid="ai-measure-photo-grid">
-                          {photoUrls.map((name, i) => (
-                            <div key={name} className="relative aspect-square border border-[#E4E4E7] overflow-hidden bg-[#FAFAFA]">
-                              <img
-                                src={`/api/uploads/${name}`}
-                                alt={`Photo ${i + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                                className="absolute top-0.5 right-0.5 bg-[#09090B] text-white w-5 h-5 flex items-center justify-center text-xs hover:bg-[#DC2626]"
-                                data-testid={`ai-measure-photo-remove-${i}`}
-                                title="Remove this photo"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="ai-measure-photo-grid">
+                          {photoUrls.map((name, i) => {
+                            const annot = photoAnnotations[name] || {};
+                            const hasRef = !!annot.reference;
+                            const zoneCount = (annot.zones || []).length;
+                            const elev = annot.elevation || "";
+                            return (
+                              <div key={name} className="relative border border-[#E4E4E7] overflow-hidden bg-[#FAFAFA]">
+                                <div className="relative aspect-video">
+                                  <img
+                                    src={`/api/uploads/${name}`}
+                                    alt={`Photo ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
+                                    className="absolute top-0.5 right-0.5 bg-[#09090B] text-white w-5 h-5 flex items-center justify-center text-xs hover:bg-[#DC2626]"
+                                    data-testid={`ai-measure-photo-remove-${i}`}
+                                    title="Remove this photo"
+                                  >×</button>
+                                  {/* Status badges */}
+                                  <div className="absolute bottom-0.5 left-0.5 flex gap-1 flex-wrap">
+                                    {elev && elev !== "" && (
+                                      <span className="bg-[#7C3AED] text-white text-[9px] px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                                        {elev}
+                                      </span>
+                                    )}
+                                    {hasRef && (
+                                      <span className="bg-[#DC2626] text-white text-[9px] px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                                        Scale ✓
+                                      </span>
+                                    )}
+                                    {zoneCount > 0 && (
+                                      <span className="bg-[#B45309] text-white text-[9px] px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                                        {zoneCount} mask{zoneCount > 1 ? "s" : ""}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="p-1.5 space-y-1 border-t border-[#E4E4E7] bg-white">
+                                  <select
+                                    className="input h-7 text-[11px] w-full"
+                                    value={elev}
+                                    onChange={(e) => setPhotoAnnotations((prev) => ({
+                                      ...prev,
+                                      [name]: { ...(prev[name] || {}), elevation: e.target.value },
+                                    }))}
+                                    data-testid={`ai-measure-photo-elev-${i}`}
+                                  >
+                                    {ELEVATION_OPTIONS.map((o) => (
+                                      <option key={o.key} value={o.key}>{o.label}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAnnotateOpenFor(name)}
+                                    className="w-full px-2 py-1 bg-white text-[#7C3AED] border border-[#7C3AED] hover:bg-[#FAF5FF] text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1"
+                                    data-testid={`ai-measure-photo-annotate-${i}`}
+                                    title="Mark a reference scale anchor and/or no-siding zones BEFORE sending to AI"
+                                  >
+                                    <Wand2 className="w-2.5 h-2.5" />
+                                    {hasRef || zoneCount > 0 ? "Edit annotations" : "Annotate"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1117,6 +1227,38 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
           </div>
         </div>
       )}
+      {/* Iter 56: pre-AI annotation modal. Lets the contractor mark a
+          reference scale anchor + no-siding zones on each photo BEFORE
+          submitting to Claude. The annotations are burned into the
+          rendered image in runMeasure() and described as text alongside. */}
+      <PhotoAnnotateModal
+        open={!!annotateOpenFor}
+        onClose={() => setAnnotateOpenFor(null)}
+        photoUrl={annotateOpenFor ? `/api/uploads/${annotateOpenFor}` : null}
+        elevation={
+          annotateOpenFor
+            ? (photoAnnotations[annotateOpenFor]?.elevation || "")
+            : ""
+        }
+        reference={
+          annotateOpenFor ? (photoAnnotations[annotateOpenFor]?.reference || null) : null
+        }
+        zones={
+          annotateOpenFor ? (photoAnnotations[annotateOpenFor]?.zones || []) : []
+        }
+        onSave={({ reference, zones }) => {
+          if (!annotateOpenFor) return;
+          setPhotoAnnotations((prev) => ({
+            ...prev,
+            [annotateOpenFor]: {
+              ...(prev[annotateOpenFor] || {}),
+              reference,
+              zones,
+            },
+          }));
+          toast.success("Annotations saved · Claude will see them when you Run AI Measure");
+        }}
+      />
       {/* Child modal: tap-on-photo refinement. Overrides any subset of
           the AI measurements with hand-measured values. The AI photos
           are handed down via prefillUrls (session-persistent server
