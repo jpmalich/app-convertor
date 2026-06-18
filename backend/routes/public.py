@@ -110,7 +110,7 @@ async def public_post_accept(token: str, body: CustomerAcceptIn, request: Reques
       <b style="color:#09090B;">IP:</b> {client_ip or 'unknown'}
     </p>
     {note_block}
-    <p style="font-size:13px;color:#71717A;margin-top:24px;">Sent automatically by {company_name}'s estimating tool.</p>
+    <p style="font-size:13px;color:#71717A;margin-top:24px;">Sent automatically via Pro-Quote Estimating Tool on behalf of {company_name}.</p>
   </div>
 </body></html>"""
                 import resend
