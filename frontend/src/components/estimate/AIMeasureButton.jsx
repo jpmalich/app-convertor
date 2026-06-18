@@ -61,6 +61,27 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // Tracks whether walls were edited so apply() refreshes lines via
   // /measure/map (otherwise the pre-rolled lines are reused).
   const [wallsDirty, setWallsDirty] = useState(false);
+  // Iter 55: how to merge the values coming out of Refine on Photo into
+  // the AI's aggregate. Howard's mental model is "I'm tapping each
+  // elevation in turn; the LFs and counts should ADD together across
+  // refines." Previously the merge was a hard overwrite which silently
+  // downgraded the multi-photo aggregate (136 LF eaves → 58 LF, 11
+  // windows → 3) whenever the contractor refined a single elevation.
+  //   "add"     — running total grows with each refine (default)
+  //   "max"     — take the larger of refined vs current (safe baseline)
+  //   "replace" — refined wins (legacy Iter 39 behavior)
+  // Stored in localStorage so the contractor's pick sticks across jobs.
+  const [refineMergeMode, setRefineMergeMode] = useState(() => {
+    try {
+      const v = localStorage.getItem("aiMeasureRefineMergeMode");
+      return v === "max" || v === "replace" || v === "add" ? v : "add";
+    } catch {
+      return "add";
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("aiMeasureRefineMergeMode", refineMergeMode); } catch { /* ignore */ }
+  }, [refineMergeMode]);
 
   // Apply Howard's geometry math to the edited wall list and update
   // siding_sqft / gable / dormer totals on the preview in-place. Mirrors
@@ -1038,13 +1059,43 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                   </button>
                 ) : (
                   <>
+                    {/* Merge-mode picker — controls how Refine on Photo
+                        deltas roll into the AI's aggregate measurements.
+                        Add (default) accumulates LFs/counts across
+                        per-elevation refines; Max keeps the larger of
+                        the two; Replace is the legacy overwrite. */}
+                    <div className="flex items-center gap-1 mr-1 border border-[#E4E4E7] rounded-sm overflow-hidden" data-testid="refine-merge-mode">
+                      <span className="px-2 py-2 text-[9px] uppercase tracking-wider text-[#A1A1AA] font-bold bg-[#FAFAFA]" title="How to merge values from Refine on Photo into the AI aggregate">
+                        Refine merge
+                      </span>
+                      {[
+                        { key: "add",     label: "+ Add",   hint: "Refines ADD to the aggregate — best when measuring each elevation separately" },
+                        { key: "max",     label: "Max",    hint: "Keep the larger of the AI value vs the refined value — never lowers your totals" },
+                        { key: "replace", label: "Replace", hint: "Refined value wins — overwrites the AI aggregate (legacy behavior)" },
+                      ].map((m) => (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => setRefineMergeMode(m.key)}
+                          className={`px-2 py-2 text-[10px] font-bold uppercase tracking-wider transition ${
+                            refineMergeMode === m.key
+                              ? "bg-[#0EA5E9] text-white"
+                              : "bg-white text-[#52525B] hover:bg-[#F4F4F5]"
+                          }`}
+                          data-testid={`refine-merge-${m.key}`}
+                          title={m.hint}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setRefineOpen(true)}
                       disabled={busy}
                       className="px-3 py-2 bg-white text-[#0EA5E9] border border-[#0EA5E9] hover:bg-[#FAFAFA] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
                       data-testid="ai-measure-refine-btn"
-                      title="Pick one of your photos and tap-measure to override specific values"
+                      title="Pick one of your photos and tap-measure. Merge mode controls whether refines ADD, take MAX, or REPLACE the AI aggregate."
                     >
                       <Ruler className="w-3.5 h-3.5" />
                       Refine on Photo
@@ -1076,15 +1127,16 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
         onExternalClose={() => setRefineOpen(false)}
         prefillUrls={photoUrls}
         onApply={async ({ measurements: refined }) => {
-          // Iter 59: Merge ONLY the linear / count fields. The
-          // `siding_sqft` value coming out of PhotoMeasureButton is
-          // computed from local tap measurements; if the contractor
-          // only tapped a calibration ref + 1-2 things to refine, that
-          // siding_sqft is tiny and would clobber the AI's full-house
-          // estimate (the 0.02 SQ bug). Wall area stays anchored to
-          // the AI Wall Breakdown table — Refine on Photo is for
-          // fine-tuning specific LFs / counts, not for replacing the
-          // headline siding figure.
+          // Iter 55: Merge ONLY the linear / count fields. The
+          // `siding_sqft` from PhotoMeasureButton is partial (only the
+          // walls the contractor tapped this session) and would clobber
+          // the AI's full-house geometry. Siding stays anchored to the
+          // editable Wall Breakdown table.
+          //
+          // The merge MODE (add / max / replace) lets the contractor pick
+          // semantics. Default = "add" so refining each elevation in turn
+          // accumulates LFs and counts naturally. Mode is selectable
+          // inside the Refine on Photo modal header.
           const MERGEABLE_KEYS = new Set([
             "eaves_lf",
             "rakes_lf",
@@ -1098,18 +1150,43 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
             "patio_door_count",
             "garage_door_count",
           ]);
+          const mergeOne = (prev, refinedVal) => {
+            const p = Number(prev) || 0;
+            const r = Number(refinedVal) || 0;
+            if (refineMergeMode === "add") return p + r;
+            if (refineMergeMode === "max") return Math.max(p, r);
+            return r; // "replace"
+          };
+          const diffs = []; // [{ key, prev, refined, after }]
           setPreview((prev) => {
             if (!prev) return prev;
             const next = { ...prev.measurements };
             for (const [k, v] of Object.entries(refined || {})) {
               if (!MERGEABLE_KEYS.has(k)) continue;
-              if (v && Number(v) > 0) next[k] = v;
+              const num = Number(v) || 0;
+              if (num <= 0) continue;
+              const before = Number(next[k] || 0);
+              const after = mergeOne(before, num);
+              if (after !== before) {
+                next[k] = after;
+                diffs.push({ key: k, prev: before, refined: num, after });
+              }
             }
             return { ...prev, measurements: next };
           });
           setWallsDirty(true);
           setRefineOpen(false);
-          toast.success("Refined LFs / counts merged — siding ft² unchanged");
+          // Surface the actual deltas so the contractor can see what
+          // moved. e.g. "+ eaves 40 → 176, + windows 3 → 14" on Add mode.
+          if (diffs.length) {
+            const sample = diffs.slice(0, 3).map((d) =>
+              `${d.key.replace(/_/g, " ")} ${d.prev}→${d.after}`
+            ).join(", ");
+            const more = diffs.length > 3 ? ` (+${diffs.length - 3} more)` : "";
+            toast.success(`Refined (${refineMergeMode}): ${sample}${more} · siding ft² unchanged`);
+          } else {
+            toast.success(`Refine applied — no changes vs ${refineMergeMode} mode · siding ft² unchanged`);
+          }
         }}
       />
     </div>
