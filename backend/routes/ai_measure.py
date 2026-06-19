@@ -96,15 +96,18 @@ Schema:
   ],
   "openings": [
     {"type": "window" | "entry_door" | "patio_door" | "garage_door" | "vent" | "other",
+     "style": "Double Hung" | "Single Hung" | "Casement" | "Twin Casement" | "Awning" | "Hopper" | "2-Lite Slider" | "3-Lite Slider" | "Picture" | "Twin Double Hung" | "Twin Single Hung" | "Triple Double Hung" | "Bay Window" | "Bow Window" | "Half-Round" | "Quarter-Round" | "Arch" | "Octagon" | "Hexagon" | "Garden Window" | "Other Shape" | "",
+     "style_confidence": number,         // 0-100 — required when `style` is filled
      "width_in": number, "height_in": number, "wall": "front"|"back"|"left"|"right"|"other"}
   ],
   "openings_schedule": [
     // GROUPED roll-up of `openings` above — collapses duplicate sizes
-    // into a single row per (elevation × type × size). Lets the
-    // contractor verify counts at a glance ("4 × 36×60 windows on
-    // front" is easier to spot-check than 4 individual entries).
+    // into a single row per (elevation × type × size × style). Lets the
+    // contractor verify counts at a glance ("4 × 36×60 Double Hung
+    // windows on front" is easier to spot-check than 4 individual entries).
     {"elevation": "front" | "back" | "left" | "right" | "other",
      "type": "window" | "entry_door" | "patio_door" | "garage_door" | "vent" | "other",
+     "style": "Double Hung" | "Casement" | "Picture" | etc. | "",  // SAME set as `openings[].style` above
      "width_in": number, "height_in": number,
      "count": number,                     // how many of this size on this elevation
      "size_label": "<e.g. '36\\"×60\\"' or 'Patio 72\\"×80\\"'>"
@@ -331,7 +334,158 @@ CRITICAL accuracy rules (read every time):
    driveway+garage (front or side), backyard cues (back), and footprint
    geometry. `elevation_confidence` 0-100 mirrors your certainty.
 
+14. WINDOW STYLE / OPERATION (REQUIRED — emit `style` on EVERY window opening):
+   For each `openings[]` row of type=window AND each `openings_schedule[]`
+   window row, identify the operation style. Use these visual signatures:
+     • **Double Hung** — single window with a HORIZONTAL meeting rail
+       cutting the glass in half (top sash + bottom sash). The most
+       common residential style by far. Width-to-height ratio is usually
+       0.5-0.8 (taller than wide).
+     • **Single Hung** — looks identical to double hung from afar (one
+       meeting rail). If you cannot tell DH vs SH from a photo, pick
+       Double Hung and note uncertainty in `style_confidence` (50-65).
+     • **Casement** — single pane of glass with NO meeting rail. Hinged
+       on the side, opens with a crank. Crank handle (small lever at the
+       bottom or side) visible when present. Often narrow and tall.
+     • **Twin Casement** — TWO casements side-by-side sharing a mullion,
+       each with its own crank. Common in kitchens.
+     • **2-Lite Slider (XO)** — TWO panes of equal size side-by-side
+       with a VERTICAL meeting bar. Usually wider than tall. One side
+       slides horizontally.
+     • **3-Lite Slider (XOX)** — THREE panes side-by-side, fixed +
+       sliding + fixed. Very wide landscape orientation.
+     • **Picture / Fixed** — single large pane of glass with NO meeting
+       rails, NO crank, NO operable hardware. Often square or nearly
+       square. Used as a focal window over a sink, fireplace, etc.
+     • **Twin Double Hung** — TWO double hungs side-by-side sharing a
+       mullion. Each half has its own horizontal meeting rail. Common
+       on master bedroom walls.
+     • **Triple Double Hung** — three double hungs in a row, often
+       above a kitchen sink.
+     • **Awning** — horizontal hinge on TOP, opens outward at the
+       bottom. Usually WIDE landscape and small (used above doors or
+       as transoms).
+     • **Hopper** — horizontal hinge on BOTTOM, opens inward at the
+       top. Common in basements. Small landscape.
+     • **Bay Window** — 3-section bump-out projecting from the wall;
+       center is picture, sides are double hung or casement.
+     • **Bow Window** — 4-5 section curved bump-out projecting from
+       the wall. Smoother arc than a bay.
+     • **Half-Round** — semicircle window. Often a transom above a
+       picture window or entry door.
+     • **Quarter-Round** — quarter circle / pie-slice shape.
+     • **Arch** — rectangle with a curved/arched top edge.
+     • **Octagon** — 8-sided window. Common as accent in gables.
+     • **Hexagon** — 6-sided window.
+     • **Garden Window** — small box-shaped bump-out, usually over a
+       kitchen sink. Glass on three sides + top.
+     • **Other Shape** — specialty/custom that doesn't fit above. Note
+       in `notes`.
+   Emit `style_confidence` 0-100 reflecting how certain you are:
+     • 85-100 — clear view with operating hardware visible (crank,
+       meeting rail clearly visible, etc.).
+     • 60-84 — visible but oblique or partly obstructed.
+     • 30-59 — heavily inferred (e.g. "looks like DH but could be SH").
+     • 0-29 — guess. The frontend lets the contractor correct any
+       guess with a dropdown — be honest, not overconfident.
+   If you genuinely cannot tell the style from the photo (window
+   covered by curtains/shutters, deep shadow, etc.), emit "" and
+   `style_confidence: 0` so the frontend flags it as needing manual
+   selection. Do NOT default everything to Double Hung — under-
+   identifying Casement / Picture / Slider causes downstream pricing
+   errors of $300-$1200 per opening.
+   For entry_door / patio_door / garage_door / vent / other,
+   emit `style: ""` and `style_confidence: 0` — style only applies
+   to windows.
+
 Return ONLY the JSON object. No explanation, no code fences."""
+
+# Iter 57d — Window style → Vero product_type mapper. Vero only ships 5
+# product_types, but the AI's `style` vocabulary is much richer (so the
+# customer PDF can say "Twin Double Hung windows 36"×60"" while the
+# Vero quote rows fall into one of the 5 buckets). For multi-unit styles
+# (Twin DH / Twin Casement / Bay / Bow), the qty is multiplied so a
+# single openings row becomes the correct count of Vero opening rows.
+_STYLE_TO_VERO_PRODUCT_TYPE: dict[str, tuple[str, int]] = {
+    "Double Hung":        ("Vero Double Hung",     1),
+    "Single Hung":        ("Vero Double Hung",     1),
+    "Casement":           ("Vero 1-Lite Casement", 1),
+    "Twin Casement":      ("Vero 1-Lite Casement", 2),
+    "Awning":             ("Vero 1-Lite Casement", 1),
+    "Hopper":             ("Vero 1-Lite Casement", 1),
+    "2-Lite Slider":      ("Vero 2-Lite Slider",   1),
+    "3-Lite Slider":      ("Vero 3-Lite Slider",   1),
+    "Picture":            ("Vero Picture",         1),
+    "Twin Double Hung":   ("Vero Double Hung",     2),
+    "Twin Single Hung":   ("Vero Double Hung",     2),
+    "Triple Double Hung": ("Vero Double Hung",     3),
+    "Bay Window":         ("Vero Picture",         3),
+    "Bow Window":         ("Vero Picture",         5),
+    "Half-Round":         ("Vero Picture",         1),
+    "Quarter-Round":      ("Vero Picture",         1),
+    "Arch":               ("Vero Picture",         1),
+    "Octagon":            ("Vero Picture",         1),
+    "Hexagon":            ("Vero Picture",         1),
+    "Garden Window":      ("Vero Picture",         1),
+    "Other Shape":        ("Vero Picture",         1),
+}
+
+
+def _vero_for_style(style: str, width_in: float, height_in: float) -> tuple[str, int]:
+    """Map an AI `style` string to (Vero product_type, qty_multiplier).
+    Falls back to the legacy W/H heuristic from hover.py when the style
+    is empty/unknown — preserves backwards-compatible behaviour for
+    legacy sessions that have no style field."""
+    style = (style or "").strip()
+    if style in _STYLE_TO_VERO_PRODUCT_TYPE:
+        return _STYLE_TO_VERO_PRODUCT_TYPE[style]
+    from .hover import _guess_vero_product_type  # local import avoids cycle
+    return (_guess_vero_product_type(width_in, height_in), 1)
+
+
+def _build_vero_openings_from_ai(openings: list) -> list[dict]:
+    """Turn AI-detected `openings[]` (windows only) into the
+    `vero_openings[]` rows the Windows workspace expects on Apply.
+    Each opening becomes 1+ Vero rows depending on its multi-unit style
+    (e.g. Twin Double Hung → 2 rows of Vero Double Hung).
+    Non-window openings (doors / vents) are skipped — they belong to
+    the Siding workspace's accessory rows, not Windows."""
+    out: list[dict] = []
+    for o in openings or []:
+        otype = (o.get("type") or "").lower()
+        if otype != "window":
+            continue
+        try:
+            w = float(o.get("width_in") or 0)
+            h = float(o.get("height_in") or 0)
+        except (TypeError, ValueError):
+            continue
+        if w <= 0 or h <= 0:
+            continue
+        style = (o.get("style") or "").strip()
+        product_type, qty_mult = _vero_for_style(style, w, h)
+        wall = (o.get("wall") or "other").lower()
+        label = f"AI · {wall} · {style or 'Window'} · {int(w)}×{int(h)}"
+        for _ in range(max(1, qty_mult)):
+            out.append({
+                "id": str(uuid.uuid4()),
+                "hover_id": "",
+                "product_type": product_type,
+                "label": label,
+                "width": w,
+                "height": h,
+                "qty": 1,
+                "sister_color": "White Interior/White Exterior",
+                "sizing": "ui_bucket",
+                "bucket_label": "",
+                "base_mat": 0,
+                "adders": [],
+                # Keep the rich style for the customer PDF (spelled out)
+                "ai_style": style,
+            })
+    return out
+
+
 
 
 def _dedupe_openings(openings: list) -> list:
@@ -362,7 +516,12 @@ def _dedupe_openings(openings: list) -> list:
         otype = (o.get("type") or "other").lower()
         # Bin width 6 in — matches the bin used in openings_schedule
         # roll-up so a contractor can spot-check counts there too.
-        key = (wall, otype, round(w / 6) * 6, round(h / 6) * 6)
+        # Iter 57d — also key on `style` so two same-size windows of
+        # DIFFERENT operation styles (e.g. a Picture + a Casement, both
+        # 36×36 on the same wall) are NOT merged. Style mismatch is a
+        # genuinely different opening even at identical W×H.
+        style = (o.get("style") or "").strip().lower()
+        key = (wall, otype, round(w / 6) * 6, round(h / 6) * 6, style)
         # First occurrence wins. We DO NOT sum — Claude already returned
         # one entry per visible window, and our job here is to undo any
         # cross-photo double-count.
@@ -670,7 +829,12 @@ async def ai_measure(
     return {
         "measurements": measurements,
         "lines": lines,
-        "vero_openings": [],   # AI photo openings are too rough to size
+        # Iter 57d — AI photo measure now populates vero_openings using
+        # the per-window `style` field. Each AI-detected window becomes
+        # 1+ Vero rows (Twin DH → 2 rows of Vero Double Hung, etc.).
+        # On Apply, the Windows workspace gets pre-seeded with the
+        # right product types instead of being empty.
+        "vero_openings": _build_vero_openings_from_ai(raw.get("openings") or []),
         "raw_ai": raw,
         "model": MODEL_NAME,
         "session_id": session_id,

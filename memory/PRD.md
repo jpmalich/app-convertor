@@ -304,3 +304,14 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 - Reject unsupported MIME on logo uploads with 415 instead of silently coercing
 - `hmac.compare_digest` for admin token check
 - Migrate deprecated `@app.on_event` → lifespan
+
+
+  - **Iter 57d — Window styles + Vero auto-population (2026-06-19)**: Howard asked for window style identification (Double Hung vs Casement vs Picture vs Bay vs Half-Round, 21 styles total) so the customer PDF reads "(4) Double Hung windows 36"×60"" instead of just "(4) Window 36×60". Shipped end-to-end:
+    - **Prompt rule #14 added** to `ai_measure.py` SYSTEM_PROMPT — detailed visual signatures per style (meeting rails → DH/SH, crank handle → Casement, vertical meeting bar → Slider, large fixed glass → Picture, multi-mullion → Twin/Triple variants, specialty shapes for Half-Round/Arch/Octagon/Bay/Bow/Garden). Claude emits `style` + `style_confidence` 0-100 on every window opening.
+    - **`_STYLE_TO_VERO_PRODUCT_TYPE` mapper** — 21 friendly styles → the 5 Vero product_types Vero ships (Double Hung / 1-Lite Casement / 2-Lite Slider / 3-Lite Slider / Picture). Multi-unit styles get multiplied: Twin DH = 2 Vero DH rows, Bay = 1 Picture + 2 DH rows, Bow = 1 Picture + 4 DH rows. Single-unit specialty shapes (Half-Round, Arch, Octagon, Hexagon, Garden Window) all map to Vero Picture.
+    - **`_build_vero_openings_from_ai`** populates `vero_openings[]` on the AI Measure return — previously returned empty. Apply Measurements now seeds the Windows workspace with correctly-sized AI rows including the rich style in the label ("AI · front · Double Hung · 36×60").
+    - **Frontend Style dropdown column** in the openings schedule (21 options) — Claude's guess pre-populates, contractor can override in one click. Updates flow into `preview.measurements._ai_openings_schedule` AND `preview.raw_ai.openings` so Apply uses corrected styles. Confidence chip (HIGH/MED/LOW/GUESS, 0-100) sits next to the dropdown.
+    - **Measurement Report PDF** updated with Style column (purple bold style name next to size).
+    - **Style-aware dedupe**: `_dedupe_openings` key now includes lowercase `style`, so a same-size Picture and Casement on the same wall don't get merged.
+    - Files: `backend/routes/ai_measure.py` (prompt + mapper + vero_openings build), `backend/routes/measure_report.py` (Style column), `frontend/src/components/estimate/AIMeasureButton.jsx` (WINDOW_STYLES const, updateOpeningStyle handler, dropdown column).
+    - Smoke-tested: 9 dropdowns rendered with 22 options each, selection persists, doors correctly show `—`, mapper unit test passes (7 Vero rows from 4 openings with Twin DH + Bay multipliers).

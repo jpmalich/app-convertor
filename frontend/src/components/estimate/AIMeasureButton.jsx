@@ -125,7 +125,78 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
     } catch { /* ignore */ }
   }, [showAdvanced]);
 
-  // Iter 57: download the HOVER-style branded measurement report PDF.
+  // Iter 57d — Window styles dropdown. Kept in display order grouped
+  // by category so the contractor can scan it quickly. Empty option
+  // at the top means "not a window / not known yet".
+  const WINDOW_STYLES = [
+    { value: "", label: "— Select / N/A —" },
+    { value: "Double Hung", label: "Double Hung" },
+    { value: "Single Hung", label: "Single Hung" },
+    { value: "Casement", label: "Casement" },
+    { value: "Twin Casement", label: "Twin Casement" },
+    { value: "Awning", label: "Awning" },
+    { value: "Hopper", label: "Hopper" },
+    { value: "2-Lite Slider", label: "2-Lite Slider (XO)" },
+    { value: "3-Lite Slider", label: "3-Lite Slider (XOX)" },
+    { value: "Picture", label: "Picture / Fixed" },
+    { value: "Twin Double Hung", label: "Twin Double Hung" },
+    { value: "Twin Single Hung", label: "Twin Single Hung" },
+    { value: "Triple Double Hung", label: "Triple Double Hung" },
+    { value: "Bay Window", label: "Bay Window" },
+    { value: "Bow Window", label: "Bow Window" },
+    { value: "Half-Round", label: "Half-Round" },
+    { value: "Quarter-Round", label: "Quarter-Round" },
+    { value: "Arch", label: "Arch / Eyebrow" },
+    { value: "Octagon", label: "Octagon" },
+    { value: "Hexagon", label: "Hexagon" },
+    { value: "Garden Window", label: "Garden Window" },
+    { value: "Other Shape", label: "Other / Custom Shape" },
+  ];
+
+  // Update the AI-detected style for one opening_schedule row. We mutate
+  // the saved preview.measurements._ai_openings_schedule so the change
+  // sticks across re-renders + the autosave hook pushes it back to the
+  // ai_measure_sessions doc. Also propagates to preview.raw_ai.openings
+  // (best-effort match by wall+size+type) so the Apply Measurements
+  // step uses the corrected style when populating Vero rows.
+  const updateOpeningStyle = (elev, type, sizeLabel, w, h, newStyle) => {
+    setPreview((prev) => {
+      if (!prev) return prev;
+      const m = prev.measurements || {};
+      const sched = m._ai_openings_schedule || [];
+      const nextSched = sched.map((row) => {
+        if (
+          (row.elevation || "").toLowerCase() === (elev || "").toLowerCase() &&
+          (row.type || "").toLowerCase() === (type || "").toLowerCase() &&
+          (row.size_label || "") === (sizeLabel || "") &&
+          Math.round(Number(row.width_in) || 0) === Math.round(Number(w) || 0) &&
+          Math.round(Number(row.height_in) || 0) === Math.round(Number(h) || 0)
+        ) {
+          return { ...row, style: newStyle };
+        }
+        return row;
+      });
+      // Also propagate to raw_ai.openings so Apply uses the new style.
+      const raw = prev.raw_ai || {};
+      const rawOps = (raw.openings || []).map((op) => {
+        const sameWall = (op.wall || "").toLowerCase() === (elev || "").toLowerCase();
+        const sameType = (op.type || "").toLowerCase() === (type || "").toLowerCase();
+        const sameW = Math.round(Number(op.width_in) || 0) === Math.round(Number(w) || 0);
+        const sameH = Math.round(Number(op.height_in) || 0) === Math.round(Number(h) || 0);
+        if (sameWall && sameType && sameW && sameH) {
+          return { ...op, style: newStyle };
+        }
+        return op;
+      });
+      return {
+        ...prev,
+        measurements: { ...m, _ai_openings_schedule: nextSched },
+        raw_ai: { ...raw, openings: rawOps },
+      };
+    });
+  };
+
+
   // Hits /api/measure/report-pdf with the current estimate_id; backend
   // reads the saved session and renders a 1–2 page report with photos,
   // confidence chips, openings schedule, and notes.
@@ -1415,24 +1486,62 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                                       {totalCount} opening{totalCount !== 1 ? "s" : ""}
                                     </span>
                                     <span className="text-[10px] text-[#71717A] ml-2 italic">
-                                      {items.map((o) => `${o.size_label || `${Math.round(Number(o.width_in) || 0)}×${Math.round(Number(o.height_in) || 0)} in`}×${o.count}`).join(" · ")}
+                                      {items.map((o) => {
+                                        const sz = o.size_label || `${Math.round(Number(o.width_in) || 0)}×${Math.round(Number(o.height_in) || 0)} in`;
+                                        const st = (o.style || "").trim();
+                                        return st ? `${st} ${sz}×${o.count}` : `${sz}×${o.count}`;
+                                      }).join(" · ")}
                                     </span>
                                   </div>
                                   <table className="w-full text-xs border-b border-[#E4E4E7]">
                                     <tbody>
-                                      {items.map((o, i) => (
-                                        <tr key={i} className="hover:bg-[#FAFAFA]" data-testid={`ai-measure-opening-row-${elev}-${i}`}>
-                                          <td className="py-1 pl-4 capitalize text-[#52525B]" style={{ width: "40%" }}>
-                                            {(o.type || "—").replace(/_/g, " ")}
-                                          </td>
-                                          <td className="font-mono-num text-[#27272A]" style={{ width: "40%" }}>
-                                            {o.size_label || `${Math.round(Number(o.width_in) || 0)}×${Math.round(Number(o.height_in) || 0)} in`}
-                                          </td>
-                                          <td className="font-mono-num font-bold text-right pr-2">
-                                            ×{Number(o.count) || 0}
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {items.map((o, i) => {
+                                        const isWindow = (o.type || "").toLowerCase() === "window";
+                                        const styleVal = o.style || "";
+                                        const styleConf = Number(o.style_confidence) || 0;
+                                        const confChip = styleConf >= 80 ? "bg-[#16A34A]" : styleConf >= 60 ? "bg-[#CA8A04]" : styleConf >= 30 ? "bg-[#EA580C]" : "bg-[#DC2626]";
+                                        const sizeLabel = o.size_label || `${Math.round(Number(o.width_in) || 0)}×${Math.round(Number(o.height_in) || 0)} in`;
+                                        return (
+                                          <tr key={i} className="hover:bg-[#FAFAFA]" data-testid={`ai-measure-opening-row-${elev}-${i}`}>
+                                            <td className="py-1 pl-4 capitalize text-[#52525B]" style={{ width: "22%" }}>
+                                              {(o.type || "—").replace(/_/g, " ")}
+                                            </td>
+                                            <td className="font-mono-num text-[#27272A]" style={{ width: "20%" }}>
+                                              {sizeLabel}
+                                            </td>
+                                            <td className="py-1" style={{ width: "45%" }}>
+                                              {isWindow ? (
+                                                <div className="flex items-center gap-1">
+                                                  <select
+                                                    value={styleVal}
+                                                    onChange={(e) => updateOpeningStyle(elev, o.type, o.size_label, o.width_in, o.height_in, e.target.value)}
+                                                    className="text-xs border border-[#E4E4E7] px-1 py-0.5 bg-white hover:border-[#7C3AED] cursor-pointer w-full max-w-[180px]"
+                                                    data-testid={`ai-measure-opening-style-${elev}-${i}`}
+                                                    title={styleVal ? `Claude's guess: ${styleVal} (${styleConf}% confident). Change if wrong — this flows to the customer PDF and the Vero quote.` : "Pick a window style — flows to the customer PDF and the Vero quote"}
+                                                  >
+                                                    {WINDOW_STYLES.map((s) => (
+                                                      <option key={s.value} value={s.value}>{s.label}</option>
+                                                    ))}
+                                                  </select>
+                                                  {styleVal && styleConf > 0 && (
+                                                    <span
+                                                      className={`${confChip} text-white text-[8px] font-bold px-1 rounded-sm tracking-wider`}
+                                                      title={`Claude is ${styleConf}% confident on this style`}
+                                                    >
+                                                      {styleConf}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <span className="text-[#A1A1AA] italic text-[11px]">—</span>
+                                              )}
+                                            </td>
+                                            <td className="font-mono-num font-bold text-right pr-2" style={{ width: "13%" }}>
+                                              ×{Number(o.count) || 0}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>

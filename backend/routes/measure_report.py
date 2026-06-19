@@ -176,10 +176,16 @@ def _build_html(
                 hi = int(float(o.get("height_in") or 0))
                 size_label = f"{wi}×{hi} in"
             otype = (o.get("type") or "—").replace("_", " ")
+            style = (o.get("style") or "").strip()
+            if style and otype == "window":
+                style_cell = f'<span style="color:#7C3AED;font-weight:700;">{style}</span>'
+            else:
+                style_cell = '<span style="color:#A1A1AA;">—</span>'
             rows.append(
                 f'<tr>'
-                f'<td style="padding:4px 8px 4px 24px;text-transform:capitalize;color:#52525B;width:45%;">{otype}</td>'
-                f'<td style="padding:4px 8px;font-family:Menlo,monospace;color:#27272A;width:35%;">{size_label}</td>'
+                f'<td style="padding:4px 8px 4px 24px;text-transform:capitalize;color:#52525B;width:22%;">{otype}</td>'
+                f'<td style="padding:4px 8px;font-family:Menlo,monospace;color:#27272A;width:20%;">{size_label}</td>'
+                f'<td style="padding:4px 8px;font-size:11px;width:45%;">{style_cell}</td>'
                 f'<td style="padding:4px 8px;font-family:Menlo,monospace;font-weight:700;text-align:right;">×{int(o.get("count") or 0)}</td>'
                 f'</tr>'
             )
