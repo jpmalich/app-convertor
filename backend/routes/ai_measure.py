@@ -68,24 +68,51 @@ Schema:
   "story_count_reasoning": "<1 sentence — what visual cue told you the story count>",
   "avg_wall_height_ft": number,           // average EAVE height (floor to where the roof starts), NOT roof peak
   "siding_coverage_pct": number,          // 0-100, % of gross wall area actually clad in siding (NOT brick, stone, etc.)
+  "photos": [
+    // ONE entry per photo IN THE EXACT ORDER they were sent to you.
+    // photos[0] = the first attached image, photos[1] = the second, etc.
+    // Use this to auto-tag elevations (saves the contractor from manually
+    // labelling each thumb in the UI).
+    {"index": number,                     // 0-based index matching the order the photos were attached
+     "elevation": "front" | "back" | "left" | "right" | "aerial" | "detail" | "other",
+     "elevation_confidence": number,      // 0-100, how confident are you in the elevation tag
+     "elevation_reasoning": "<1 short sentence — what told you which side this is>"
+    }
+  ],
   "walls": [
     {"label": "front" | "back" | "left" | "right" | "other",
      "width_ft": number,
      "height_ft": number,                 // EAVE height ONLY — measure from floor up to the soffit/gutter line. NEVER include the gable triangle, NEVER include a dormer.
      "gable_triangle_height_ft": number,  // 0 if this wall ends in an eave; >0 ONLY if this wall is a gable-end (you can see the triangular peak above the eave). Triangle area is auto-computed as 0.5 × width × this value.
      "dormer_face_sqft": number,          // 0 unless a true dormer (small box poking out of the roof) is on this elevation. Estimate the visible vertical face area in ft² — typically 20-60 ft² each.
-     "siding_pct_this_wall": number       // INTEGER 0-100 (percent), NOT a fraction. Use 85 to mean 85% siding — NEVER 0.85. Siding only, not brick / garage door / etc.
+     "siding_pct_this_wall": number,      // INTEGER 0-100 (percent), NOT a fraction. Use 85 to mean 85% siding — NEVER 0.85. Siding only, not brick / garage door / etc.
+     "confidence": number,                // 0-100, how confident are you in THIS wall's measurements. <50 = barely visible / inferred. 50-79 = visible but obstructed or angled. 80-100 = clear straight-on shot with reference.
+     "confidence_reasoning": "<1 short sentence — what reduces or supports confidence on THIS wall>"
     }
   ],
   "openings": [
     {"type": "window" | "entry_door" | "patio_door" | "garage_door" | "vent" | "other",
      "width_in": number, "height_in": number, "wall": "front"|"back"|"left"|"right"|"other"}
   ],
+  "openings_schedule": [
+    // GROUPED roll-up of `openings` above — collapses duplicate sizes
+    // into a single row per (elevation × type × size). Lets the
+    // contractor verify counts at a glance ("4 × 36×60 windows on
+    // front" is easier to spot-check than 4 individual entries).
+    {"elevation": "front" | "back" | "left" | "right" | "other",
+     "type": "window" | "entry_door" | "patio_door" | "garage_door" | "vent" | "other",
+     "width_in": number, "height_in": number,
+     "count": number,                     // how many of this size on this elevation
+     "size_label": "<e.g. '36\\"×60\\"' or 'Patio 72\\"×80\\"'>"
+    }
+  ],
   "eaves_lf": number,          // sum of horizontal soffit/gutter run, linear feet
   "rakes_lf": number,          // sum of sloped roof edges, linear feet (= the rake legs of every gable triangle)
   "starter_lf": number,        // linear feet of starter strip at the base of the siding (typically ≈ eaves_lf for a basic 1-story; can differ on porches, walk-outs, or multi-section homes)
   "outside_corner_lf": number, // linear feet of OUTSIDE corner posts visible across all elevations (typically 4 corners × wall height on a simple rectangular house)
   "inside_corner_lf": number,  // linear feet of INSIDE corner posts (L-shaped wing additions, dormers, returns — often 0 for a basic rectangle)
+  "missing_elevations": ["front" | "back" | "left" | "right"],  // any elevations NOT visible in any photo
+  "double_count_check": "<1 sentence: did you cross-reference openings/walls visible from multiple angles to avoid double-counting? E.g. 'Front-right corner window is the same window seen in photo #2's left view — counted once.'>",
   "notes": "<1-2 sentences flagging anything the contractor should verify>"
 }
 
@@ -215,6 +242,50 @@ CRITICAL accuracy rules (read every time):
    siding_pct_this_wall per wall). Gable triangles + dormer faces are
    added on top at 100% siding (unless you flag them as masonry).
    Do not include brick/garage/etc.
+
+10. SATELLITE FUSION — when an "aerial" elevation photo is present (look
+   for the "AERIAL ELEVATION" purple badge), TREAT THE AERIAL AS THE
+   AUTHORITATIVE SOURCE for roof-outline measurements:
+   • `eaves_lf` (total horizontal roof edges) — read from the aerial's
+     top-down view of the soffit line. Far more accurate than inferring
+     from oblique ground photos.
+   • `rakes_lf` (sloped gable-edge legs) — read from the aerial's roof
+     ridge → eave segments at gable ends.
+   • House footprint width × depth — anchor these with the aerial.
+   The ground-level photos still drive `height_ft`, `gable_triangle_height_ft`,
+   `dormer_face_sqft`, openings, story count, and siding coverage —
+   things you cannot see from above. Don't try to read wall heights or
+   window counts off the aerial.
+
+11. DOUBLE-COUNT CHECK (required) — before you finalize, cross-reference
+   openings and walls visible from more than one angle. A window seen at
+   the front-right corner of the front-elevation photo IS THE SAME WINDOW
+   as the one at the front edge of the right-elevation photo — count it
+   ONCE, not twice. Same for outside corner posts at any rectangular-house
+   corner. Briefly explain your reconciliation in `double_count_check`.
+
+12. PER-WALL CONFIDENCE (required) — emit a `confidence` (0-100) on each
+   wall reflecting how well you can actually measure THAT specific wall:
+   • 85-100: clear, straight-on photo with a reference object (door,
+     brick course, contractor red ref line). Minimal perspective skew.
+   • 60-84: visible but at an angle, or partial obstruction (tree, fence,
+     vehicle), or no reference object.
+   • 30-59: heavily obstructed, deep perspective, or inferred from an
+     adjacent photo.
+   • 0-29: not visible — measurement is a guess from the opposite side
+     or symmetry assumption. Surface these clearly in `notes`.
+   Briefly justify in `confidence_reasoning`. The frontend paints a
+   colored chip per wall so the contractor knows which to verify in the
+   field — be honest, do not inflate.
+
+13. PHOTOS ARRAY — emit ONE entry in `photos[]` PER attached image, in
+   the exact attachment order (photos[0] = first image you saw,
+   photos[1] = second, ...). For each, infer the elevation (front /
+   back / left / right / aerial / detail) so the frontend can auto-tag
+   thumbnails. The purple "ELEVATION" annotation badge — when present —
+   is always authoritative; otherwise lean on entry-door cues (front),
+   driveway+garage (front or side), backyard cues (back), and footprint
+   geometry. `elevation_confidence` 0-100 mirrors your certainty.
 
 Return ONLY the JSON object. No explanation, no code fences."""
 
@@ -366,6 +437,15 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
         # and the contractor can sanity-check the geometry before applying.
         "_ai_gable_sqft": round(gable_sqft, 1),
         "_ai_dormer_sqft": round(dormer_sqft, 1),
+        # Iter 57: HOVER-like extras — per-wall confidence chips, an
+        # openings schedule grouped by elevation/size, double-count
+        # check note, missing-elevations flag, and per-photo elevation
+        # auto-tags. All optional in the raw_ai payload so older
+        # responses degrade gracefully.
+        "_ai_missing_elevations": raw.get("missing_elevations") or [],
+        "_ai_double_count_check": raw.get("double_count_check") or "",
+        "_ai_openings_schedule": raw.get("openings_schedule") or [],
+        "_ai_photos": raw.get("photos") or [],
         "_ai_notes": raw.get("notes") or "",
     }
     return measurements

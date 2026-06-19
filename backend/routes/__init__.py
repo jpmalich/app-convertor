@@ -1,7 +1,7 @@
 """Compose all sub-routers under the /api prefix."""
 from fastapi import APIRouter
 
-from . import ai_blueprint, ai_measure, ai_measure_sessions, auth, branding, catalog, company, email, estimates, hover, iss, iss_pricing_admin, mezzo, pricing_admin, public, resend_webhook, satellite, uploads, vero
+from . import ai_blueprint, ai_measure, ai_measure_sessions, auth, branding, catalog, company, email, estimates, hover, iss, iss_pricing_admin, measure_report, mezzo, pricing_admin, public, resend_webhook, satellite, uploads, vero
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(branding.router)
@@ -22,6 +22,7 @@ api_router.include_router(ai_measure.router)
 api_router.include_router(ai_measure_sessions.router)
 api_router.include_router(ai_blueprint.router)
 api_router.include_router(satellite.router)
+api_router.include_router(measure_report.router)
 api_router.include_router(resend_webhook.router)
 
 

@@ -9,11 +9,12 @@
 // shape as HOVER, so we hand it to the same `onApply` callback the page
 // already uses for HOVER.
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw, Wand2 } from "lucide-react";
+import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw, Wand2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import PhotoMeasureButton from "@/components/estimate/PhotoMeasureButton";
 import PhotoAnnotateModal from "@/components/estimate/PhotoAnnotateModal";
+import GuidedCaptureWizard from "@/components/estimate/GuidedCaptureWizard";
 import { renderAnnotated, describeAnnotations } from "@/lib/photoAnnotate";
 
 const ELEVATION_OPTIONS = [
@@ -123,6 +124,48 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
       localStorage.setItem("aiMeasureShowAdvanced", showAdvanced ? "1" : "0");
     } catch { /* ignore */ }
   }, [showAdvanced]);
+
+  // Iter 57: download the HOVER-style branded measurement report PDF.
+  // Hits /api/measure/report-pdf with the current estimate_id; backend
+  // reads the saved session and renders a 1–2 page report with photos,
+  // confidence chips, openings schedule, and notes.
+  const [reportBusy, setReportBusy] = useState(false);
+  const downloadReportPdf = async () => {
+    if (!estimateId) {
+      toast.error("Save the estimate first — the report needs an estimate ID");
+      return;
+    }
+    setReportBusy(true);
+    try {
+      const res = await api.post(
+        "/measure/report-pdf",
+        { estimate_id: estimateId },
+        { responseType: "blob" },
+      );
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${estimateId.slice(0, 8)}-measurement.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Measurement report downloaded");
+    } catch (err) {
+      // Blob responses make the JSON error invisible — decode manually
+      let detail = err?.response?.data?.detail || err?.message || "Report failed";
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          detail = JSON.parse(text)?.detail || text || detail;
+        } catch { /* ignore */ }
+      }
+      toast.error(detail);
+    } finally {
+      setReportBusy(false);
+    }
+  };
 
   // Apply Howard's geometry math to the edited wall list and update
   // siding_sqft / gable / dormer totals on the preview in-place. Mirrors
@@ -331,6 +374,49 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
     setFiles((prev) => prev.filter((f) => !arr.includes(f)));
   };
 
+  // Iter 57: Guided capture wizard. After the wizard completes,
+  // upload all files at once and pre-tag each photo's elevation
+  // (front / back / left / right) so Claude doesn't have to guess.
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const handleWizardComplete = async ({ photos }) => {
+    if (!photos?.length) return;
+    const room = 8 - photoUrls.length;
+    if (room <= 0) {
+      toast.error("Already at 8 photos — remove some before importing wizard captures");
+      return;
+    }
+    const batch = photos.slice(0, room);
+    setFiles((prev) => [...prev, ...batch.map((p) => p.file)]);
+    const uploaded = await Promise.all(
+      batch.map(async (p) => {
+        try {
+          const fd = new FormData();
+          fd.append("file", p.file);
+          const { data } = await api.post("/uploads", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+            timeout: 60000,
+          });
+          return { name: data.name, elevation: p.elevation };
+        } catch (err) {
+          toast.error(`Upload failed for ${p.file.name}`);
+          return null;
+        }
+      }),
+    );
+    const ok = uploaded.filter(Boolean);
+    setPhotoUrls((prev) => [...prev, ...ok.map((u) => u.name)]);
+    // Apply the elevation tags from the wizard so Claude gets ground truth.
+    setPhotoAnnotations((prev) => {
+      const next = { ...prev };
+      ok.forEach(({ name, elevation }) => {
+        next[name] = { ...(next[name] || {}), elevation };
+      });
+      return next;
+    });
+    setFiles((prev) => prev.filter((f) => !batch.find((b) => b.file === f)));
+    toast.success(`${ok.length} photo${ok.length !== 1 ? "s" : ""} added & elevation-tagged from wizard`);
+  };
+
   // Iter 56c: pull a free Esri aerial tile for the estimate's address
   // and add it as an 8th photo. The endpoint resolves the address →
   // lat/lon → satellite JPEG and writes the file straight into the same
@@ -487,6 +573,34 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
         setWallsDirty(false);
       }
       setPreview(data);
+      // Iter 57: auto-apply Claude's per-photo elevation guesses to
+      // any photo that isn't already explicitly tagged. Saves the
+      // contractor 4-8 dropdown taps per measurement. Manual tags
+      // always win — we only fill blanks.
+      const aiPhotos = data?.measurements?._ai_photos || data?.raw_ai?.photos || [];
+      if (aiPhotos.length > 0 && photoUrls.length > 0) {
+        setPhotoAnnotations((prev) => {
+          const next = { ...prev };
+          let autoTagged = 0;
+          aiPhotos.forEach((ap) => {
+            const idx = Number(ap?.index);
+            if (!Number.isFinite(idx) || idx < 0 || idx >= photoUrls.length) return;
+            const name = photoUrls[idx];
+            const claudeElev = ap?.elevation;
+            if (!claudeElev) return;
+            const cur = next[name] || {};
+            if (cur.elevation && cur.elevation !== "") return; // user tag wins
+            const conf = Number(ap?.elevation_confidence) || 0;
+            if (conf < 40) return; // skip very low-confidence guesses
+            next[name] = { ...cur, elevation: claudeElev, _auto: true };
+            autoTagged += 1;
+          });
+          if (autoTagged > 0) {
+            toast.success(`Auto-tagged ${autoTagged} elevation${autoTagged > 1 ? "s" : ""} from AI`);
+          }
+          return next;
+        });
+      }
     } catch (e) {
       toast.error(e?.response?.data?.detail || e.message || "AI measure failed");
     } finally {
@@ -751,6 +865,24 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                       <div className="text-[10px] text-[#A1A1AA] mt-1">
                         Tip: front, back, left, right elevations + any tricky corners
                       </div>
+                      {/* Iter 57: HOVER-style guided capture wizard. Walks
+                          contractor through 8 standard positions and
+                          auto-tags each photo's elevation as it captures.
+                          Biggest single accuracy lever — eliminates the
+                          "garbage in" problem at the source. */}
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setWizardOpen(true)}
+                          disabled={photoUrls.length >= 8}
+                          className="px-3 py-1.5 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50"
+                          data-testid="ai-measure-wizard-btn"
+                          title="HOVER-style step-by-step capture — walks you through 8 elevation positions, auto-tags each photo"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          Guided Capture (recommended)
+                        </button>
+                      </div>
                       {/* Iter 56c: free aerial view via Esri World Imagery.
                           Auto-fetches a top-down photo of the property
                           from the estimate address — dramatically
@@ -1000,6 +1132,7 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                             <th>Dormer (ft²)</th>
                             <th>Gable ft²</th>
                             <th>Total ft²</th>
+                            <th title="Claude's per-wall confidence — green = high, amber = medium, red = low. Verify low/medium walls in the field.">Conf</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1010,6 +1143,14 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                             const dormer = Number(w.dormer_face_sqft) || 0;
                             const gableArea = 0.5 * width * gable;
                             const area = width * eave + gableArea + dormer;
+                            const confScore = Math.round(Number(w.confidence) || 0);
+                            const confTier = confScore >= 80 ? "high" : confScore >= 60 ? "med" : confScore >= 30 ? "low" : "guess";
+                            const confChip = {
+                              high:  { bg: "bg-[#16A34A]", label: "HIGH" },
+                              med:   { bg: "bg-[#CA8A04]", label: "MED" },
+                              low:   { bg: "bg-[#EA580C]", label: "LOW" },
+                              guess: { bg: "bg-[#DC2626]", label: "GUESS" },
+                            }[confTier];
                             return (
                               <tr key={i} className="border-b border-[#F4F4F5]">
                                 <td className="py-1 font-bold text-[#52525B] uppercase tracking-wider text-[10px]">{w.label}</td>
@@ -1059,6 +1200,19 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                                   {gableArea > 0 ? gableArea.toFixed(0) : "—"}
                                 </td>
                                 <td className="font-mono-num font-bold">{area.toFixed(0)}</td>
+                                <td
+                                  className="text-center"
+                                  title={(w.confidence_reasoning || "") + (confScore ? ` · score ${confScore}/100` : "")}
+                                  data-testid={`ai-measure-wall-conf-${i}`}
+                                >
+                                  {confScore > 0 ? (
+                                    <span className={`inline-block ${confChip.bg} text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm tracking-wider`}>
+                                      {confChip.label} {confScore}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#A1A1AA]">—</span>
+                                  )}
+                                </td>
                               </tr>
                             );
                           })}
@@ -1087,6 +1241,7 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                                   {totalGable > 0 ? totalGable.toFixed(0) : "—"}
                                 </td>
                                 <td className="font-mono-num font-bold">{totalArea.toFixed(0)}</td>
+                                <td>&nbsp;</td>
                               </tr>
                             );
                           })()}
@@ -1167,13 +1322,73 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                     </details>
                   )}
 
-                  {/* Iter 53: editable linear measurements panel — fixes
-                      the "soffit LF too small" complaint by letting the
-                      contractor type real numbers when Claude under-
-                      counts the perimeter (typically because not every
-                      elevation is photographed). Powers ISS soffit,
-                      gutter, J-channel, starter, corners, and capping
-                      rows downstream. */}
+                  {/* Iter 57: HOVER-style extras.
+                      • Missing-elevations banner — warn if Claude didn't see all 4 walls
+                      • Openings schedule — collapsed grouped view (elevation × type × size)
+                      • Double-count check — Claude's reconciliation note */}
+                  {(preview.measurements?._ai_missing_elevations?.length ?? 0) > 0 && (
+                    <div
+                      className="border border-[#F59E0B] bg-[#FEF3C7] px-3 py-2 mb-3 text-xs text-[#78350F] flex items-start gap-2"
+                      data-testid="ai-measure-missing-elevs"
+                    >
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <div>
+                        Claude couldn&apos;t see these elevations —
+                        add photos to capture them: {" "}
+                        <strong>
+                          {preview.measurements._ai_missing_elevations
+                            .map((e) => e.toUpperCase())
+                            .join(", ")}
+                        </strong>
+                        .
+                      </div>
+                    </div>
+                  )}
+
+                  {(preview.measurements?._ai_openings_schedule?.length ?? 0) > 0 && (
+                    <details className="text-xs mb-3" open data-testid="ai-measure-openings-schedule">
+                      <summary className="cursor-pointer text-[#7C3AED] font-bold uppercase tracking-wider">
+                        Openings schedule — grouped by elevation × size
+                      </summary>
+                      <div className="text-[11px] text-[#71717A] mt-2 italic">
+                        Counts collapsed by size — easier to spot-check than the full opening list. Verify before ordering.
+                      </div>
+                      <table className="w-full mt-2 text-xs">
+                        <thead className="text-left text-[#A1A1AA] uppercase tracking-wider text-[10px]">
+                          <tr>
+                            <th>Elevation</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th className="text-right">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.measurements._ai_openings_schedule.map((o, i) => (
+                            <tr key={i} className="border-b border-[#F4F4F5]" data-testid={`ai-measure-opening-row-${i}`}>
+                              <td className="py-1 font-bold text-[#52525B] uppercase tracking-wider text-[10px]">
+                                {o.elevation || "—"}
+                              </td>
+                              <td className="capitalize">{(o.type || "—").replace(/_/g, " ")}</td>
+                              <td className="font-mono-num">
+                                {o.size_label || `${Math.round(Number(o.width_in) || 0)}×${Math.round(Number(o.height_in) || 0)} in`}
+                              </td>
+                              <td className="font-mono-num font-bold text-right">{Number(o.count) || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
+                  )}
+
+                  {preview.measurements?._ai_double_count_check && (
+                    <div
+                      className="text-[11px] text-[#52525B] italic border-l-2 border-[#0EA5E9] pl-3 mb-3"
+                      data-testid="ai-measure-double-count"
+                    >
+                      <span className="not-italic font-bold text-[#0EA5E9] mr-1">Cross-check:</span>
+                      {preview.measurements._ai_double_count_check}
+                    </div>
+                  )}
                   {preview.measurements && (
                     <details className="text-xs mb-3" open data-testid="ai-measure-lf-table">
                       <summary className="cursor-pointer text-[#7C3AED] font-bold uppercase tracking-wider">
@@ -1288,6 +1503,19 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                     title="Wipe photos + AI result and start fresh"
                   >
                     Start Over
+                  </button>
+                )}
+                {preview && estimateId && (
+                  <button
+                    type="button"
+                    onClick={downloadReportPdf}
+                    disabled={reportBusy || busy}
+                    className="px-3 py-2 bg-white text-[#0EA5E9] border border-[#0EA5E9] hover:bg-[#F0F9FF] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                    data-testid="ai-measure-report-pdf-btn"
+                    title="Download a branded HOVER-style measurement report (photos + confidence chips + openings schedule)"
+                  >
+                    {reportBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                    {reportBusy ? "Generating…" : "Report PDF"}
                   </button>
                 )}
                 {!preview ? (
@@ -1488,6 +1716,11 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
             toast.success(`Refine applied — no changes vs ${refineMergeMode} mode · siding ft² unchanged`);
           }
         }}
+      />
+      <GuidedCaptureWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onComplete={handleWizardComplete}
       />
     </div>
   );
