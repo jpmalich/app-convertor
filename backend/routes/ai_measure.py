@@ -138,16 +138,21 @@ CRITICAL accuracy rules (read every time):
    • RED line + "REF = N in" → known scale; anchor your measurements to it
    • GREEN "TARGET HOUSE" rectangle → measure only what's inside it (aerial)
    • RED hatched zone marked "NO SIDING" → exclude that area from siding %
-   • YELLOW circle pin + brown badge ("DH 36×60", "PIC 60×48", etc.) →
-     CONTRACTOR-TAGGED WINDOW. Each yellow pin marks ONE window. The
-     brown badge tells you the EXACT style + size. Use these as the
-     ground-truth window list — emit them in `openings[]` with
-     `style_confidence: 100` and the contractor's exact style + W×H.
-     If you ALSO see windows that don't have yellow pins, you can add
-     those (with normal confidence), but the tagged ones win on style
-     and size. Never demote a tagged window's style — the contractor
-     is standing 25 ft from the house with their eyes on it, you are
-     looking at a JPEG.
+   • YELLOW circle pin + brown badge with a style abbreviation
+     ("DH", "CA", "PIC", "BAY", etc.) → CONTRACTOR-TAGGED WINDOW STYLE.
+     Each yellow pin marks ONE window. The brown badge tells you the
+     EXACT style (decoded: DH=Double Hung, SH=Single Hung, CA=Casement,
+     2CA=Twin Casement, AW=Awning, HP=Hopper, 2SL=2-Lite Slider,
+     3SL=3-Lite Slider, PIC=Picture, 2DH=Twin Double Hung, 2SH=Twin
+     Single Hung, 3DH=Triple Double Hung, BAY=Bay Window, BOW=Bow
+     Window, 1/2=Half-Round, 1/4=Quarter-Round, ARC=Arch, OCT=Octagon,
+     HEX=Hexagon, GDN=Garden Window, OTH=Other Shape). Use the tagged
+     STYLE as ground truth (style_confidence=100). YOU still measure
+     width_in and height_in from the photo using your scale reference
+     — the contractor is locking only the operation style, not the
+     size. Add untagged windows you also see (with normal confidence).
+     Never demote a tagged window's style — contractor's eyes beat
+     a JPEG.
 
 
    The contractor may have marked up some photos BEFORE sending them.

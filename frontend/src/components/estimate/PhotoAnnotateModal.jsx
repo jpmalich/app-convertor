@@ -125,8 +125,6 @@ export default function PhotoAnnotateModal({
   // we open a small picker (style + W×H). Saved with `confirmWindow`.
   const [windowPending, setWindowPending] = useState(null); // { x, y }
   const [windowStyle, setWindowStyle] = useState("Double Hung");
-  const [windowWidth, setWindowWidth] = useState("36");
-  const [windowHeight, setWindowHeight] = useState("60");
 
   useEffect(() => {
     try { localStorage.setItem("photoAnnotateScaleUnit", scaleUnit); } catch { /* ignore */ }
@@ -251,10 +249,8 @@ export default function PhotoAnnotateModal({
 
   const confirmWindow = () => {
     if (!windowPending) return;
-    const w = parseFloat(windowWidth);
-    const h = parseFloat(windowHeight);
-    if (!w || w <= 0 || !h || h <= 0) {
-      toast.error("Enter positive width + height in inches");
+    if (!windowStyle) {
+      toast.error("Pick a window style");
       return;
     }
     setLocalWindows((prev) => [
@@ -264,12 +260,15 @@ export default function PhotoAnnotateModal({
         x: windowPending.x,
         y: windowPending.y,
         style: windowStyle,
-        width_in: w,
-        height_in: h,
+        // Iter 57f — size dropped from the picker; Claude sizes it from
+        // the photo. We keep the field on the schema (=0) so older
+        // saved sessions that have a size still round-trip cleanly.
+        width_in: 0,
+        height_in: 0,
       },
     ]);
     setWindowPending(null);
-    toast.success(`Tagged: ${windowStyle} ${w}×${h} in`);
+    toast.success(`Tagged: ${windowStyle} (Claude will size it)`);
   };
   const cancelWindow = () => setWindowPending(null);
 
@@ -395,16 +394,12 @@ export default function PhotoAnnotateModal({
           const r = Math.max(8, photo.width / 200);
           const fontPx = Math.max(11, photo.width / 95);
           const abbr = STYLE_ABBR[w.style] || "?";
-          const sizeLabel = `${Math.round(w.width_in)}×${Math.round(w.height_in)}`;
           return (
             <g key={w.id}>
               <circle cx={w.x} cy={w.y} r={r} fill="#FBBF24" stroke="#92400E" strokeWidth={Math.max(2, photo.width / 700)} />
-              <rect x={w.x + r + 4} y={w.y - fontPx} width={Math.max(56, fontPx * 4)} height={fontPx * 2 + 6} fill="#92400E" rx={2} />
-              <text x={w.x + r + 8} y={w.y - 4} fill="#FFFFFF" fontSize={fontPx} fontWeight="bold">
+              <rect x={w.x + r + 4} y={w.y - fontPx / 2 - 4} width={Math.max(40, fontPx * 3)} height={fontPx + 8} fill="#92400E" rx={2} />
+              <text x={w.x + r + 8} y={w.y + fontPx / 2 - 2} fill="#FFFFFF" fontSize={fontPx} fontWeight="bold">
                 {abbr}
-              </text>
-              <text x={w.x + r + 8} y={w.y + fontPx - 1} fill="#FFFFFF" fontSize={fontPx - 1} fontFamily="monospace">
-                {sizeLabel}
               </text>
             </g>
           );
@@ -508,9 +503,9 @@ export default function PhotoAnnotateModal({
           <div className="absolute inset-0 z-10 bg-black/60 flex items-center justify-center p-4" onClick={cancelWindow}>
             <div className="bg-white max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="bg-[#92400E] text-white px-4 py-2.5">
-                <div className="font-heading text-base">Tag this window</div>
+                <div className="font-heading text-base">Tag this window&apos;s style</div>
                 <div className="text-[11px] opacity-90 mt-0.5">
-                  Claude treats your tag as GROUND TRUTH — beats its own photo-guess.
+                  Claude treats your style as GROUND TRUTH — it will size the window from the photo.
                 </div>
               </div>
               <div className="p-4 space-y-3">
@@ -528,32 +523,8 @@ export default function PhotoAnnotateModal({
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">Width (in)</div>
-                    <input
-                      type="number" step="0.5" min="0" inputMode="decimal"
-                      value={windowWidth}
-                      onChange={(e) => setWindowWidth(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmWindow(); } if (e.key === "Escape") { e.preventDefault(); cancelWindow(); } }}
-                      className="w-full px-2 py-2 border border-[#E4E4E7] rounded-sm font-mono-num focus:outline-none focus:border-[#92400E]"
-                      data-testid="annotate-window-width"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">Height (in)</div>
-                    <input
-                      type="number" step="0.5" min="0" inputMode="decimal"
-                      value={windowHeight}
-                      onChange={(e) => setWindowHeight(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmWindow(); } if (e.key === "Escape") { e.preventDefault(); cancelWindow(); } }}
-                      className="w-full px-2 py-2 border border-[#E4E4E7] rounded-sm font-mono-num focus:outline-none focus:border-[#92400E]"
-                      data-testid="annotate-window-height"
-                    />
-                  </div>
-                </div>
                 <div className="text-[10px] text-[#A1A1AA] leading-snug">
-                  Common: DH 30×52, 36×60. Picture 60×48. Casement 24×48. Sliding 60×36. Garden 36×36.
+                  Tip — your tag locks the STYLE only. Claude still measures width &amp; height from the photo using its scale reference. If you also need a specific size, edit it in the openings schedule after Claude runs.
                 </div>
               </div>
               <div className="border-t border-[#E4E4E7] px-4 py-3 flex justify-end gap-2">
@@ -730,7 +701,7 @@ export default function PhotoAnnotateModal({
                     <span className="flex items-center gap-1">
                       <span className="font-bold text-[#92400E]">{STYLE_ABBR[w.style] || "?"}</span>
                       <span>{w.style}</span>
-                      <span className="font-mono-num text-[#71717A]">{Math.round(w.width_in)}×{Math.round(w.height_in)}&quot;</span>
+                      <span className="text-[10px] text-[#A1A1AA]">(Claude sizes)</span>
                     </span>
                     <button onClick={() => removeWindow(w.id)} className="text-[#A1A1AA] hover:text-[#DC2626]" data-testid={`annotate-window-remove-${w.id}`}>
                       <Trash2 className="w-3 h-3" />
