@@ -1097,57 +1097,6 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                     </div>
                   </label>
 
-                  {/* Reference dim */}
-                  <label className="block mb-3">
-                    <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
-                      Reference dimension (optional, big accuracy boost)
-                    </div>
-                    <input
-                      type="text"
-                      className="input text-sm"
-                      placeholder='e.g. "front door = 80 inches"  or  "house width = 36 ft"'
-                      value={refDim}
-                      onChange={(e) => setRefDim(e.target.value)}
-                      data-testid="ai-measure-ref-dim"
-                    />
-                  </label>
-
-                  {/* Wall height + Siding coverage — the two biggest
-                      accuracy levers when photos alone aren't enough. */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <label className="block">
-                      <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
-                        Avg wall height (ft)
-                      </div>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="6"
-                        max="40"
-                        className="input text-sm"
-                        placeholder="9 = 1-story · 18 = 2-story"
-                        value={wallHeight}
-                        onChange={(e) => setWallHeight(e.target.value)}
-                        data-testid="ai-measure-wall-height"
-                      />
-                    </label>
-                    <label className="block">
-                      <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1">
-                        Siding coverage (%)
-                      </div>
-                      <input
-                        type="number"
-                        step="5"
-                        min="0"
-                        max="100"
-                        className="input text-sm"
-                        placeholder="100 = all siding · 60 = part brick"
-                        value={sidingPct}
-                        onChange={(e) => setSidingPct(e.target.value)}
-                        data-testid="ai-measure-siding-pct"
-                      />
-                    </label>
-                  </div>
                   {/* Iter 57g — course-counting overrides. Optional —
                       contractor can leave blank to use Claude's
                       defaults. Filled in, Claude is told to size
