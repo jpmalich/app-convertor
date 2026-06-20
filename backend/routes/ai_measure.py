@@ -191,6 +191,18 @@ CRITICAL accuracy rules (read every time):
      roof edges) and `rakes_lf` (total sloped gable-edge legs). DO NOT
      use it for wall heights, story count, openings, or siding %.
      Those must come from the ground-level elevation photos.
+   • EAVES vs RAKES — IMPORTANT (Iter 57p): the "eave" is the
+     HORIZONTAL roof edge running parallel to the ground (where the
+     gutter hangs). The "rake" is the SLOPED roof edge climbing the
+     side of a gable. ONLY set `eaves_lf > 0` when you can DIRECTLY
+     observe a horizontal roof edge in the supplied photos (either
+     from an aerial, OR from a ground photo that frames the soffit
+     line). If every ground photo shows only the gable-end view (you
+     see rakes but no horizontal eave line), set `eaves_lf = 0` and
+     add "eaves not visible — verify in field" to `notes`. DO NOT
+     infer/guess eave length from front-wall width when no eave is
+     observed — that would falsely produce gutter line items on a
+     side-elevation-only quote.
    • Red line with red endpoints + red label like 'WALL REF = 80"' — this is
      a contractor-confirmed WALL scale anchor. The red line spans a real-world
      distance of exactly that many inches in the photo. Use it to lock

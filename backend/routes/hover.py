@@ -441,6 +441,14 @@ HOVER_MAPPING_SPEC = [
     },
     # =====================================================================
     # GUTTER — all 3 tabs share the Seamless Gutter section.
+    # Iter 57p: auto-extract downspouts + elbows. Default rule of thumb:
+    #   - 1 downspout per 30 LF of gutter (industry standard for 6" K-style)
+    #   - 2 elbows per downspout (1 top to turn off the gutter, 1 kick-out
+    #     at the bottom to throw water away from the foundation)
+    #   - Minimum 2 downspouts when ANY gutter is present (code-typical:
+    #     a house needs at least one on each end). When eaves_lf is 0
+    #     (e.g. a side-elevation-only quote), all three rows extract to 0
+    #     and the line items get suppressed by the zero-qty filter.
     # =====================================================================
     {
         "tabs": ["vinyl", "ascend", "lp_smart"],
@@ -449,6 +457,33 @@ HOVER_MAPPING_SPEC = [
         "unit": "LF",
         "extract": lambda m: round(m.get("eaves_lf") or 0),
         "note": "Eaves LF (gutters run along eaves, not rakes)",
+    },
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Seamless Gutter",
+        "item": "Downspout 6\"",
+        "unit": "LF",
+        # 1 downspout per 30 LF of gutter, minimum 2 when any gutter
+        # exists. Each downspout = ~10 LF run from gutter to splash
+        # block on a single-story (≈ eave-height + 2 ft of horizontal
+        # kick + 2 elbows of slack). Multiply count × 10 LF for ordering.
+        "extract": lambda m: (
+            max(2, math.ceil((m.get("eaves_lf") or 0) / 30)) * 10
+            if (m.get("eaves_lf") or 0) > 0 else 0
+        ),
+        "note": "1 downspout per 30 LF eaves, min 2; each ≈ 10 LF of coil",
+    },
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Seamless Gutter",
+        "item": "elbow",
+        "unit": "Each",
+        # 2 elbows per downspout (top turn + bottom kick-out)
+        "extract": lambda m: (
+            max(2, math.ceil((m.get("eaves_lf") or 0) / 30)) * 2
+            if (m.get("eaves_lf") or 0) > 0 else 0
+        ),
+        "note": "2 elbows per downspout (top + kick-out)",
     },
     # =====================================================================
     # CAPS — Misc. Labor & Material section is on all 3 tabs.

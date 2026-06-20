@@ -382,3 +382,13 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
     2. Added explicit `width="100%" height="100%"` SVG **attributes** (not CSS) — WeasyPrint requires them because SVG elements without intrinsic dimensions default to ~300×150 and CSS width/height alone don't stretch them.
     - Verified end-to-end: vision analysis confirms "Yellow bounding boxes and labels are directly overlaid on the red garage photo… These callouts are not placed outside the photo in unrelated sections." Labels correctly placed over the 2 garage doors ("108×84 Garage"), entry door ("36×80 Entry"), and the gable window ("SL 48×36").
     - **Files**: `backend/routes/measure_report.py` (overlay SVG opening tag).
+
+  - **Iter 57p — Eaves-only-when-visible + auto-extract downspouts/elbows (2026-06-20)**: Howard ran AI on a photo that only had RAKES (a gable-end shot, no horizontal eave line visible) and reported: "it came back with gutters in the estimate when i applied it." Two changes shipped:
+    1. **Prompt rule** in `ai_measure.py` (Rule 0a): explicit instruction that `eaves_lf` must be 0 unless a horizontal eave/soffit line is DIRECTLY observed in the supplied photos. When only rakes are visible (gable-end view), Claude must set `eaves_lf = 0` and append "eaves not visible — verify in field" to `notes`. Stops the false gutter line item at the source.
+    2. **Auto-extract downspouts + elbows** in `hover.py` (shared across all 3 siding tabs):
+       - `Downspout 6"`: 1 per 30 LF of eaves, **minimum 2** (code-typical: at least one each end), each downspout = 10 LF of coil. `count × 10 LF`.
+       - `elbow`: 2 per downspout (1 top turn at the gutter + 1 bottom kick-out away from the foundation).
+       - Both rows extract to 0 when `eaves_lf` is 0 → zero-qty filter suppresses them automatically, so a rake-only quote won't get phantom downspouts either.
+    - Unit-tested: eaves=0 → 0/0/0; eaves=12 → 12 LF gutter + 2 downspouts (20 LF coil) + 4 elbows; eaves=78 → 78 LF + 3 dn (30 LF coil) + 6 elbows; eaves=200 → 200 LF + 7 dn (70 LF coil) + 14 elbows. Lint clean.
+    - Caveat to flag for Howard: the `Downspout 6"` catalog unit is LF (10 LF per piece). If Vero ever switches to a per-piece unit, swap `count × 10 → count` in the lambda.
+    - **Files**: `backend/routes/ai_measure.py` (Rule 0a EAVES vs RAKES clarifier), `backend/routes/hover.py` (gutter section adds Downspout + elbow mapper rows).
