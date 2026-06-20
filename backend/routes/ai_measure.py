@@ -483,30 +483,33 @@ def _vero_for_style(style: str, width_in: float, height_in: float) -> tuple[str,
     return (_guess_vero_product_type(width_in, height_in), 1)
 
 
-def _build_vero_openings_from_ai(openings: list) -> list[dict]:
-    """Turn AI-detected `openings[]` (windows only) into the
-    `vero_openings[]` rows the Windows workspace expects on Apply.
-    Each opening becomes 1+ Vero rows depending on its multi-unit style
-    (e.g. Twin Double Hung → 2 rows of Vero Double Hung).
+def _build_vero_openings_from_ai(openings: list, schedule: list | None = None) -> list[dict]:
+    """Turn AI-detected windows into the `vero_openings[]` rows the
+    Windows workspace expects on Apply.
+
+    Iter 57i — primary source is `openings_schedule` (one row per
+    (wall, type, size, style) with `count: N`). Each schedule row
+    becomes `count × qty_multiplier` Vero rows. Falls back to the
+    deduped `openings[]` list when no schedule is present (legacy
+    sessions). The schedule path is correct when a wall has 3 distinct
+    identical DH windows — they appear as one schedule row with
+    count=3 and produce 3 Vero DH rows. The fallback path would
+    produce only 1 (under-count).
+
     Non-window openings (doors / vents) are skipped — they belong to
     the Siding workspace's accessory rows, not Windows."""
     out: list[dict] = []
-    for o in openings or []:
-        otype = (o.get("type") or "").lower()
-        if otype != "window":
-            continue
-        try:
-            w = float(o.get("width_in") or 0)
-            h = float(o.get("height_in") or 0)
-        except (TypeError, ValueError):
-            continue
-        if w <= 0 or h <= 0:
-            continue
-        style = (o.get("style") or "").strip()
+    seen: set[str] = set()
+
+    def _emit(*, otype: str, w: float, h: float, wall: str, style: str, count: int = 1):
+        if otype != "window" or w <= 0 or h <= 0 or count <= 0:
+            return
         product_type, qty_mult = _vero_for_style(style, w, h)
-        wall = (o.get("wall") or "other").lower()
+        # `qty_mult` covers multi-unit styles (Twin DH=2, Bay=3, Bow=5);
+        # `count` covers physically-distinct identical windows.
+        total = count * qty_mult
         label = f"AI · {wall} · {style or 'Window'} · {int(w)}×{int(h)}"
-        for _ in range(max(1, qty_mult)):
+        for _ in range(total):
             out.append({
                 "id": str(uuid.uuid4()),
                 "hover_id": "",
@@ -520,9 +523,35 @@ def _build_vero_openings_from_ai(openings: list) -> list[dict]:
                 "bucket_label": "",
                 "base_mat": 0,
                 "adders": [],
-                # Keep the rich style for the customer PDF (spelled out)
                 "ai_style": style,
             })
+
+    if schedule:
+        for o in schedule:
+            try:
+                w = float(o.get("width_in") or 0)
+                h = float(o.get("height_in") or 0)
+            except (TypeError, ValueError):
+                continue
+            otype = (o.get("type") or "").lower()
+            wall = (o.get("elevation") or o.get("wall") or "other").lower()
+            style = (o.get("style") or "").strip()
+            count = int(o.get("count") or 0)
+            seen.add(f"{wall}|{otype}|{int(w)}|{int(h)}|{style.lower()}")
+            _emit(otype=otype, w=w, h=h, wall=wall, style=style, count=count)
+        return out
+
+    # Legacy fallback — no schedule available, walk the deduped list.
+    for o in openings or []:
+        try:
+            w = float(o.get("width_in") or 0)
+            h = float(o.get("height_in") or 0)
+        except (TypeError, ValueError):
+            continue
+        otype = (o.get("type") or "").lower()
+        wall = (o.get("wall") or "other").lower()
+        style = (o.get("style") or "").strip()
+        _emit(otype=otype, w=w, h=h, wall=wall, style=style, count=1)
     return out
 
 
@@ -798,17 +827,35 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
         opening_sqft += (float(o.get("width_in") or 0)
                          * float(o.get("height_in") or 0)) / 144.0
 
-    # Count openings by type (matches HOVER schema).
+    # Iter 57i — counts come from the openings_schedule (Claude's
+    # grouped roll-up with `count: N` per row) rather than the deduped
+    # `openings` list. The dedupe step collapses identical 36×54 DH
+    # windows on the same wall into 1 entry, which is correct for the
+    # dedupe purpose (eliminating cross-photo duplicates) but
+    # under-counts when a wall genuinely has 3 identical-but-distinct
+    # windows. The schedule preserves these counts.
+    schedule_for_counts = raw.get("openings_schedule") or []
     counts = {"window": 0, "entry_door": 0, "patio_door": 0, "garage_door": 0}
     perimeter_lf = 0.0
-    for o in openings:
-        t = o.get("type", "other")
-        if t in counts:
-            counts[t] += 1
-        # opening perimeter (used by ISS .019 Coil calc downstream)
-        perimeter_lf += 2 * (
-            (float(o.get("width_in") or 0) + float(o.get("height_in") or 0)) / 12.0
-        )
+    if schedule_for_counts:
+        for o in schedule_for_counts:
+            t = (o.get("type") or "other").lower()
+            cnt = int(o.get("count") or 0)
+            if t in counts:
+                counts[t] += cnt
+            perimeter_lf += cnt * 2 * (
+                (float(o.get("width_in") or 0) + float(o.get("height_in") or 0)) / 12.0
+            )
+    else:
+        # Legacy sessions without a schedule fall back to the dedupe
+        # list — preserves backwards compatibility.
+        for o in openings:
+            t = o.get("type", "other")
+            if t in counts:
+                counts[t] += 1
+            perimeter_lf += 2 * (
+                (float(o.get("width_in") or 0) + float(o.get("height_in") or 0)) / 12.0
+            )
 
     measurements = {
         "siding_sqft": round(siding_sqft, 1),
@@ -1034,7 +1081,10 @@ async def ai_measure(
         # 1+ Vero rows (Twin DH → 2 rows of Vero Double Hung, etc.).
         # On Apply, the Windows workspace gets pre-seeded with the
         # right product types instead of being empty.
-        "vero_openings": _build_vero_openings_from_ai(raw.get("openings") or []),
+        "vero_openings": _build_vero_openings_from_ai(
+            raw.get("openings") or [],
+            raw.get("openings_schedule") or [],
+        ),
         "raw_ai": raw,
         "model": MODEL_NAME,
         "session_id": session_id,
