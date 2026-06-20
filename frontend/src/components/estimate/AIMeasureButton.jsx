@@ -1050,6 +1050,67 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                             const hasWinRef = !!annot.windowReference;
                             const zoneCount = (annot.zones || []).length;
                             const elev = annot.elevation || "";
+                            // Iter 57o — when an AI Measure run has
+                            // produced an openings_schedule with bboxes,
+                            // overlay HOVER-style labeled callouts on
+                            // each photo. Same look as the PDF, but in
+                            // the live preview so the contractor can
+                            // catch a misplaced label and edit BEFORE
+                            // generating the report.
+                            const aiSched = (preview && (
+                              preview.measurements?._ai_openings_schedule ||
+                              preview.raw_ai?.openings_schedule || []
+                            )) || [];
+                            const photoCallouts = [];
+                            const seenKeys = new Set();
+                            for (const row of aiSched) {
+                              for (const loc of (row.locations || [])) {
+                                if (Number(loc.photo_idx) !== i) continue;
+                                const bb = loc.bbox || {};
+                                const bx = Number(bb.x), by = Number(bb.y);
+                                const bw = Number(bb.w || 0), bh = Number(bb.h || 0);
+                                if (!(bx >= 0 && bx <= 1 && by >= 0 && by <= 1 && bw > 0 && bh > 0 && bx + bw <= 1.001 && by + bh <= 1.001)) continue;
+                                const key = `${bx.toFixed(3)},${by.toFixed(3)},${bw.toFixed(3)},${bh.toFixed(3)}`;
+                                if (seenKeys.has(key)) continue;
+                                seenKeys.add(key);
+                                const wi = Math.round(Number(row.width_in) || 0);
+                                const hi = Math.round(Number(row.height_in) || 0);
+                                const t = String(row.type || "window").toLowerCase();
+                                const style = String(row.style || "");
+                                let label = `${wi}×${hi}`;
+                                if (t === "garage_door") label = `${wi}×${hi} Garage`;
+                                else if (t === "entry_door") label = `${wi}×${hi} Entry`;
+                                else if (t === "patio_door") label = `${wi}×${hi} Patio`;
+                                else {
+                                  let short = "";
+                                  if (/Double Hung|Twin Double/i.test(style)) short = "DH";
+                                  else if (/Single Hung/i.test(style)) short = "SH";
+                                  else if (/Casement/i.test(style)) short = "CS";
+                                  else if (/Slider/i.test(style)) short = "SL";
+                                  else if (/Picture/i.test(style)) short = "PIC";
+                                  else if (/Awning/i.test(style)) short = "AW";
+                                  else if (/Hopper/i.test(style)) short = "HP";
+                                  if (short) label = `${short} ${label}`;
+                                }
+                                const labelY = by > 0.07 ? by - 0.025 : by + 0.005;
+                                const lcx = bx + bw / 2;
+                                const lblFs = 3.0;
+                                const bgW = Math.min(0.98 - lcx + 0.5, Math.max(0.10, label.length * lblFs * 0.0048));
+                                const bgX = Math.max(0.005, Math.min(1 - bgW - 0.005, lcx - bgW / 2));
+                                photoCallouts.push(
+                                  <g key={key}>
+                                    <rect x={bx * 100} y={by * 100} width={bw * 100} height={bh * 100}
+                                          fill="none" stroke="#FACC15" strokeWidth={0.6} />
+                                    <rect x={bgX * 100} y={labelY * 100} width={bgW * 100} height={lblFs + 0.6}
+                                          fill="#09090B" />
+                                    <text x={(bgX + bgW / 2) * 100} y={labelY * 100 + lblFs * 0.85}
+                                          textAnchor="middle" fontSize={lblFs} fontWeight={700} fill="#FACC15">
+                                      {label}
+                                    </text>
+                                  </g>
+                                );
+                              }
+                            }
                             return (
                               <div key={name} className="relative border border-[#E4E4E7] overflow-hidden bg-[#FAFAFA]">
                                 <div className="relative aspect-video">
@@ -1058,6 +1119,16 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                                     alt={`Photo ${i + 1}`}
                                     className="w-full h-full object-cover"
                                   />
+                                  {photoCallouts.length > 0 && (
+                                    <svg
+                                      viewBox="0 0 100 100"
+                                      preserveAspectRatio="none"
+                                      className="absolute inset-0 w-full h-full pointer-events-none"
+                                      data-testid={`ai-measure-photo-callouts-${i}`}
+                                    >
+                                      {photoCallouts}
+                                    </svg>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
@@ -1427,6 +1498,116 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                       </div>
                     </div>
                   )}
+
+                  {/* Iter 57o — Labeled photos preview. Surfaces the
+                      bbox callouts (yellow boxes + labels) on each photo
+                      so the contractor can spot-check Claude's
+                      per-opening placements BEFORE generating the PDF. */}
+                  {(() => {
+                    const schedule = preview.measurements?._ai_openings_schedule
+                      || preview.raw_ai?.openings_schedule || [];
+                    const totalLocs = schedule.reduce(
+                      (n, r) => n + (Array.isArray(r.locations) ? r.locations.length : 0), 0
+                    );
+                    if (totalLocs === 0 || photoUrls.length === 0) return null;
+                    return (
+                      <details className="text-xs mb-3" open data-testid="ai-measure-labeled-photos">
+                        <summary className="cursor-pointer text-[#7C3AED] font-bold uppercase tracking-wider">
+                          Labeled photos — {totalLocs} opening{totalLocs === 1 ? "" : "s"} tagged by Claude
+                        </summary>
+                        <div className="text-[11px] text-[#71717A] mt-2 italic">
+                          Same yellow boxes + labels appear on the photos in the downloaded measurement PDF. If one looks wrong, edit the opening size/style in the Openings schedule below — the label updates automatically.
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {photoUrls.map((name, i) => {
+                            // Build the callouts for THIS photo, same
+                            // logic as the upload-grid overlay above.
+                            const photoCallouts = [];
+                            const seenKeys = new Set();
+                            for (const row of schedule) {
+                              for (const loc of (row.locations || [])) {
+                                if (Number(loc.photo_idx) !== i) continue;
+                                const bb = loc.bbox || {};
+                                const bx = Number(bb.x), by = Number(bb.y);
+                                const bw = Number(bb.w || 0), bh = Number(bb.h || 0);
+                                if (!(bx >= 0 && bx <= 1 && by >= 0 && by <= 1 && bw > 0 && bh > 0 && bx + bw <= 1.001 && by + bh <= 1.001)) continue;
+                                const key = `${bx.toFixed(3)},${by.toFixed(3)},${bw.toFixed(3)},${bh.toFixed(3)}`;
+                                if (seenKeys.has(key)) continue;
+                                seenKeys.add(key);
+                                const wi = Math.round(Number(row.width_in) || 0);
+                                const hi = Math.round(Number(row.height_in) || 0);
+                                const t = String(row.type || "window").toLowerCase();
+                                const style = String(row.style || "");
+                                let label = `${wi}×${hi}`;
+                                if (t === "garage_door") label = `${wi}×${hi} Garage`;
+                                else if (t === "entry_door") label = `${wi}×${hi} Entry`;
+                                else if (t === "patio_door") label = `${wi}×${hi} Patio`;
+                                else {
+                                  let short = "";
+                                  if (/Double Hung|Twin Double/i.test(style)) short = "DH";
+                                  else if (/Single Hung/i.test(style)) short = "SH";
+                                  else if (/Casement/i.test(style)) short = "CS";
+                                  else if (/Slider/i.test(style)) short = "SL";
+                                  else if (/Picture/i.test(style)) short = "PIC";
+                                  else if (/Awning/i.test(style)) short = "AW";
+                                  else if (/Hopper/i.test(style)) short = "HP";
+                                  if (short) label = `${short} ${label}`;
+                                }
+                                const labelY = by > 0.07 ? by - 0.025 : by + 0.005;
+                                const lcx = bx + bw / 2;
+                                const lblFs = 3.0;
+                                const bgW = Math.min(0.98 - lcx + 0.5, Math.max(0.10, label.length * lblFs * 0.0048));
+                                const bgX = Math.max(0.005, Math.min(1 - bgW - 0.005, lcx - bgW / 2));
+                                photoCallouts.push(
+                                  <g key={key}>
+                                    <rect x={bx * 100} y={by * 100} width={bw * 100} height={bh * 100}
+                                          fill="none" stroke="#FACC15" strokeWidth={0.6} />
+                                    <rect x={bgX * 100} y={labelY * 100} width={bgW * 100} height={lblFs + 0.6}
+                                          fill="#09090B" />
+                                    <text x={(bgX + bgW / 2) * 100} y={labelY * 100 + lblFs * 0.85}
+                                          textAnchor="middle" fontSize={lblFs} fontWeight={700} fill="#FACC15">
+                                      {label}
+                                    </text>
+                                  </g>
+                                );
+                              }
+                            }
+                            const meta = (preview.measurements?._ai_photos || preview.raw_ai?.photos || [])
+                              .find((p) => Number(p.index) === i) || {};
+                            const elev = (meta.elevation || "").toUpperCase();
+                            return (
+                              <div key={name} className="relative border border-[#E4E4E7] bg-[#FAFAFA]" data-testid={`ai-measure-labeled-photo-${i}`}>
+                                <div className="relative aspect-video overflow-hidden">
+                                  <img
+                                    src={`/api/uploads/${name}`}
+                                    alt={`Labeled photo ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {photoCallouts.length > 0 && (
+                                    <svg
+                                      viewBox="0 0 100 100"
+                                      preserveAspectRatio="none"
+                                      className="absolute inset-0 w-full h-full pointer-events-none"
+                                    >
+                                      {photoCallouts}
+                                    </svg>
+                                  )}
+                                  {elev && (
+                                    <span className="absolute top-1 left-1 bg-[#7C3AED] text-white text-[9px] px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                                      {elev}
+                                    </span>
+                                  )}
+                                  <span className="absolute bottom-1 right-1 bg-[#FACC15] text-[#09090B] text-[9px] px-1.5 py-0.5 uppercase tracking-wider font-bold" data-testid={`ai-measure-labeled-photo-count-${i}`}>
+                                    {photoCallouts.length} tag{photoCallouts.length === 1 ? "" : "s"}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    );
+                  })()}
 
                   {(preview.measurements?._ai_openings_schedule?.length ?? 0) > 0 && (
                     <details className="text-xs mb-3" open data-testid="ai-measure-openings-schedule">
