@@ -374,3 +374,9 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
     - Also added the same overlay to the pre-AI upload grid (line 1054 area) so when a contractor re-opens the modal after an AI run, the bbox-tagged photos remain visually labeled in the upload grid.
     - **Files**: `frontend/src/components/estimate/AIMeasureButton.jsx` (new `_ai_measure_labeled-photos` block before openings schedule + overlay in upload grid).
     - Smoke-tested via Playwright route interception with stubbed AI response — vision confirms 8 SVG rects + 4 text labels + "4 TAGS" badge rendered correctly on a single garage photo with 2 garage doors + 1 entry door + 1 gable window. Lint clean.
+
+  - **Iter 57o-fix1 — PDF callouts were escaping the photo container (2026-06-20)**: Howard's report: yellow bbox + label callouts on the PDF were appearing in the CROSS-REFERENCE CHECK + NOTES sections instead of ON the photo above. Root cause: WeasyPrint doesn't honor the CSS `inset:0` shorthand, so the SVG overlay's `position:absolute` lost its anchor to the photo's `position:relative` parent and drifted to the page root. Fix:
+    1. Replaced `inset:0` with explicit `top:0;left:0;right:0;bottom:0` on the SVG `style` (matches the pattern already used by the FRONT chip + confidence chip, which positioned correctly).
+    2. Added explicit `width="100%" height="100%"` SVG **attributes** (not CSS) — WeasyPrint requires them because SVG elements without intrinsic dimensions default to ~300×150 and CSS width/height alone don't stretch them.
+    - Verified end-to-end: vision analysis confirms "Yellow bounding boxes and labels are directly overlaid on the red garage photo… These callouts are not placed outside the photo in unrelated sections." Labels correctly placed over the 2 garage doors ("108×84 Garage"), entry door ("36×80 Entry"), and the gable window ("SL 48×36").
+    - **Files**: `backend/routes/measure_report.py` (overlay SVG opening tag).

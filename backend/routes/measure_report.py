@@ -779,9 +779,17 @@ def _build_html(
                 )
         if not callouts:
             return ""
+        # Iter 57o-fix — WeasyPrint quirks:
+        #   1) `inset:0` shorthand isn't honored — the SVG escaped its
+        #      `position:relative` parent and rendered far down the page.
+        #      Use explicit top/left/right/bottom instead.
+        #   2) SVG elements need explicit width="100%" height="100%"
+        #      ATTRIBUTES (not CSS) to stretch to the parent — the CSS
+        #      width/height are ignored when no intrinsic dimensions exist.
         return (
             '<svg viewBox="0 0 100 100" preserveAspectRatio="none" '
-            'style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;" '
+            'width="100%" height="100%" '
+            'style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;" '
             'xmlns="http://www.w3.org/2000/svg">'
             + "".join(callouts) +
             "</svg>"
