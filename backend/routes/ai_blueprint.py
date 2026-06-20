@@ -42,6 +42,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import pypdfium2 as pdfium
+from PIL import Image
 from emergentintegrations.llm.chat import (
     ImageContent,
     LlmChat,
@@ -210,6 +211,47 @@ def _json_from_reply(text: str) -> dict:
         raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {e}")
 
 
+def _compress_for_claude(img_bytes: bytes, max_raw_bytes: int = 5_500_000) -> bytes:
+    """Ensure a single image fits comfortably under Anthropic's 10 MB
+    base64 limit. Anthropic measures the base64 string (~1.33× raw),
+    so we target raw bytes < ~5.5 MB → base64 < ~7.3 MB with headroom.
+
+    Strategy: JPEG-encode at q=88, then if still too large iteratively
+    downscale by 0.85× and re-encode (q=85 → q=78 → q=70). Returns the
+    smallest viable JPEG bytes. Falls back to the original bytes if PIL
+    fails or the image is already small enough.
+    """
+    if len(img_bytes) <= max_raw_bytes and img_bytes[:3] == b"\xff\xd8\xff":
+        # Already a small JPEG, no work needed.
+        return img_bytes
+    try:
+        with Image.open(io.BytesIO(img_bytes)) as im:
+            # Convert anything alpha/palette-mode into RGB so JPEG works.
+            if im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            qualities = [88, 85, 78, 70, 60]
+            scales = [1.0, 0.85, 0.72, 0.6, 0.5, 0.42]
+            for scale in scales:
+                if scale < 1.0:
+                    new_w = max(800, int(im.width * scale))
+                    new_h = max(800, int(im.height * scale))
+                    work = im.resize((new_w, new_h), Image.LANCZOS)
+                else:
+                    work = im
+                for q in qualities:
+                    buf = io.BytesIO()
+                    work.save(buf, format="JPEG", quality=q, optimize=True)
+                    data = buf.getvalue()
+                    if len(data) <= max_raw_bytes:
+                        return data
+            # Last resort — return whatever the lowest-quality smallest
+            # scale produced (still better than the original PNG).
+            return data  # noqa: F821 — defined inside the loop
+    except Exception:
+        logger.exception("[ai-blueprint] image compression failed; sending original")
+        return img_bytes
+
+
 def _render_pdf_to_pngs(raw_pdf: bytes, max_pages: int) -> list[bytes]:
     """Rasterize a PDF into a list of PNG byte-strings, one per page,
     capped at `max_pages`. Each page is rendered at PDF_RENDER_SCALE so
@@ -226,7 +268,10 @@ def _render_pdf_to_pngs(raw_pdf: bytes, max_pages: int) -> list[bytes]:
             pil_image = page.render(scale=PDF_RENDER_SCALE).to_pil()
             buf = io.BytesIO()
             pil_image.save(buf, format="PNG", optimize=True)
-            out.append(buf.getvalue())
+            # Compress to fit under Anthropic's 10 MB base64 cap. Blueprints
+            # rendered at scale=2.0 routinely produce 8–15 MB PNGs that
+            # explode past the limit once base64-encoded.
+            out.append(_compress_for_claude(buf.getvalue()))
         finally:
             page.close()
     doc.close()
@@ -396,7 +441,8 @@ async def ai_blueprint(
                 continue
             if len(raw) > MAX_BYTES_PER_FILE:
                 raise HTTPException(status_code=413, detail="Plan sheet exceeds 16 MB limit")
-            image_payloads.append(raw)
+            # Same Anthropic 10 MB base64 cap — compress before queuing.
+            image_payloads.append(_compress_for_claude(raw))
 
     if not image_payloads:
         raise HTTPException(

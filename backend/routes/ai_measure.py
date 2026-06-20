@@ -66,6 +66,43 @@ MAX_BYTES_PER_FILE = 12 * 1024 * 1024  # 12 MB pre-base64 (Iter 56b: bumped from
 MODEL_NAME = "claude-opus-4-5-20251101"
 
 
+def _compress_for_claude(img_bytes: bytes, max_raw_bytes: int = 5_500_000) -> bytes:
+    """Ensure a single image fits under Anthropic's 10 MB base64 cap.
+    Anthropic measures the base64-encoded payload (~1.33× raw), so
+    targeting raw bytes < ~5.5 MB keeps base64 < ~7.3 MB with headroom.
+
+    Strategy: JPEG-encode at q=88; if still too large iteratively
+    downscale by 0.85× and drop quality. Falls back to original on
+    PIL failure. Skips small JPEGs untouched.
+    """
+    if len(img_bytes) <= max_raw_bytes and img_bytes[:3] == b"\xff\xd8\xff":
+        return img_bytes
+    try:
+        with Image.open(io.BytesIO(img_bytes)) as im:
+            if im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            qualities = [88, 85, 78, 70, 60]
+            scales = [1.0, 0.85, 0.72, 0.6, 0.5, 0.42]
+            data = img_bytes
+            for scale in scales:
+                if scale < 1.0:
+                    new_w = max(800, int(im.width * scale))
+                    new_h = max(800, int(im.height * scale))
+                    work = im.resize((new_w, new_h), Image.LANCZOS)
+                else:
+                    work = im
+                for q in qualities:
+                    buf = io.BytesIO()
+                    work.save(buf, format="JPEG", quality=q, optimize=True)
+                    data = buf.getvalue()
+                    if len(data) <= max_raw_bytes:
+                        return data
+            return data
+    except Exception:
+        logger.exception("[ai-measure] image compression failed; sending original")
+        return img_bytes
+
+
 SYSTEM_PROMPT = """\
 You are a residential exterior measurement assistant for a vinyl-siding and
 window contractor. The user will upload 2–8 photos of a house. Your job is
@@ -1238,6 +1275,13 @@ async def ai_measure(
                 status_code=413,
                 detail="Photo exceeds 12 MB limit",
             )
+    # Compress every photo to fit comfortably under Anthropic's 10 MB
+    # base64 cap. Modern phone photos at 8–12 MB explode past the limit
+    # once base64-encoded (×1.33). Forces JPEG so we also dodge any
+    # PNG-from-screenshot bloat.
+    image_payloads = [
+        ("image/jpeg", _compress_for_claude(raw)) for _ctype, raw in image_payloads
+    ]
 
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
