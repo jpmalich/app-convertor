@@ -172,8 +172,22 @@ def _wall_diagram_svg(wall: dict, openings_on_wall: list[dict]) -> str:
         f'fill="#FFFFFF" stroke="#09090B" stroke-width="{stroke_main:.3f}" />'
     )
 
-    # Openings (windows + doors): explode counts, lay out evenly along the wall
-    placed = []
+    # Iter 57m-fix — smarter opening layout. Before this fix, all openings
+    # were spaced evenly with `width_ft / (n+1)` slots, which made
+    # 2 × 9-ft garage doors overlap each other on a 27-ft wall AND
+    # always placed gable windows down in the wall rectangle.
+    # New layout:
+    #   1) Classify each opening as gable_window / door / wall_window.
+    #      A "gable window" is a small landscape-ish window (W ≤ 48 in,
+    #      H ≤ 42 in, W ≥ H * 0.9) AND only when this wall has a gable.
+    #      Those go up in the triangle, not in the wall rectangle.
+    #   2) Doors are packed left-to-right with min 4-in gaps, then the
+    #      whole door cluster is centered horizontally on the wall.
+    #   3) Wall windows are distributed in the FREE space between doors
+    #      and the wall edges (not on top of the doors), each centered in
+    #      its allotted slot.
+    door_types = ("entry_door", "patio_door", "garage_door")
+    gable_ops, door_ops, window_ops = [], [], []
     for o in openings_on_wall:
         try:
             wi_in = float(o.get("width_in") or 0)
@@ -182,34 +196,114 @@ def _wall_diagram_svg(wall: dict, openings_on_wall: list[dict]) -> str:
             continue
         if wi_in <= 0 or hi_in <= 0:
             continue
+        kind = (o.get("type") or "window").lower()
         cnt = max(1, int(o.get("count") or 1))
-        for _ in range(min(cnt, 12)):  # cap visualization
-            placed.append({
-                "type": (o.get("type") or "window").lower(),
-                "w_ft": wi_in / 12.0,
-                "h_ft": hi_in / 12.0,
-            })
-
-    n = len(placed)
-    if n > 0:
-        slot_w = width_ft / (n + 1)
-        for idx, op in enumerate(placed):
-            ox = x0 + slot_w * (idx + 1) - op["w_ft"] / 2
-            if op["type"] in ("entry_door", "patio_door", "garage_door"):
-                oy = y_floor - op["h_ft"]      # sit on the floor
-                fill = "#B45309"
-                stroke = "#78350F"
+        for _ in range(min(cnt, 12)):
+            entry = {"type": kind, "w_ft": wi_in / 12.0, "h_ft": hi_in / 12.0,
+                     "w_in": wi_in, "h_in": hi_in}
+            if kind in door_types:
+                door_ops.append(entry)
+            elif gable_ft > 0 and wi_in <= 48 and hi_in <= 42 and wi_in >= hi_in * 0.9:
+                # Small landscape-ish window + this wall has a gable
+                # → likely a gable end window
+                gable_ops.append(entry)
             else:
-                # Window sill at ~38% of wall height from floor (typical)
-                oy = y_eave + eave_ft * 0.55 - op["h_ft"] / 2
-                fill = "#3B82F6"
-                stroke = "#1E40AF"
-            # Clamp inside wall
-            ox = max(x0 + 0.1, min(x0 + width_ft - op["w_ft"] - 0.1, ox))
-            oy = max(y_eave + 0.1, min(y_floor - op["h_ft"] - 0.05, oy))
+                window_ops.append(entry)
+
+    fill_window = "#3B82F6"
+    stroke_window = "#1E40AF"
+    fill_door = "#B45309"
+    stroke_door = "#78350F"
+    gap_ft = 4.0 / 12.0  # 4-inch min gap between adjacent items
+
+    # --- Place doors as a centered cluster along the floor
+    door_x_centers: list[tuple[float, float]] = []  # (start_x, end_x) of placed doors
+    if door_ops:
+        # Sort: garage doors first (biggest first to anchor), then patio, then entry
+        prio = {"garage_door": 0, "patio_door": 1, "entry_door": 2}
+        door_ops.sort(key=lambda d: (prio.get(d["type"], 9), -d["w_ft"]))
+        total_door_w = sum(d["w_ft"] for d in door_ops) + gap_ft * (len(door_ops) - 1)
+        # Center horizontally; clamp inside the wall
+        cluster_start = x0 + (width_ft - total_door_w) / 2
+        cluster_start = max(x0 + 0.2, min(x0 + width_ft - total_door_w - 0.2, cluster_start))
+        cursor = cluster_start
+        for d in door_ops:
+            ox = cursor
+            oy = y_floor - d["h_ft"]
             parts.append(
-                f'<rect x="{ox:.2f}" y="{oy:.2f}" width="{op["w_ft"]:.2f}" height="{op["h_ft"]:.2f}" '
-                f'fill="{fill}" fill-opacity="0.55" stroke="{stroke}" stroke-width="{stroke_thin:.3f}" />'
+                f'<rect x="{ox:.2f}" y="{oy:.2f}" width="{d["w_ft"]:.2f}" height="{d["h_ft"]:.2f}" '
+                f'fill="{fill_door}" fill-opacity="0.55" stroke="{stroke_door}" stroke-width="{stroke_thin:.3f}" />'
+            )
+            door_x_centers.append((ox, ox + d["w_ft"]))
+            cursor = ox + d["w_ft"] + gap_ft
+
+    # --- Place wall windows in the free space (NOT on top of doors)
+    if window_ops:
+        # Build the list of "free" x ranges along the wall = wall span
+        # minus the door clusters (with a small buffer).
+        free_ranges: list[tuple[float, float]] = []
+        cursor = x0 + 0.3
+        for ds, de in sorted(door_x_centers):
+            if ds - cursor > 1.0:  # at least 1 ft of free space worth using
+                free_ranges.append((cursor, ds - 0.3))
+            cursor = max(cursor, de + 0.3)
+        if x0 + width_ft - 0.3 - cursor > 1.0:
+            free_ranges.append((cursor, x0 + width_ft - 0.3))
+        if not free_ranges:
+            free_ranges = [(x0 + 0.3, x0 + width_ft - 0.3)]
+        # Distribute windows across the free ranges by their total length
+        total_free = sum(end - start for start, end in free_ranges) or width_ft
+        wins_per_range = []
+        remaining = list(window_ops)
+        for start, end in free_ranges:
+            share = (end - start) / total_free
+            cnt = max(0, round(len(window_ops) * share))
+            wins_per_range.append([remaining.pop(0) for _ in range(min(cnt, len(remaining)))])
+        # Anything left over (rounding): dump into the largest range
+        if remaining:
+            biggest = max(range(len(free_ranges)), key=lambda i: free_ranges[i][1] - free_ranges[i][0])
+            wins_per_range[biggest].extend(remaining)
+        for (start, end), wins in zip(free_ranges, wins_per_range):
+            if not wins:
+                continue
+            span = end - start
+            slot = span / (len(wins) + 1)
+            for i, w in enumerate(wins):
+                ox = start + slot * (i + 1) - w["w_ft"] / 2
+                ox = max(start, min(end - w["w_ft"], ox))
+                # Window sill at ~38% of wall height from floor (typical)
+                oy = y_eave + eave_ft * 0.55 - w["h_ft"] / 2
+                oy = max(y_eave + 0.1, min(y_floor - w["h_ft"] - 0.05, oy))
+                parts.append(
+                    f'<rect x="{ox:.2f}" y="{oy:.2f}" width="{w["w_ft"]:.2f}" height="{w["h_ft"]:.2f}" '
+                    f'fill="{fill_window}" fill-opacity="0.55" stroke="{stroke_window}" stroke-width="{stroke_thin:.3f}" />'
+                )
+
+    # --- Place gable-end windows inside the triangle
+    if gable_ops and gable_ft > 0:
+        # The gable triangle peak is at (x0+width_ft/2, y_top_gable) and
+        # base spans (x0..x0+width_ft) at y=y_eave. At a given y between
+        # them, the available horizontal half-width is:
+        #   half_w(y) = (width_ft/2) * (y - y_top_gable) / gable_ft
+        # We place each gable window centered horizontally at y ≈ middle
+        # of the gable, clamped so it actually fits inside the triangle.
+        for i, gw in enumerate(gable_ops[:3]):  # cap at 3 for clarity
+            # Vertical position: center the window in the lower half of the gable
+            gy_center = y_top_gable + gable_ft * 0.62
+            oy = gy_center - gw["h_ft"] / 2
+            # Available half-width at the window's top edge (narrower than bottom)
+            top_y = oy
+            top_half = (width_ft / 2) * max(0, (top_y - y_top_gable) / gable_ft)
+            # Clamp window width if it exceeds the available room
+            avail_w = max(0.5, top_half * 2 - 0.4)
+            w_used = min(gw["w_ft"], avail_w)
+            # Lay multiple gable windows out horizontally, centered as a group
+            cluster_w = w_used * len(gable_ops[:3]) + gap_ft * (len(gable_ops[:3]) - 1)
+            start_x = x0 + width_ft / 2 - cluster_w / 2
+            ox = start_x + i * (w_used + gap_ft)
+            parts.append(
+                f'<rect x="{ox:.2f}" y="{oy:.2f}" width="{w_used:.2f}" height="{gw["h_ft"]:.2f}" '
+                f'fill="{fill_window}" fill-opacity="0.55" stroke="{stroke_window}" stroke-width="{stroke_thin:.3f}" />'
             )
 
     # Width label (top) with leader-line arrows
