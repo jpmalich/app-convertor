@@ -71,6 +71,10 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   // ----- Windows tab common items -----
   "Vero - Double Hung 0-101 UI",
   "Window - Pocket Install",
+  // Iter 57y — Howard's go-to install method for Vero + Mezzo jobs.
+  // Highlight it so contractors notice the line before sending the
+  // quote. Scoped below to "windows" + "mezzo" tabs only.
+  "Window DH/Slider - Pocket Install",
   "Lead Safe Installation Practices For Window Installation",
   "Lead Safe - Test Fee (all homes 1978 and older are tested)",
   "Cap window (Windows)",
@@ -103,6 +107,9 @@ const COMMON_ITEM_TAB_SCOPE = {
   // typically use RainDrop instead, so swap the highlight per tab.
   "House Wrap": new Set(["vinyl"]),
   "RainDrop": new Set(["ascend"]),
+  // Iter 57y — only highlight the Pocket Install row on the window tabs
+  // (Vero / Mezzo) where contractors actually pick install method.
+  "Window DH/Slider - Pocket Install": new Set(["windows", "mezzo"]),
 };
 
 /** Is this item commonly-needed on the given tab? Falls back to a global
