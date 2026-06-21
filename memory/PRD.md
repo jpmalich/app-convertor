@@ -433,3 +433,14 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
     - Verified end-to-end: opened a 14-opening windows estimate; saw exactly 2 sections (DH + 2-Lite), both with the yellow "Pricing cap" banner; two pre-existing 109×31 and 108×32 openings (UI=140) correctly show the "Need Custom Quote" chip and don't add to the section total. Lint clean (frontend + backend).
     - **Files**: `frontend/src/components/estimate/VeroPanel.jsx`, `frontend/src/lib/useReconcileWindowSnapshots.js`, `frontend/src/components/estimate/HoverImportButton.jsx`, `backend/routes/ai_measure.py`, `backend/routes/hover.py`.
     - **To unfreeze later**: remove the frozen product names from `FROZEN_PRODUCT_TYPES` in `VeroPanel.jsx` and `useReconcileWindowSnapshots.js`, bump `LOCKED_MAX_UI` (or empty `BUCKET_LOCKED_PRODUCT_TYPES`), and restore the original `_STYLE_TO_VERO_PRODUCT_TYPE` + `_guess_vero_product_type` mappings.
+
+  - **Iter 57u — Removed "Window - Block Frame Replacement" install line (2026-06-20)**: Howard asked to drop it from both Vero and Mezzo workflows. Since it's a shared install method (not per-brand), this is a global removal.
+    1. **`backend/catalog_seed.py`** — removed from the `Window Installation` section list AND from `ITEM_META` (price/unit map). Existing companies see it disappear from `/api/catalog` on next refresh (catalog is dynamically resolved from `SECTION_LAYOUT`, no DB migration needed).
+    2. **`backend/services.py`** — removed from the window-installation item set used by service mapping.
+    3. **`frontend/src/components/estimate/JobInfoPanel.jsx`** — install-method toggle dropped to 2 buttons (Pocket / Full Fin); grid `grid-cols-3` → `grid-cols-2`.
+    4. **`frontend/src/lib/useEstimate.js`** — removed `block_frame` key from `INSTALL_LINE_FOR_METHOD`.
+    5. **`frontend/src/lib/catalogTranslations.js`** — removed the Spanish translation entry.
+    6. **`backend/routes/hover.py`** — updated stale comment ("swap to Full Fin/Block Frame" → "swap to Full Fin").
+    - Verified via `GET /api/catalog`: no Block Frame entries; Window Installation section now lists Pocket Install, Full Fin Replacement, Large Window adder, Lead Safe, Cap window, Disposal Fee. Live screenshot confirms the 2-button toggle renders correctly. Lint clean.
+    - Historical estimates with a saved `install_method: "block_frame"` or a `Window - Block Frame Replacement` line in `lines[]` are left untouched — no destructive migration.
+    - **Files**: `backend/catalog_seed.py`, `backend/services.py`, `backend/routes/hover.py`, `frontend/src/components/estimate/JobInfoPanel.jsx`, `frontend/src/lib/useEstimate.js`, `frontend/src/lib/catalogTranslations.js`.

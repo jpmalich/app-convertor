@@ -530,7 +530,7 @@ HOVER_MAPPING_SPEC = [
         "item": "Window DH/Slider - Pocket Install",
         "unit": "Each",
         "extract": lambda m: int(m.get("window_count") or 0),
-        "note": "Default install method — swap to Full Fin/Block Frame per job",
+        "note": "Default install method — swap to Full Fin per job",
     },
     {
         "tabs": ["windows"],

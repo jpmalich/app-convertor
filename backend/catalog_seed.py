@@ -260,7 +260,6 @@ SECTION_LAYOUT = [
     ("Window Installation", False, [
         "Window DH/Slider - Pocket Install",
         "Window - Full Fin Replacement",
-        "Window - Block Frame Replacement",
         "Large Window - adder for windows 30 sq-ft or larger",
         "Field Mull Assembly and/or Field Glaze (adder per each opening)",
         "Lead Safe Installation Practices For Window Installation",
@@ -494,7 +493,6 @@ ITEM_META = {
     # Window install (labor defaults from the Excel)
     "Window DH/Slider - Pocket Install": ("each", 170),
     "Window - Full Fin Replacement": ("each", 252.45),
-    "Window - Block Frame Replacement": ("each", 233.38),
     "Large Window - adder for windows 30 sq-ft or larger": ("each", 76.92),
     "Field Mull Assembly and/or Field Glaze (adder per each opening)": ("each", 53.85),
     "Lead Safe Installation Practices For Window Installation": ("each", 53.85),

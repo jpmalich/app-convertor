@@ -102,7 +102,6 @@ const ITEMS_ES = {
   // Iter 38–40: Window Installation
   "Window DH/Slider - Pocket Install": "Ventana DH/Corrediza – Instalación de bolsillo",
   "Window - Full Fin Replacement": "Ventana – Reemplazo con aleta completa",
-  "Window - Block Frame Replacement": "Ventana – Reemplazo con marco de bloque",
   "Large Window - adder for windows 30 sq-ft or larger": "Ventana grande – recargo para ventanas de 30 pies² o más",
   "Field Mull Assembly and/or Field Glaze (adder per each opening)": "Ensamble de mainel en sitio y/o vidriado en sitio (recargo por abertura)",
   "Lead Safe Installation Practices For Window Installation": "Prácticas de instalación seguras contra plomo",

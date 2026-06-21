@@ -259,7 +259,6 @@ export default function useEstimate(id) {
   const INSTALL_LINE_FOR_METHOD = {
     pocket: "Window DH/Slider - Pocket Install",
     full_fin: "Window - Full Fin Replacement",
-    block_frame: "Window - Block Frame Replacement",
   };
   const setInstallMethod = useCallback((method) => {
     setEst((e) => {

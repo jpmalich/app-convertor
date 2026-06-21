@@ -263,7 +263,6 @@ async def ensure_tiers_seeded():
         if name in {
             "Window DH/Slider - Pocket Install",
             "Window - Full Fin Replacement",
-            "Window - Block Frame Replacement",
             "Large Window - adder for windows 30 sq-ft or larger",
             "Field Mull Assembly and/or Field Glaze (adder per each opening)",
             "Lead Safe Installation Practices For Window Installation",

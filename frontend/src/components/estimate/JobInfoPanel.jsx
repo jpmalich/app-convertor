@@ -302,11 +302,10 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="label">Default install method</label>
-                <div className="grid grid-cols-3 gap-1.5" data-testid="install-method-toggle">
+                <div className="grid grid-cols-2 gap-1.5" data-testid="install-method-toggle">
                   {[
                     { id: "pocket", label: "Pocket" },
                     { id: "full_fin", label: "Full Fin" },
-                    { id: "block_frame", label: "Block Frame" },
                   ].map((opt) => {
                     const active = (est.install_method || "") === opt.id;
                     return (
