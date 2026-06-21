@@ -776,6 +776,18 @@ async def create_company(name: str, owner_user_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # Estimate totals (shared by CSV export + future PDF generator)
 # ---------------------------------------------------------------------------
+def _brand_window_mat(est: dict, brand: str, openings: list, opening_mat_fn) -> float:
+    """Iter 57v — Compute the brand's window-material subtotal honouring
+    the Window Package Quote override. When `{brand}_package_quote` is
+    enabled with a positive total, return that flat number (overriding
+    the per-opening bucket sum). Otherwise fall back to summing each
+    opening through `opening_mat_fn`."""
+    pq = est.get(f"{brand}_package_quote") or {}
+    if pq.get("enabled") and float(pq.get("total") or 0) > 0:
+        return float(pq["total"])
+    return sum(opening_mat_fn(op) for op in openings)
+
+
 def calc_totals(est: dict) -> dict:
     lines = est.get("lines", []) or []
     misc_labor = est.get("misc_labor", []) or []
@@ -821,8 +833,8 @@ def calc_totals(est: dict) -> dict:
     sub_mat = (
         sum((ln.get("qty", 0) or 0) * (ln.get("mat", 0) or 0) + _adders_mat_total(ln) for ln in lines)
         + sum((m.get("mat", 0) or 0) for m in misc_material)
-        + sum(_opening_mat(op) for op in mezzo_openings)
-        + sum(_vero_opening_mat(op) for op in vero_openings)
+        + _brand_window_mat(est, "mezzo", mezzo_openings, _opening_mat)
+        + _brand_window_mat(est, "vero", vero_openings, _vero_opening_mat)
     )
     sub_lab = (
         sum((ln.get("qty", 0) or 0) * (ln.get("lab", 0) or 0) + _adders_lab_total(ln) for ln in lines)

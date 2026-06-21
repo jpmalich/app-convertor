@@ -50,36 +50,44 @@ export function calcTotals(est, { tab } = {}) {
     miscMat.reduce((s, l) => s + (l.mat || 0), 0) +
     // Iter 37: Mezzo openings only count when viewing the Mezzo tab (or
     // when no tab filter is applied — i.e. computing the grand total).
+    // Iter 57v: when `mezzo_package_quote.enabled && total > 0` the
+    // per-opening bucket sum is replaced by the contractor-entered
+    // package total (rep / inside-sales hand quote).
     ((!tab || tab === "mezzo")
-      ? (est?.mezzo_openings || []).reduce((s, op) => {
-          const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
-          const ads = (op.adders || []).reduce(
-            (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
-            0
-          );
-          return s + base + ads;
-        }, 0)
+      ? (est?.mezzo_package_quote?.enabled && Number(est?.mezzo_package_quote?.total) > 0
+          ? Number(est.mezzo_package_quote.total)
+          : (est?.mezzo_openings || []).reduce((s, op) => {
+              const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
+              const ads = (op.adders || []).reduce(
+                (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
+                0
+              );
+              return s + base + ads;
+            }, 0))
       : 0) +
     // Iter 44: Vero now uses the Mezzo-style adders model. Per-window
     // price = base + sum(adder.qty × adder.mat). Older openings still
     // have glass_mat/tempered_mat/premium_mat fields — read those as a
     // fallback so historical estimates don't suddenly go to $0 until the
     // reconciliation hook migrates them.
+    // Iter 57v: same package-quote override as Mezzo, brand-independent.
     ((!tab || tab === "windows")
-      ? (est?.vero_openings || []).reduce((s, op) => {
-          const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
-          const ads = (op.adders || []).reduce(
-            (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
-            0
-          );
-          const legacy =
-            (Number(op.qty) || 0) * (
-              (Number(op.glass_mat) || 0)
-              + (Number(op.tempered_mat) || 0)
-              + (Number(op.premium_mat) || 0)
-            );
-          return s + base + ads + legacy;
-        }, 0)
+      ? (est?.vero_package_quote?.enabled && Number(est?.vero_package_quote?.total) > 0
+          ? Number(est.vero_package_quote.total)
+          : (est?.vero_openings || []).reduce((s, op) => {
+              const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
+              const ads = (op.adders || []).reduce(
+                (a, x) => a + (Number(x.qty) || 0) * (Number(x.mat) || 0),
+                0
+              );
+              const legacy =
+                (Number(op.qty) || 0) * (
+                  (Number(op.glass_mat) || 0)
+                  + (Number(op.tempered_mat) || 0)
+                  + (Number(op.premium_mat) || 0)
+                );
+              return s + base + ads + legacy;
+            }, 0))
       : 0);
   const subLab =
     lines.reduce((s, l) => s + (l.qty || 0) * (l.lab || 0) + addersLabTotal(l), 0) +

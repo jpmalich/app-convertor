@@ -32,14 +32,18 @@ export default function MezzoJobSnapshot({ est }) {
   const snapshot = useMemo(() => {
     const openings = est?.mezzo_openings || [];
     const openingCount = openings.reduce((s, o) => s + (Number(o.qty) || 0), 0);
-    const openingDollars = openings.reduce((sum, o) => {
-      const baseTotal = (Number(o.qty) || 0) * (Number(o.base_mat) || 0);
-      const addersTotal = (o.adders || []).reduce(
-        (a, ad) => a + (Number(ad.qty) || 0) * (Number(ad.mat) || 0),
-        0
-      );
-      return sum + baseTotal + addersTotal;
-    }, 0);
+    const pq = est?.mezzo_package_quote;
+    const packageQuoteActive = !!pq?.enabled && Number(pq?.total) > 0;
+    const openingDollars = packageQuoteActive
+      ? Number(pq.total)
+      : openings.reduce((sum, o) => {
+          const baseTotal = (Number(o.qty) || 0) * (Number(o.base_mat) || 0);
+          const addersTotal = (o.adders || []).reduce(
+            (a, ad) => a + (Number(ad.qty) || 0) * (Number(ad.mat) || 0),
+            0
+          );
+          return sum + baseTotal + addersTotal;
+        }, 0);
 
     const mezzoLines = (est?.lines || []).filter(
       (l) => (l.tab || "vinyl") === "mezzo" && (Number(l.qty) || 0) > 0

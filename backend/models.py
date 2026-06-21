@@ -188,6 +188,15 @@ class EstimateIn(BaseModel):
     # `tempered_upcharge` + `premium_options[]`. Patio Door variant uses
     # `model` instead of width/height.
     vero_openings: List["VeroOpening"] = []
+    # Iter 57v — Window Package Quote override. When `enabled` and
+    # `total > 0`, the brand's window-material total switches from the
+    # per-opening bucket sum to this single package number. Contractor
+    # use case: rep / inside-sales hand-quotes the whole window package
+    # (oversize, special shapes, frozen products). Labor + accessories
+    # + sales tax + profit all calc normally on top. Per-brand: Vero
+    # quote is independent from the Mezzo quote.
+    vero_package_quote: Optional["WindowPackageQuote"] = None
+    mezzo_package_quote: Optional["WindowPackageQuote"] = None
     photos: List[str] = []
     status_label: str = "draft"
     # Soffit eave overhang in inches (12" default). Drives the
@@ -257,6 +266,18 @@ class VeroOpening(BaseModel):
     glass_mat: float = 0
     tempered_mat: float = 0
     premium_mat: float = 0
+
+
+class WindowPackageQuote(BaseModel):
+    """Iter 57v — Per-brand window-package override. When `enabled` and
+    `total > 0`, the brand's window-material total switches from the
+    per-opening bucket sum to `total`. `reference` is a contractor-
+    facing memo (e.g. "Vero quote #VR-44892" or rep name); `notes` is
+    optional free text for spec details (color / glass / lead time)."""
+    enabled: bool = False
+    total: float = 0
+    reference: str = ""
+    notes: str = ""
 
 
 EstimateIn.model_rebuild()

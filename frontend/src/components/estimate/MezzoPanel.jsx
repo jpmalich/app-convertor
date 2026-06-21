@@ -6,6 +6,7 @@ import { v4 as uuid } from "uuid";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection } from "@/lib/catalogTranslations";
 import BulkApplyConfirm from "./BulkApplyConfirm";
+import WindowPackageQuote from "./WindowPackageQuote";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const fmt = (n) => `$${(Number(n) || 0).toFixed(2)}`;
@@ -305,7 +306,11 @@ export default function MezzoPanel({ est, update }) {
 
   return (
     <>
+      <WindowPackageQuote brand="mezzo" est={est} update={update} />
       {catalog.product_types.map((pt) => {
+        const packageQuoteActive =
+          !!est?.mezzo_package_quote?.enabled &&
+          Number(est?.mezzo_package_quote?.total) > 0;
         const openings = openingsByType[pt.name] || [];
         const sectionTotal = openings.reduce((s, op) => {
           const base = (Number(op.qty) || 0) * (Number(op.base_mat) || 0);
@@ -341,7 +346,12 @@ export default function MezzoPanel({ est, update }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono-num text-sm text-[#52525B]">
+                <span
+                  className={`font-mono-num text-sm ${
+                    packageQuoteActive ? "line-through text-[#A1A1AA]" : "text-[#52525B]"
+                  }`}
+                  title={packageQuoteActive ? "Per-window pricing overridden by Window Package Quote" : undefined}
+                >
                   {fmt(sectionTotal)}
                 </span>
                 <button
