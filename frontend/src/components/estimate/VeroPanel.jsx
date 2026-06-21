@@ -66,6 +66,13 @@ export default function VeroPanel({ est, update }) {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(() => new Set());
   const [notesOpen, setNotesOpen] = useState(() => new Set());
+  // Iter 57bb — Per-section collapse state. Sections default to
+  // collapsed (matches the Window Installation / Sliding Door Install
+  // pattern below) but auto-expand the moment they have openings. The
+  // map stores explicit user overrides — if a user clicks the chevron
+  // to manually collapse a populated section, that wins until they
+  // expand it again.
+  const [sectionOverride, setSectionOverride] = useState({}); // {[ptName]: true|false}
   const [bulkPrompt, setBulkPrompt] = useState(null);
 
   useEffect(() => {
@@ -360,22 +367,50 @@ export default function VeroPanel({ est, update }) {
             adderCounts[ad.name] = (adderCounts[ad.name] || 0) + 1;
           }
         }
+        // Iter 57bb — section is expanded when user explicitly opened
+        // it OR (no explicit state AND it has openings). Empty sections
+        // collapse by default so the page isn't a 4-screen scroll.
+        const isOpen =
+          sectionOverride[pt.name] !== undefined
+            ? sectionOverride[pt.name]
+            : openings.length > 0;
+        const toggleSection = () =>
+          setSectionOverride((prev) => ({ ...prev, [pt.name]: !isOpen }));
         return (
           <section
             key={pt.name}
             className="card mb-4"
             data-testid={`vero-section-${pt.name}`}
           >
-            <header className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-[#E4E4E7] bg-[#FAFAFA]">
-              <div>
-                <div className="section-tag">{tSection(pt.name, lang)}</div>
-                <div className="text-[10px] text-[#A1A1AA] mt-0.5">
-                  {t(
-                    isFixed
-                      ? (openings.length === 1 ? "win.openingsLabelFixed" : "win.openingsLabelFixedPlural")
-                      : (openings.length === 1 ? "win.openingsLabel" : "win.openingsLabelPlural"),
-                    { n: openings.length }
-                  )}
+            <header
+              className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-[#E4E4E7] bg-[#FAFAFA] cursor-pointer hover:bg-[#F4F4F5]"
+              onClick={toggleSection}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleSection();
+                }
+              }}
+              data-testid={`vero-section-header-${pt.name}`}
+            >
+              <div className="flex items-center gap-2">
+                {isOpen ? (
+                  <ChevronDown className="w-4 h-4 text-[#71717A] flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-[#71717A] flex-shrink-0" />
+                )}
+                <div>
+                  <div className="section-tag">{tSection(pt.name, lang)}</div>
+                  <div className="text-[10px] text-[#A1A1AA] mt-0.5">
+                    {t(
+                      isFixed
+                        ? (openings.length === 1 ? "win.openingsLabelFixed" : "win.openingsLabelFixedPlural")
+                        : (openings.length === 1 ? "win.openingsLabel" : "win.openingsLabelPlural"),
+                      { n: openings.length }
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -390,7 +425,12 @@ export default function VeroPanel({ est, update }) {
                 <button
                   type="button"
                   className="px-3 py-1.5 bg-[#09090B] text-white hover:bg-[#27272A] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                  onClick={() => addOpening(pt)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Auto-expand the section so the new row is visible.
+                    setSectionOverride((prev) => ({ ...prev, [pt.name]: true }));
+                    addOpening(pt);
+                  }}
                   data-testid={`vero-add-${pt.name}`}
                 >
                   <Plus className="w-3.5 h-3.5" /> {t("win.addOpening")}
@@ -398,7 +438,7 @@ export default function VeroPanel({ est, update }) {
               </div>
             </header>
 
-            {BUCKET_LOCKED_PRODUCT_TYPES.has(pt.name) && (
+            {isOpen && BUCKET_LOCKED_PRODUCT_TYPES.has(pt.name) && (
               <div
                 className="px-4 md:px-5 py-2 bg-[#FEF3C7] border-b border-[#F59E0B] text-[11px] text-[#92400E] flex items-center gap-2"
                 data-testid={`vero-locked-banner-${pt.name}`}
@@ -411,7 +451,7 @@ export default function VeroPanel({ est, update }) {
               </div>
             )}
 
-            {openings.length === 0 ? (
+            {isOpen && (openings.length === 0 ? (
               <div
                 className="px-5 py-8 text-center text-sm text-[#A1A1AA]"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t("win.noOpenings")) }}
@@ -450,7 +490,7 @@ export default function VeroPanel({ est, update }) {
                   />
                 ))}
               </div>
-            )}
+            ))}
           </section>
         );
       })}

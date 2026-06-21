@@ -72,6 +72,10 @@ export default function MezzoPanel({ est, update }) {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(() => new Set());
   const [notesOpen, setNotesOpen] = useState(() => new Set());
+  // Iter 57bb — Per-section collapse (mirrors VeroPanel). Empty
+  // sections default to collapsed; populated ones default to expanded.
+  // Explicit user clicks on the chevron override the default.
+  const [sectionOverride, setSectionOverride] = useState({});
 
   useEffect(() => {
     let alive = true;
@@ -338,73 +342,108 @@ export default function MezzoPanel({ est, update }) {
             className="card mb-4"
             data-testid={`mezzo-section-${pt.name}`}
           >
-            <header className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-[#E4E4E7] bg-[#FAFAFA]">
-              <div>
-                <div className="section-tag">{tSection(pt.name, lang)}</div>
-                <div className="text-[10px] text-[#A1A1AA] mt-0.5">
-                  {t(openings.length === 1 ? "win.openingsLabel" : "win.openingsLabelPlural", { n: openings.length })}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`font-mono-num text-sm ${
-                    packageQuoteActive ? "line-through text-[#A1A1AA]" : "text-[#52525B]"
-                  }`}
-                  title={packageQuoteActive ? "Per-window pricing overridden by Window Package Quote" : undefined}
-                >
-                  {fmt(sectionTotal)}
-                </span>
-                <button
-                  type="button"
-                  className="px-3 py-1.5 bg-[#09090B] text-white hover:bg-[#27272A] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                  onClick={() => addOpening(pt)}
-                  data-testid={`mezzo-add-${pt.name}`}
-                >
-                  <Plus className="w-3.5 h-3.5" /> {t("win.addOpening")}
-                </button>
-              </div>
-            </header>
+            {(() => {
+              const isOpen =
+                sectionOverride[pt.name] !== undefined
+                  ? sectionOverride[pt.name]
+                  : openings.length > 0;
+              const toggleSection = () =>
+                setSectionOverride((prev) => ({ ...prev, [pt.name]: !isOpen }));
+              return (
+                <>
+                  <header
+                    className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-[#E4E4E7] bg-[#FAFAFA] cursor-pointer hover:bg-[#F4F4F5]"
+                    onClick={toggleSection}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSection();
+                      }
+                    }}
+                    data-testid={`mezzo-section-header-${pt.name}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isOpen ? (
+                        <ChevronDown className="w-4 h-4 text-[#71717A] flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-[#71717A] flex-shrink-0" />
+                      )}
+                      <div>
+                        <div className="section-tag">{tSection(pt.name, lang)}</div>
+                        <div className="text-[10px] text-[#A1A1AA] mt-0.5">
+                          {t(openings.length === 1 ? "win.openingsLabel" : "win.openingsLabelPlural", { n: openings.length })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`font-mono-num text-sm ${
+                          packageQuoteActive ? "line-through text-[#A1A1AA]" : "text-[#52525B]"
+                        }`}
+                        title={packageQuoteActive ? "Per-window pricing overridden by Window Package Quote" : undefined}
+                      >
+                        {fmt(sectionTotal)}
+                      </span>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 bg-[#09090B] text-white hover:bg-[#27272A] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSectionOverride((prev) => ({ ...prev, [pt.name]: true }));
+                          addOpening(pt);
+                        }}
+                        data-testid={`mezzo-add-${pt.name}`}
+                      >
+                        <Plus className="w-3.5 h-3.5" /> {t("win.addOpening")}
+                      </button>
+                    </div>
+                  </header>
 
-            {openings.length === 0 ? (
-              <div
-                className="px-5 py-8 text-center text-sm text-[#A1A1AA]"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t("win.noOpenings")) }}
-              />
-            ) : (
-              <div className="divide-y divide-[#E4E4E7]">
-                {openings.map((op) => (
-                  <OpeningRow
-                    key={op.id}
-                    op={op}
-                    pt={pt}
-                    isExpanded={expanded.has(op.id)}
-                    isNotesOpen={notesOpen.has(op.id)}
-                    onToggleExpand={() =>
-                      setExpanded((p) => {
-                        const n = new Set(p);
-                        if (n.has(op.id)) n.delete(op.id);
-                        else n.add(op.id);
-                        return n;
-                      })
-                    }
-                    onToggleNotes={() =>
-                      setNotesOpen((p) => {
-                        const n = new Set(p);
-                        if (n.has(op.id)) n.delete(op.id);
-                        else n.add(op.id);
-                        return n;
-                      })
-                    }
-                    onUpdate={(patch) => updateOpening(op.id, patch)}
-                    onRemove={() => removeOpening(op.id)}
-                    onToggleAdder={(def) => toggleAdder(op.id, def, pt)}
-                    onUpdateAdderQty={(name, qty) => updateAdderQty(op.id, name, qty)}
-                    adderCounts={adderCounts}
-                    totalOpenings={totalOpenings}
-                  />
-                ))}
-              </div>
-            )}
+                  {isOpen && (openings.length === 0 ? (
+                    <div
+                      className="px-5 py-8 text-center text-sm text-[#A1A1AA]"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t("win.noOpenings")) }}
+                    />
+                  ) : (
+                    <div className="divide-y divide-[#E4E4E7]">
+                      {openings.map((op) => (
+                        <OpeningRow
+                          key={op.id}
+                          op={op}
+                          pt={pt}
+                          isExpanded={expanded.has(op.id)}
+                          isNotesOpen={notesOpen.has(op.id)}
+                          onToggleExpand={() =>
+                            setExpanded((p) => {
+                              const n = new Set(p);
+                              if (n.has(op.id)) n.delete(op.id);
+                              else n.add(op.id);
+                              return n;
+                            })
+                          }
+                          onToggleNotes={() =>
+                            setNotesOpen((p) => {
+                              const n = new Set(p);
+                              if (n.has(op.id)) n.delete(op.id);
+                              else n.add(op.id);
+                              return n;
+                            })
+                          }
+                          onUpdate={(patch) => updateOpening(op.id, patch)}
+                          onRemove={() => removeOpening(op.id)}
+                          onToggleAdder={(def) => toggleAdder(op.id, def, pt)}
+                          onUpdateAdderQty={(name, qty) => updateAdderQty(op.id, name, qty)}
+                          adderCounts={adderCounts}
+                          totalOpenings={totalOpenings}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </section>
         );
       })}
