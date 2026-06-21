@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Lightbulb } from "lucide-react";
+import ItemHelpButton from "./ItemHelpButton";
 import { fmt } from "@/lib/api";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
@@ -213,6 +214,7 @@ export default function SectionAccordion({
               />
             )}
             {tItem(l.name, lang)}
+            <ItemHelpButton itemName={l.name} />
             {l.ami_part && (
               <span
                 className="ml-2 inline-block font-mono-num text-[10px] tracking-wider text-[#71717A] bg-[#F4F4F5] border border-[#E4E4E7] px-1.5 py-0.5 rounded-sm"
