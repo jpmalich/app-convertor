@@ -485,6 +485,19 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 69 — Zero labor on all siding-tab lines (2026-06-22)**: Howard's rule: "all labor entries to be $0 in the siding estimates; leave windows as is." Two-part fix:
+  - **Backend migration** (`services.py`): idempotent `update_many` zeros `lab` on every estimate line whose `tab ∈ {vinyl, ascend, lp_smart}`. 44 lines wiped across existing estimates (Gutter 6", Downspout 6", Cap doors, Tear-Off line items inheriting from the old vinyl/ascend defaults).
+  - **Frontend lockdown** (`SectionAccordion.jsx`): LAB `<input>` rendered read-only with greyed styling on siding-tab rows; reset-to-default chip suppressed; the input still occupies the column so layout stays aligned with windows-tab rows. Vero/Mezzo/Windows rows untouched.
+  - **Verified**: 18 hover + parity tests pass; LP SMART total on EST-627357 dropped $46,976 → $45,338 after wipe. UI screenshot confirms Gutter 6" row LAB column shows `0` in read-only greyed state.
+
+- **Iter 68 — LP HOVER auto-fill starter pack (2026-06-22)**: Wired HOVER measurements into the new BlueLinx LP rows so the tab doesn't ship empty on import.
+  - **New auto-fills**: 440 Trim 4" (inside corners → `(eaves+rakes)÷16`), 540 Trim 4" (window/door wrap → `(30×14 + 5×21 + 1×25 + 1×32)÷16`), .019 Coil (default 1/job flashing), Touch up kits (1/job), OSI Quad Max Caulking (2/job), J blocks (`max(4, win/6+doors/2)`), Mini Splits (`max(1, entry/2)`).
+  - **Soffit split**: 16×16 Vented now uses `eaves_lf÷16` (vented goes on eaves for attic vent path); new 16×16 Closed row uses `rakes_lf÷16` (closed goes on gable ends).
+  - **Iter 68a** — Reverted 6" Lap auto-fill after preview double-counted with 8" Lap. 6" Lap stays manual; contractor swaps in if not using 8".
+  - **LP tab went from 5 → 19 auto-filled rows** on a HOVER import. Lightbulb list updated with the new rows.
+  - **2 stale references fixed** in `routes/hover.py` (`LP Outside corners 4"` → `540 Series OSC 5/4" x 4"`, `LP Soffit 16" Vented` → `38 Series Soffit 16 x 16 Vented`).
+  - **Files**: `backend/routes/hover.py`, `frontend/src/lib/commonItems.js`.
+
 - **Iter 67 — LP SmartSide repriced + renamed to BlueLinx names (2026-06-22)**: Howard re-enabled the LP tab and supplied a new BlueLinx Expertfinish price sheet (PIT00003 v2.26.2026). Rebuilt LP catalog end-to-end:
   - **Per-tier margin pricing** (replaces flat single-tier LP pricing). Sell = Cost ÷ (1 − margin). Tier margins: `one-opp` 20% (÷0.80), `Builder-Dealer` 25% (÷0.75), `Contractor` 30% (÷0.70), `whole-sale` 35% (÷0.65). All 26 LP line items + 3 new coil items computed at module-load time from `LP_COSTS` (cost dict) + `_LP_MARGIN_DIVISOR`.
   - **Unit consolidation: only PCS pricing** (Howard's directive "remove LF pricing and its formula"). All 11 trim items flipped LF → PCS per 16' board; 8" Lap flipped SQ → PCS per board (HOVER mapper now emits `round(sqft × 0.11)`).

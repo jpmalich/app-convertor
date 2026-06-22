@@ -699,6 +699,22 @@ async def ensure_tiers_seeded():
             await db.estimates.update_one(
                 {"_id": est["_id"]}, {"$set": {"lines": lines}}
             )
+    # Iter 69 (2026-06-22): zero lab on every estimate line on siding tabs.
+    # Howard's rule: "all labor entries to be $0 in the siding estimates;
+    # leave windows as is." Bounded by tab ∈ {vinyl, ascend, lp_smart} so
+    # Vero/Mezzo/Windows installed-labor pricing is untouched. Idempotent
+    # via the `lab: {$ne: 0}` matcher — finds nothing after first run.
+    await db.estimates.update_many(
+        {"lines": {"$elemMatch": {
+            "tab": {"$in": ["vinyl", "ascend", "lp_smart"]},
+            "lab": {"$ne": 0},
+        }}},
+        {"$set": {"lines.$[ln].lab": 0}},
+        array_filters=[{
+            "ln.tab": {"$in": ["vinyl", "ascend", "lp_smart"]},
+            "ln.lab": {"$ne": 0},
+        }],
+    )
     # Tier-doc migration: rename, unit-flip, drop the dropped names.
     for old_name, new_name in LP_RENAME_MAP.items():
         await db.price_tiers.update_many(

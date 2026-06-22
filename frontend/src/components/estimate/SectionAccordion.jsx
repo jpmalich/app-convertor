@@ -282,27 +282,45 @@ export default function SectionAccordion({
         </div>
         <div className="col-span-3 md:col-span-1 relative">
           <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.lab")}</label>
-          <input
-            className={`input num h-11 md:h-9 text-base md:text-sm w-full ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
-            type="number"
-            inputMode="decimal"
-            step="0.25"
-            min="0"
-            value={l.lab ?? 0}
-            onChange={(e) => onField(l.tab, l.section, l.name, "lab", e.target.value)}
-            title={labOverridden ? `Catalog default: $${l.defaultLab}` : ""}
-            data-testid={`lab-${section.title}-${l.name}`}
-          />
-          {labOverridden && (
-            <button
-              type="button"
-              className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
-              onClick={() => onResetLine(l.tab, l.section, l.name)}
-              title={`Reset to catalog default ($${l.defaultLab})`}
-              data-testid={`reset-lab-${section.title}-${l.name}`}
-            >
-              ↺
-            </button>
+          {/* Iter 69: lab is forced to $0 on siding tabs (Howard's rule —
+              "all labor entries to be $0 in the siding estimates; leave
+              windows as is"). Render as a read-only $0 placeholder so the
+              column still aligns with Windows-tab rows that DO have labor. */}
+          {["vinyl", "ascend", "lp_smart"].includes(l.tab) ? (
+            <input
+              className="input num h-11 md:h-9 text-base md:text-sm w-full bg-[#FAFAFA] text-[#A1A1AA] cursor-not-allowed"
+              type="number"
+              value={0}
+              readOnly
+              tabIndex={-1}
+              title="Labor is always $0 on siding tabs"
+              data-testid={`lab-${section.title}-${l.name}`}
+            />
+          ) : (
+            <>
+              <input
+                className={`input num h-11 md:h-9 text-base md:text-sm w-full ${labOverridden ? "border-[#F97316] bg-orange-50" : ""}`}
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0"
+                value={l.lab ?? 0}
+                onChange={(e) => onField(l.tab, l.section, l.name, "lab", e.target.value)}
+                title={labOverridden ? `Catalog default: $${l.defaultLab}` : ""}
+                data-testid={`lab-${section.title}-${l.name}`}
+              />
+              {labOverridden && (
+                <button
+                  type="button"
+                  className="absolute -top-1 -right-1 w-5 h-5 md:w-4 md:h-4 rounded-full bg-[#F97316] text-white text-xs md:text-[10px] leading-none flex items-center justify-center"
+                  onClick={() => onResetLine(l.tab, l.section, l.name)}
+                  title={`Reset to catalog default ($${l.defaultLab})`}
+                  data-testid={`reset-lab-${section.title}-${l.name}`}
+                >
+                  ↺
+                </button>
+              )}
+            </>
           )}
         </div>
         <div className="col-span-12 md:col-span-2 text-right font-mono-num text-base md:text-sm font-bold md:font-semibold text-[#09090B] pt-2 md:pt-0 border-t md:border-t-0 border-[#F4F4F5]">
