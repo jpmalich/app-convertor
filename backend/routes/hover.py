@@ -604,6 +604,41 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: 2,
         "note": "Default 2 tubes per job (per Howard)",
     },
+    # Iter 70 (2026-06-22): wire HOVER fields previously left on the floor.
+    # Gable Vents — auto-populate from HOVER's Accessories → Vents Qty.
+    {
+        "tabs": ["vinyl", "ascend"],
+        "section": "Siding Accessories",
+        "item": "Gable vents (round,octagon)",
+        "unit": "Each",
+        "extract": lambda m: int(m.get("vent_count") or 0),
+        "note": "HOVER Accessories → Vents Qty",
+    },
+    # Shutters — HOVER reports total individual shutters; catalog row is
+    # priced per PAIR, so divide by 2 (round up so a stray single still
+    # gets a pair quoted).
+    {
+        "tabs": ["vinyl", "ascend"],
+        "section": "Siding Accessories",
+        "item": "Shutters (louvered, raised panel) standard sizes",
+        "unit": "PR",
+        "extract": lambda m: math.ceil((m.get("shutter_count") or 0) / 2),
+        "note": "HOVER shutter qty ÷ 2 (catalog priced per pair)",
+    },
+    # Second/Third/Clear Story Fee — flat $1,846 labor adder on Windows
+    # tab when HOVER reports the home is >1 story. Stories field is a
+    # string ("1", "2", ">1"); we treat anything not equal to "1" and
+    # not blank as multi-story.
+    {
+        "tabs": ["windows"],
+        "section": "Window Misc.",
+        "item": "Second/Third/Clear Story Fee",
+        "unit": "each",
+        "extract": lambda m: 1 if (
+            str(m.get("stories") or "1").strip() not in ("1", "", "None", "null")
+        ) else 0,
+        "note": "HOVER stories > 1 → 1 fee applies",
+    },
     # Iter 68 (2026-06-22): split soffit Vented vs Closed by eaves/rakes.
     # Convention: VENTED soffit goes on EAVES (allows attic ventilation),
     # CLOSED/SOLID soffit goes on RAKES (no venting needed at gables).
@@ -934,6 +969,20 @@ PROMPT_TEMPLATE = """Extract from this HOVER report:
   "garage_door_count": <number of garage/overhead doors — `OHD-N` prefix, or any door with width >= 96in (8ft, the smallest standard garage door). Most garage doors are 96-216in wide.>,
   "stories": <"1" | ">1" | "2" etc as printed>,
   "address": <property address if shown, else null>,
+  "level_frieze_lf": <Level Frieze Board Length under Roofline section, feet (decimal). If not present, null.>,
+  "sloped_frieze_lf": <Sloped Frieze Board Length under Roofline section, feet (decimal). If not present, null.>,
+  "drip_edge_lf": <Drip Edge / Perimeter Length under Roof Measurements, feet (decimal). If not present, null.>,
+  "total_trim_sqft": <Total Trim Area from the Areas table (Trims row), ft². If not present, null.>,
+  "shutter_count": <Accessories → Shutter Qty (total individual shutters, NOT pairs). If not present, null.>,
+  "vent_count": <Accessories → Vents Qty (gable/roof vents). If not present, null.>,
+  "united_inches": <Total United Inches across all window openings (sum of width_in + height_in for each window). If not present, null.>,
+  "per_elevation_siding": {{
+    "front": <Front elevation siding sqft, or null>,
+    "back": <Back elevation siding sqft, or null>,
+    "left": <Left elevation siding sqft, or null>,
+    "right": <Right elevation siding sqft, or null>
+  }},
+  "roof_area_sqft": <Total Roof Area, ft². If not present, null.>,
   "windows": [
     {{ "id": "W-101", "width_in": 29.0, "height_in": 51.0 }},
     ... one object per individual window opening listed in the Doors & Windows table ...
