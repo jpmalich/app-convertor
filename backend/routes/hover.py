@@ -102,29 +102,74 @@ DEFAULT_WASTE_PCT = 10.0  # Howard's preferred default per setup
 
 # Typical opening perimeters used to back out window+patio-door perimeter
 # from HOVER's lumped `opening_perimeter_lf` (HOVER doesn't break it out).
-ENTRY_DOOR_PERIM_LF = 19.0   # 6'8" × 3'0" → 2 × (6.67 + 3.0) ≈ 19.3
-GARAGE_DOOR_PERIM_LF = 32.0  # 7'0" × 9'0" → 2 × (7 + 9) = 32
+ENTRY_DOOR_PERIM_LF = 19.0    # 6'8" × 3'0" → 2 × (6.67 + 3.0) ≈ 19.3
+GARAGE_DOOR_PERIM_LF = 32.0   # 9'0" × 7'0" → 2 × (9 + 7) = 32
+PATIO_DOOR_PERIM_LF = 22.0    # 6'0" × 6'8" → 2 × (6 + 6.67) ≈ 25.3 (use 22, panels share jambs)
+WINDOW_PERIM_LF_FALLBACK = 14.0  # 3'0" × 4'0" typical replacement window → 14 perim
 
 
 def _j_channel_pcs(m: dict) -> int:
-    """Howard's J-channel formula:
-      pcs = ceil( (window + patio_door perimeter + eaves + rakes) / 12.5 )
-    HOVER gives us one lumped `opening_perimeter_lf` covering every
-    opening (windows + entry doors + patio doors + garage doors), so we
-    subtract typical entry-/garage-door perimeters using their counts to
-    isolate the window + patio-door portion. Each J-channel piece is 12.5'
-    and we always round up so the installer never ends up short.
+    """Howard's J-channel formula (Iter 57dd revision):
+
+        pcs = ceil( (window + patio + garage perimeter + eaves + rakes) / 12.5 )
+
+    Garage doors are now INCLUDED in the J-channel count (Howard's call —
+    most contractors wrap vinyl J around the garage opening even when a
+    brickmould surround is present, since the head+jamb still receives
+    the siding panels).
+
+    Window+patio perimeter is computed best-signal-first:
+      1) Sum the actual perimeters from `windows[]` (individual dims) if
+         HOVER extracted them. Most reliable.
+      2) Else: use HOVER's lumped `opening_perimeter_lf` minus entry-door
+         + garage-door allowances (we add garage back at the end).
+      3) Else: count-based estimate
+         (window_count × 14 + patio_door_count × 22).
+         This is the safety net for HOVER reports that don't print the
+         opening perimeter at all — previously we returned 0 LF for the
+         opening portion, leaving the J-channel count way short.
+
+    Each J-channel piece is 12.5' and we always round up so the
+    installer never ends up short.
     """
-    opening_perim = float(m.get("opening_perimeter_lf") or 0)
     entry_n = float(m.get("entry_door_count") or 0)
     garage_n = float(m.get("garage_door_count") or 0)
-    # Window + patio door perimeter (subtract entry/garage door perimeters).
-    win_patio_perim = max(0.0, opening_perim
-                          - entry_n * ENTRY_DOOR_PERIM_LF
-                          - garage_n * GARAGE_DOOR_PERIM_LF)
-    total_lf = (win_patio_perim
-                + float(m.get("eaves_lf") or 0)
-                + float(m.get("rakes_lf") or 0))
+    patio_n = float(m.get("patio_door_count") or 0)
+    win_count = float(m.get("window_count") or 0)
+    opening_perim = float(m.get("opening_perimeter_lf") or 0)
+    windows = m.get("windows") or []
+
+    # ---- Window + patio perimeter ----
+    if windows:
+        # Best path: sum individual window perimeters from HOVER's dims.
+        # Perim per window = 2 × (width + height), in inches → divide by 12.
+        win_perim_in = sum(
+            2 * (float(w.get("width_in") or 0) + float(w.get("height_in") or 0))
+            for w in windows
+        )
+        win_patio_perim = (win_perim_in / 12.0) + (patio_n * PATIO_DOOR_PERIM_LF)
+    elif opening_perim > 0:
+        # Back out entry + garage from HOVER's lumped figure (garage gets
+        # added back at the end so it's included in the J-channel count).
+        win_patio_perim = max(
+            0.0,
+            opening_perim
+            - entry_n * ENTRY_DOOR_PERIM_LF
+            - garage_n * GARAGE_DOOR_PERIM_LF,
+        )
+    else:
+        # Count-based fallback (HOVER didn't print opening_perimeter_lf).
+        win_patio_perim = (
+            win_count * WINDOW_PERIM_LF_FALLBACK
+            + patio_n * PATIO_DOOR_PERIM_LF
+        )
+
+    total_lf = (
+        win_patio_perim
+        + garage_n * GARAGE_DOOR_PERIM_LF                # Iter 57dd — include garages
+        + float(m.get("eaves_lf") or 0)
+        + float(m.get("rakes_lf") or 0)
+    )
     if total_lf <= 0:
         return 0
     return int(math.ceil(total_lf / 12.5))
@@ -270,12 +315,12 @@ HOVER_MAPPING_SPEC = [
         "note": "ceil((Eaves LF + window bottoms) ÷ 12.5) — falls back to 3 ft/window",
     },
     # =====================================================================
-    # J-CHANNEL — vinyl + Ascend. Howard's formula:
-    #   pcs = ceil( (window_perim + patio_door_perim + eaves + rakes) / 12.5 )
-    # HOVER lumps all opening perimeters into one field, so we subtract
-    # typical entry-door (~19 LF) and garage-door (~32 LF) perimeters using
-    # their counts to isolate window + patio door perimeter. LP doesn't
-    # use J-channel. Pieces are 12.5 ft each, always round UP.
+    # J-CHANNEL — wraps window + patio + GARAGE door perimeters PLUS soffit
+    # eaves + rakes. HOVER lumps every opening together in
+    # `opening_perimeter_lf`; we prefer the per-window dims from
+    # `windows[]` when present, otherwise back out entry doors and fall
+    # back to count-based estimates. LP doesn't use J-channel.
+    # Pieces are 12.5 ft each, always round UP.
     # =====================================================================
     {
         "tabs": ["vinyl"],
@@ -283,7 +328,7 @@ HOVER_MAPPING_SPEC = [
         "item": "3/4\" J-Channel Standard color (2 per Sq of siding)",
         "unit": "PCS",
         "extract": lambda m: _j_channel_pcs(m),
-        "note": "(window + patio door perimeter + eaves + rakes) ÷ 12.5, round up",
+        "note": "(window + patio + garage perimeter + eaves + rakes) ÷ 12.5, round up",
     },
     {
         "tabs": ["ascend"],
@@ -291,7 +336,7 @@ HOVER_MAPPING_SPEC = [
         "item": "Ascend - J - Channel  (2 per Sq of siding)",
         "unit": "PCS",
         "extract": lambda m: _j_channel_pcs(m),
-        "note": "(window + patio door perimeter + eaves + rakes) ÷ 12.5, round up",
+        "note": "(window + patio + garage perimeter + eaves + rakes) ÷ 12.5, round up",
     },
     # =====================================================================
     # .019 TRIM COIL — 1 roll per 5 squares of siding (per Howard). The
