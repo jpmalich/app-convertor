@@ -715,6 +715,29 @@ async def ensure_tiers_seeded():
             "ln.lab": {"$ne": 0},
         }],
     )
+    # Iter 70 (2026-06-22): "Cap windows with wide crown" moved from
+    # IDENTICAL_PRICES ($65) → ZERO_PRICED. Force mat=$0 on every tier
+    # doc and on any saved estimate line still carrying the old $65.
+    # Idempotent — finds nothing after first run.
+    await db.price_tiers.update_many(
+        {"sections.items": {"$elemMatch": {
+            "name": "Cap windows with wide crown",
+            "mat": {"$ne": 0},
+        }}},
+        {"$set": {"sections.$[].items.$[it].mat": 0.0}},
+        array_filters=[{"it.name": "Cap windows with wide crown"}],
+    )
+    await db.estimates.update_many(
+        {"lines": {"$elemMatch": {
+            "name": "Cap windows with wide crown",
+            "mat": {"$ne": 0},
+        }}},
+        {"$set": {"lines.$[ln].mat": 0}},
+        array_filters=[{
+            "ln.name": "Cap windows with wide crown",
+            "ln.mat": {"$ne": 0},
+        }],
+    )
     # Tier-doc migration: rename, unit-flip, drop the dropped names.
     for old_name, new_name in LP_RENAME_MAP.items():
         await db.price_tiers.update_many(
