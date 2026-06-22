@@ -67,10 +67,11 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
   const TAB_LABEL = {
     vinyl: "Vinyl Siding",
     ascend: "Ascend Composite Siding",
+    lp_smart: "LP SmartSide",
     windows: "Windows",
     iss: "ISS Siding",
   };
-  const TAB_ORDER = ["vinyl", "ascend", "windows", "iss"];
+  const TAB_ORDER = ["vinyl", "ascend", "lp_smart", "windows", "iss"];
   const linesByTab = linesWithQty.reduce((acc, l) => {
     const tab = l.tab || "vinyl";
     (acc[tab] = acc[tab] || {});

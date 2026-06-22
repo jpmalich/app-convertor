@@ -44,10 +44,11 @@ export function buildMaterialListHtml({ estimate, company, branding, lang = "en"
   const TAB_LABEL = {
     vinyl: "Vinyl Siding",
     ascend: "Ascend Composite Siding",
+    lp_smart: "LP SmartSide",
     windows: "Windows",
     iss: "ISS Siding",
   };
-  const TAB_ORDER = ["vinyl", "ascend", "windows", "iss"];
+  const TAB_ORDER = ["vinyl", "ascend", "lp_smart", "windows", "iss"];
   const linesByTab = (estimate.lines || [])
     // Material list goes to Alside to pull materials — skip qty=0 and skip
     // labor-only items (mat=$0.00 like "Cap entry door") since there's

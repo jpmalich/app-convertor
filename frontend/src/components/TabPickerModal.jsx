@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
-const TAB_ORDER = ["vinyl", "ascend", "windows"];
+const TAB_ORDER = ["vinyl", "ascend", "lp_smart", "windows"];
 
 /**
  * Modal that asks the contractor which product-line tabs to include in the
