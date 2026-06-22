@@ -598,6 +598,38 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 </section>
               )}
 
+              {/* Iter 57ee — Formula breakdowns. Shows the per-job math
+                  behind dynamic line counts (today: J-channel; future:
+                  any rule whose note is a callable). One line per
+                  unique breakdown so a 3-tab spec doesn't dump 3 copies. */}
+              {(() => {
+                const seen = new Set();
+                const dynamicNotes = (result.lines || [])
+                  .filter((l) => l.note && /÷/.test(l.note))
+                  .filter((l) => {
+                    const k = `${l.section}::${l.name}`;
+                    if (seen.has(k)) return false;
+                    seen.add(k);
+                    return true;
+                  });
+                if (dynamicNotes.length === 0) return null;
+                return (
+                  <section data-testid="blueprint-formula-notes">
+                    <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1.5">
+                      Formula breakdown
+                    </div>
+                    <div className="border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 space-y-1.5">
+                      {dynamicNotes.map((l, i) => (
+                        <div key={i} className="text-[11px]">
+                          <span className="font-bold text-[#52525B]">{l.name}:</span>{" "}
+                          <span className="font-mono-num text-[#71717A]">{l.note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
+
               {/* Raw JSON expander (parity with AI Measure debug panel) */}
               <details
                 open={showRawJson}

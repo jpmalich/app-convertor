@@ -109,28 +109,42 @@ WINDOW_PERIM_LF_FALLBACK = 14.0  # 3'0" × 4'0" typical replacement window → 1
 
 
 def _j_channel_pcs(m: dict) -> int:
+    """See `_j_channel_breakdown` for the full math + which source path
+    was used. This wrapper just returns the integer piece count."""
+    pcs, _ = _j_channel_compute(m)
+    return pcs
+
+
+def _j_channel_breakdown(m: dict) -> str:
+    """Iter 57ee — Human-readable breakdown of the J-channel calc shown
+    in the HOVER/blueprint preview. Example output:
+        "5 wins × 14 + 1 patio × 22 + 2 garage × 32 + 100 eaves + 140 rakes = 326 LF ÷ 12.5 = 27 pcs"
+    or when HOVER provided real per-window dims:
+        "windows = 77 LF (5 individual dims) + 1 patio × 22 + 2 garage × 32 + 100 eaves + 140 rakes = 333 LF ÷ 12.5 = 27 pcs"
+    """
+    _, br = _j_channel_compute(m)
+    return br
+
+
+def _j_channel_compute(m: dict) -> tuple[int, str]:
     """Howard's J-channel formula (Iter 57dd revision):
 
         pcs = ceil( (window + patio + garage perimeter + eaves + rakes) / 12.5 )
 
-    Garage doors are now INCLUDED in the J-channel count (Howard's call —
-    most contractors wrap vinyl J around the garage opening even when a
-    brickmould surround is present, since the head+jamb still receives
-    the siding panels).
+    Garage doors are now INCLUDED in the J-channel count (most
+    contractors wrap vinyl J around the garage opening even with a
+    brickmould surround, since the head + jambs still receive panels).
 
     Window+patio perimeter is computed best-signal-first:
-      1) Sum the actual perimeters from `windows[]` (individual dims) if
+      1) Sum actual perimeters from `windows[]` (individual dims) if
          HOVER extracted them. Most reliable.
-      2) Else: use HOVER's lumped `opening_perimeter_lf` minus entry-door
-         + garage-door allowances (we add garage back at the end).
-      3) Else: count-based estimate
-         (window_count × 14 + patio_door_count × 22).
-         This is the safety net for HOVER reports that don't print the
-         opening perimeter at all — previously we returned 0 LF for the
-         opening portion, leaving the J-channel count way short.
+      2) Else: use HOVER's lumped `opening_perimeter_lf` minus the
+         entry-door + garage-door allowances (garage gets added back).
+      3) Else: count-based estimate (window_count × 14 + patio × 22).
+         Safety net for HOVER reports that don't print the opening
+         perimeter at all.
 
-    Each J-channel piece is 12.5' and we always round up so the
-    installer never ends up short.
+    Returns (pcs, breakdown_string).
     """
     entry_n = float(m.get("entry_door_count") or 0)
     garage_n = float(m.get("garage_door_count") or 0)
@@ -138,41 +152,59 @@ def _j_channel_pcs(m: dict) -> int:
     win_count = float(m.get("window_count") or 0)
     opening_perim = float(m.get("opening_perimeter_lf") or 0)
     windows = m.get("windows") or []
+    eaves = float(m.get("eaves_lf") or 0)
+    rakes = float(m.get("rakes_lf") or 0)
 
-    # ---- Window + patio perimeter ----
+    parts: list[str] = []  # human-readable breakdown segments
     if windows:
-        # Best path: sum individual window perimeters from HOVER's dims.
-        # Perim per window = 2 × (width + height), in inches → divide by 12.
         win_perim_in = sum(
             2 * (float(w.get("width_in") or 0) + float(w.get("height_in") or 0))
             for w in windows
         )
-        win_patio_perim = (win_perim_in / 12.0) + (patio_n * PATIO_DOOR_PERIM_LF)
+        win_lf = win_perim_in / 12.0
+        win_patio_perim = win_lf + (patio_n * PATIO_DOOR_PERIM_LF)
+        parts.append(f"windows = {win_lf:.1f} LF ({len(windows)} individual dims)")
+        if patio_n:
+            parts.append(f"{int(patio_n)} patio × {int(PATIO_DOOR_PERIM_LF)}")
     elif opening_perim > 0:
-        # Back out entry + garage from HOVER's lumped figure (garage gets
-        # added back at the end so it's included in the J-channel count).
         win_patio_perim = max(
             0.0,
             opening_perim
             - entry_n * ENTRY_DOOR_PERIM_LF
             - garage_n * GARAGE_DOOR_PERIM_LF,
         )
+        sub_str = f"{opening_perim:.0f} HOVER perim"
+        if entry_n:
+            sub_str += f" − {int(entry_n)} entry × {int(ENTRY_DOOR_PERIM_LF)}"
+        if garage_n:
+            sub_str += f" − {int(garage_n)} garage × {int(GARAGE_DOOR_PERIM_LF)}"
+        parts.append(f"({sub_str}) = {win_patio_perim:.0f} LF window+patio")
     else:
-        # Count-based fallback (HOVER didn't print opening_perimeter_lf).
         win_patio_perim = (
             win_count * WINDOW_PERIM_LF_FALLBACK
             + patio_n * PATIO_DOOR_PERIM_LF
         )
+        parts.append(f"{int(win_count)} wins × {int(WINDOW_PERIM_LF_FALLBACK)}")
+        if patio_n:
+            parts.append(f"{int(patio_n)} patio × {int(PATIO_DOOR_PERIM_LF)}")
+    if garage_n:
+        parts.append(f"{int(garage_n)} garage × {int(GARAGE_DOOR_PERIM_LF)}")
+    if eaves:
+        parts.append(f"{eaves:.0f} eaves")
+    if rakes:
+        parts.append(f"{rakes:.0f} rakes")
 
     total_lf = (
         win_patio_perim
-        + garage_n * GARAGE_DOOR_PERIM_LF                # Iter 57dd — include garages
-        + float(m.get("eaves_lf") or 0)
-        + float(m.get("rakes_lf") or 0)
+        + garage_n * GARAGE_DOOR_PERIM_LF
+        + eaves
+        + rakes
     )
     if total_lf <= 0:
-        return 0
-    return int(math.ceil(total_lf / 12.5))
+        return 0, "no openings + no soffit → 0 pcs"
+    pcs = int(math.ceil(total_lf / 12.5))
+    breakdown = f"{' + '.join(parts)} = {total_lf:.0f} LF ÷ 12.5 = {pcs} pcs"
+    return pcs, breakdown
 
 
 HOVER_MAPPING_SPEC = [
@@ -328,7 +360,7 @@ HOVER_MAPPING_SPEC = [
         "item": "3/4\" J-Channel Standard color (2 per Sq of siding)",
         "unit": "PCS",
         "extract": lambda m: _j_channel_pcs(m),
-        "note": "(window + patio + garage perimeter + eaves + rakes) ÷ 12.5, round up",
+        "note": lambda m: _j_channel_breakdown(m),
     },
     {
         "tabs": ["ascend"],
@@ -336,7 +368,7 @@ HOVER_MAPPING_SPEC = [
         "item": "Ascend - J - Channel  (2 per Sq of siding)",
         "unit": "PCS",
         "extract": lambda m: _j_channel_pcs(m),
-        "note": "(window + patio + garage perimeter + eaves + rakes) ÷ 12.5, round up",
+        "note": lambda m: _j_channel_breakdown(m),
     },
     # =====================================================================
     # .019 TRIM COIL — 1 roll per 5 squares of siding (per Howard). The
@@ -893,6 +925,15 @@ def _build_lines(measurements: dict) -> list[dict]:
         # already creates parallel entries for every (tab, section, item)
         # tuple, so we never need to fabricate mat/lab here — the frontend
         # merge keys by (tab, section, item) and finds the right row.
+        # `note` may be a static string or a callable taking `measurements`
+        # → per-job string (used by the J-channel rule for its formula
+        # breakdown, Iter 57ee).
+        note_val = spec["note"]
+        if callable(note_val):
+            try:
+                note_val = note_val(measurements)
+            except Exception:
+                note_val = ""
         for tab in spec["tabs"]:
             out.append({
                 "tab": tab,
@@ -900,7 +941,7 @@ def _build_lines(measurements: dict) -> list[dict]:
                 "name": spec["item"],
                 "unit": spec["unit"],
                 "qty": qty,
-                "note": spec["note"],
+                "note": note_val,
             })
     return out
 
