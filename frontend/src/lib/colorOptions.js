@@ -194,6 +194,30 @@ export const SHAKE_COLOR_GROUPS = [
     ],
   },
 ];
+
+// LP SmartSide ExpertFinish palette (Iter 77). 16 factory-finish colors
+// per Howard's spec. Used on LP-kind estimates for LP Siding, Board &
+// Batten, Trim (Accessories), Outside Corner, and Soffit / Fascia color
+// pickers — vinyl-line palettes don't apply to LP factory stock.
+export const LP_SMARTSIDE_COLORS = [
+  "Sand Dunes",
+  "Snowscape White",
+  "Desert Stone",
+  "Quarry Gray",
+  "Prairie Clay",
+  "Terra Brown",
+  "Harvest Honey",
+  "Timberland Suede",
+  "Garden Sage",
+  "Redwood Red",
+  "Tundra Gray",
+  "Summit Blue",
+  "Rapids Blue",
+  "Cavern Steel",
+  "Midnight Shadow",
+  "Abyss Black",
+];
+
 export const SHAKE_COLORS = SHAKE_COLOR_GROUPS.flatMap((g) => g.colors);
 
 // Board & Batten palette (Iter 52). Standard 12 + Architectural 16

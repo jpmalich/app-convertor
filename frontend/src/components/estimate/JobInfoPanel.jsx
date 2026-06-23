@@ -2,7 +2,7 @@ import React from "react";
 import DOMPurify from "dompurify";
 import { useT, useLang } from "@/lib/i18n";
 import { tColor, tColorGroup } from "@/lib/catalogTranslations";
-import { vinylSidingColorGroupsForEstimate, accessoryColorGroupsForEstimate, ASCEND_COLORS, SHAKE_COLOR_GROUPS, BOARD_BATTEN_COLOR_GROUPS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS, WINDOW_WRAP_COLORS, MEZZO_EXTERIOR_COLOR_GROUPS, MEZZO_INTERIOR_COLOR_GROUPS, VERO_EXTERIOR_COLOR_GROUPS, VERO_INTERIOR_COLOR_GROUPS, VERO_LAMINATE_NAMES } from "@/lib/colorOptions";
+import { vinylSidingColorGroupsForEstimate, accessoryColorGroupsForEstimate, ASCEND_COLORS, SHAKE_COLOR_GROUPS, BOARD_BATTEN_COLOR_GROUPS, SOFFIT_COLOR_GROUPS, GUTTER_COLORS, WINDOW_WRAP_COLORS, LP_SMARTSIDE_COLORS, MEZZO_EXTERIOR_COLOR_GROUPS, MEZZO_INTERIOR_COLOR_GROUPS, VERO_EXTERIOR_COLOR_GROUPS, VERO_INTERIOR_COLOR_GROUPS, VERO_LAMINATE_NAMES } from "@/lib/colorOptions";
 import HoverImportButton from "@/components/estimate/HoverImportButton";
 import AIMeasureButton from "@/components/estimate/AIMeasureButton";
 import BlueprintMeasureButton from "@/components/estimate/BlueprintMeasureButton";
@@ -21,6 +21,10 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
   // Ascend-quote contractor can match the corner posts without leaving
   // the field.
   const accessoryColorGroups = accessoryColorGroupsForEstimate(est?.lines || []);
+  // Iter 77 — LP SmartSide estimates use the factory ExpertFinish 16-color
+  // palette across every applicable color picker, with renamed labels
+  // ("LP Siding Color", "Trim Color") and no Window Wrap dropdown.
+  const isLp = est?.kind === "lp_smart";
   return (
     <section className="card p-5 sm:p-6 mb-6" data-testid="job-info">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -136,7 +140,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
-              <label className="label">{t("est.color.siding")}</label>
+              <label className="label">{isLp ? t("est.color.lpSiding") : t("est.color.siding")}</label>
               <select
                 className="input"
                 value={est.siding_color || ""}
@@ -144,13 +148,17 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 data-testid="color-siding"
               >
                 <option value="">— Select —</option>
-                {vinylColorGroups.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
+                {isLp
+                  ? LP_SMARTSIDE_COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))
+                  : vinylColorGroups.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.colors.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
               </select>
             </div>
             {/* Iter 77 — LP SmartSiding doesn't use Ascend or Pelican Bay
@@ -201,17 +209,21 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 data-testid="color-board-batten"
               >
                 <option value="">— Select —</option>
-                {BOARD_BATTEN_COLOR_GROUPS.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
+                {isLp
+                  ? LP_SMARTSIDE_COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))
+                  : BOARD_BATTEN_COLOR_GROUPS.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.colors.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
               </select>
             </div>
             <div>
-              <label className="label">{t("est.color.accessories")}</label>
+              <label className="label">{isLp ? t("est.color.trim") : t("est.color.accessories")}</label>
               <select
                 className="input"
                 value={est.accessories_color || ""}
@@ -219,13 +231,17 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 data-testid="color-accessories"
               >
                 <option value="">— Select —</option>
-                {accessoryColorGroups.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
+                {isLp
+                  ? LP_SMARTSIDE_COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))
+                  : accessoryColorGroups.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.colors.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
               </select>
             </div>
             <div>
@@ -237,13 +253,17 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 data-testid="color-outside-corner"
               >
                 <option value="">— Select —</option>
-                {accessoryColorGroups.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
+                {isLp
+                  ? LP_SMARTSIDE_COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))
+                  : accessoryColorGroups.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.colors.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
               </select>
             </div>
             <div>
@@ -255,15 +275,22 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 data-testid="color-soffit-fascia"
               >
                 <option value="">— Select —</option>
-                {SOFFIT_COLOR_GROUPS.map((g) => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.colors.map((c) => (
+                {isLp
+                  ? LP_SMARTSIDE_COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))
+                  : SOFFIT_COLOR_GROUPS.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.colors.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
               </select>
             </div>
+            {/* Iter 77 — LP SmartSide doesn't quote window wrap (factory
+                trim handles window perimeters); hide the picker on LP. */}
+            {!isLp && (
             <div>
               <label className="label">{t("est.color.windowWrap")}</label>
               <select
@@ -278,6 +305,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                 ))}
               </select>
             </div>
+            )}
             <div>
               <label className="label">{t("est.color.gutter")}</label>
               <select
