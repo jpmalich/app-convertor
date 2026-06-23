@@ -153,7 +153,7 @@ export default function Dashboard({ kind = "siding" }) {
             </button>
           </div>
           <h1 className="font-heading text-4xl sm:text-5xl text-[#09090B]">
-            {isIss ? "ISS Quotes" : isWindows ? "Window Quotes" : t("dash.title")}
+            {isIss ? "ISS Quotes" : isWindows ? "ISS Window Quotes" : t("dash.title")}
           </h1>
         </div>
         <div className="flex gap-3">
