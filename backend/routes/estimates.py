@@ -12,6 +12,8 @@ from db import db
 from deps import get_current_user
 from models import EstimateIn
 from services import calc_totals, get_branding
+from routes.catalog import _resolve_catalog_for_company
+from routes.hover import _build_lines
 
 router = APIRouter()
 
@@ -249,6 +251,50 @@ async def pair_lp_estimate(est_id: str, user: dict = Depends(get_current_user)):
 
     new_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    # Iter 75 (2026-06-22): if the source has HOVER measurements, seed the
+    # LP-tab auto-fill lines server-side so the new estimate opens
+    # populated (38 Series Lap, End Caps, J blocks, Mini Splits, etc.)
+    # rather than empty. Uses _build_lines from the HOVER importer + the
+    # company's tier catalog for mat/lab — same merge path the frontend
+    # HOVER apply takes after a real import.
+    seeded_lines: list[dict] = []
+    measurements = src.get("hover_measurements") or None
+    if measurements:
+        company = await db.companies.find_one(
+            {"id": user["company_id"]}, {"_id": 0}
+        )
+        catalog = await _resolve_catalog_for_company(company) if company else None
+        price_idx = {}
+        if catalog:
+            for sec in catalog.get("sections", []):
+                for it in sec.get("items", []):
+                    price_idx[(sec["title"], it["name"])] = {
+                        "mat": float(it.get("mat") or 0),
+                        "lab": float(it.get("lab") or 0),
+                        "unit": it.get("unit") or "",
+                        "ami_part": it.get("ami_part"),
+                    }
+        # _build_lines emits lines for ALL tabs — we only want lp_smart on
+        # the LP-pair workspace. Map each spec to an EstimateLine doc.
+        for ln in _build_lines(dict(measurements)):
+            if ln.get("tab") != "lp_smart":
+                continue
+            qty = float(ln.get("qty") or 0)
+            if qty <= 0:
+                continue
+            cat_row = price_idx.get((ln.get("section"), ln.get("name")), {})
+            seeded_lines.append({
+                "section": ln.get("section", ""),
+                "name": ln.get("name", ""),
+                "unit": ln.get("unit") or cat_row.get("unit", ""),
+                "qty": qty,
+                "mat": cat_row.get("mat", 0),
+                "lab": 0,  # Iter 69: siding tabs forced to $0 labor.
+                "ami_part": cat_row.get("ami_part"),
+                "tab": "lp_smart",
+                "adders": [],
+            })
+
     new_doc = {
         "id": new_id,
         "company_id": user["company_id"],
@@ -265,10 +311,10 @@ async def pair_lp_estimate(est_id: str, user: dict = Depends(get_current_user)):
         # Iter 71: carry HOVER measurements forward so LP HOVER auto-fill
         # specs (Iter 68) and per-elevation card can render on the LP side
         # without re-uploading the PDF.
-        "hover_measurements": src.get("hover_measurements") or None,
+        "hover_measurements": measurements,
         "kind": "lp_smart",
         "status_label": "draft",
-        "lines": [],
+        "lines": seeded_lines,
         "misc_labor": [],
         "misc_material": [],
         "mezzo_openings": [],

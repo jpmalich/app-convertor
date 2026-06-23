@@ -576,9 +576,9 @@ async def ensure_tiers_seeded():
         '3/4" Soffit J-Channel (Charter Oak) Standard color',
         '3/4" Soffit J-Channel (Charter Oak) Architectural color',
     ]
-    # Iter 67 (2026-06-22): LP SmartSide renamed to BlueLinx names + units
+    # Iter 67 (2026-06-22): LP SmartSide renamed to supplier-spec names + units
     # consolidated to PCS-only (Howard's "I want only pcs pricing" + new
-    # BlueLinx Expertfinish price sheet). Migrations applied at boot:
+    # supplier price sheet). Migrations applied at boot:
     #   1. Rename 19 LP items in tier docs + estimate lines.
     #   2. Flip 11 trim items LF → PCS and convert saved qty: ceil(LF / 16).
     #   3. Flip the 8" Lap row SQ → PCS and convert saved qty: round(SQ × 11).
@@ -764,7 +764,7 @@ async def ensure_tiers_seeded():
         {"$set": {"sections.$[].items.$[it].unit": "PCS"}},
         array_filters=[{"it.name": LP_LAP_NEW_NAME, "it.unit": "SQ"}],
     )
-    # Force-sync mat for every LP item per the new BlueLinx + margin
+    # Force-sync mat for every LP item per the new supplier cost + margin
     # tier pricing in TIER_PRICES. Bounded to LP item names so it can't
     # touch any non-LP supplier override. Idempotent.
     LP_ITEM_NAMES = set(LP_RENAME_MAP.values()) | LP_TRIM_NEW_NAMES | {

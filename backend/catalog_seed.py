@@ -79,7 +79,7 @@ SECTION_LAYOUT = [
     # sections that LP also uses).
     # -----------------------------------------------------------------------
     ("LP Smart Siding", False, [
-        # Iter 67 (2026-06-22): renamed to BlueLinx names. "LP Strand" →
+        # Iter 67 (2026-06-22): renamed to supplier-spec names. "LP Strand" →
         # "38 Series", added 6" Lap, Lap unit flipped SQ → PCS (Howard:
         # "I want only pcs pricing"; previous SQ-based qty migrated via
         # × 11 conversion in services.py).
@@ -92,7 +92,7 @@ SECTION_LAYOUT = [
         '38 Series Vertical Panel',
     ]),
     ("LP SmartSide Trim", False, [
-        # Iter 67: renamed to BlueLinx names + flipped LF → PCS per 16'
+        # Iter 67: renamed to supplier-spec names + flipped LF → PCS per 16'
         # board. Trim dimensions corrected (5/8 → 19/32, 3/4 → 4/4/5/4).
         # 190 series — 4/4 thick
         '190 Series Trim 19/32" x 3" x 16\'',
@@ -110,7 +110,7 @@ SECTION_LAYOUT = [
         '540 Series Trim 5/4" x 12" x 16\'',
     ]),
     ("LP Siding Accessories", False, [
-        # Iter 67: renamed to BlueLinx names. Outside Corners moved into
+        # Iter 67: renamed to supplier-spec names. Outside Corners moved into
         # the 540 series (5/4 thick). LP Color Match Coil dropped; the 3
         # vinyl coil items (.019 / PVC / Performance G8) added in its
         # place with vinyl-matching per-tier pricing.
@@ -125,9 +125,9 @@ SECTION_LAYOUT = [
         'Performance G8 Trim Coil',
     ]),
     ("LP SmartSide Soffit", False, [
-        # Iter 67: renamed to BlueLinx names. Added 3 new soffit sizes
+        # Iter 67: renamed to supplier-spec names. Added 3 new soffit sizes
         # (12 x 16 Vented + Closed, 16 x 16 Closed); old 24" Vented/Solid
-        # replaced by CTW / VSSFT BlueLinx names.
+        # replaced by CTW / VSSFT supplier-spec names.
         '38 Series Soffit 12 x 16 Vented',
         '38 Series Soffit 12 x 16 Closed',
         '38 Series Soffit 16 x 16 Vented',
@@ -414,7 +414,7 @@ ITEM_META = {
     "Cap tops of bird boxes": ("Each", 0), "Dormer upcharge": ("Each", 0),
     "R&R Utilities": ("Each", 0), "Cut out 4x4 section of wall and insulate": ("Each", 0),
     # ----------------- LP SmartSide items -----------------
-    # Iter 67 (2026-06-22): renamed to BlueLinx names + units consolidated
+    # Iter 67 (2026-06-22): renamed to supplier-spec names + units consolidated
     # to PCS-only per Howard's "I want only pcs pricing" directive. All 11
     # trim items flipped LF → PCS (per 16' board), Lap flipped SQ → PCS
     # (per 11-PCS-per-Sq conversion handled in HOVER mapper + estimate
@@ -710,14 +710,14 @@ TIER_PRICES = {
 
 
 # ---------------------------------------------------------------------------
-# LP SmartSide pricing — Iter 67 (2026-06-22): renamed to BlueLinx names and
+# LP SmartSide pricing — Iter 67 (2026-06-22): renamed to supplier-spec names and
 # converted to PER-TIER pricing using Howard's margin formula
 # (sell = cost ÷ (1 − margin)). Tier margins:
 #   one-opp        20% → divisor 0.80
 #   Builder-Dealer 25% → divisor 0.75
 #   Contractor     30% → divisor 0.70
 #   whole-sale     35% → divisor 0.65
-# Costs sourced from BlueLinx Expertfinish pricing sheet (PIT00003 v2.26.2026).
+# Costs sourced from supplier price sheet (Feb 2026).
 # ---------------------------------------------------------------------------
 LP_COSTS = {
     # LP Smart Siding (lap, shake, nickel gap, panels)

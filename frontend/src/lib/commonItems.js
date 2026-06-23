@@ -60,7 +60,7 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   // ----- LP SmartSide "starter pack" — items quoted on virtually every
   // LP job. Flagging them ensures the LP tab doesn't ship empty when a
   // contractor only fills the headline lap product.
-  // Iter 67 (2026-06-22): renamed to BlueLinx names. Color Match Coil
+  // Iter 67 (2026-06-22): renamed to supplier-spec names. Color Match Coil
   // dropped in favor of the 3 vinyl-matching coil rows.
   '38 Series Lap 3/8" x 8" x 16\'',
   '440 Series Trim 4/4" x 4" x 16\'',

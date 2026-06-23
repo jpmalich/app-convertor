@@ -48,7 +48,7 @@ EXPECTED = [
         {"whole-sale": 0, "Contractor": 0, "Builder-Dealer": 0, "one-opp": 0},
     ),
     (
-        # Iter 67: LP renamed to BlueLinx names + per-tier margin pricing.
+        # Iter 67: LP renamed to supplier-spec names + per-tier margin pricing.
         # 8" Lap cost $21.69/board × margin divisors → 4-tier price grid.
         # Lap also flipped from SQ → PCS unit (price is per 16' board).
         '38 Series Lap 3/8" x 8" x 16\'',
