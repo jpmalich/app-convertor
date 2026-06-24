@@ -1341,6 +1341,24 @@ async def hover_import(
     # modal so contractors catch HOVER mis-reads BEFORE applying.
     from routes.hover_sanity import run_checks
     warnings = run_checks(measurements)
+    # Iter 78p — Phase 2 vision verification: render elevation drawing
+    # pages, send each to Claude Opus 4.5 Vision, compare drawing-derived
+    # area to text-extracted siding_sqft / per_elevation_siding. Returns
+    # additional warnings (same banner) + per-elevation drawing data we
+    # stash on `measurements` for the Per-Elevation Breakdown card.
+    try:
+        from routes.hover_vision import run_vision_pass
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if api_key:
+            vision_warns, per_elev_drawing = await run_vision_pass(
+                raw, measurements, api_key,
+                session_id=f"hover-vision-{user.get('id','anon')}",
+            )
+            warnings.extend(vision_warns)
+            if per_elev_drawing:
+                measurements["per_elevation_siding_from_drawing"] = per_elev_drawing
+    except Exception as e:
+        logger.warning("Iter 78p: vision pass failed silently: %s", e)
     return HoverImportResult(
         measurements=measurements,
         lines=[HoverLine(**ln) for ln in lines],

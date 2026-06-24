@@ -1,0 +1,157 @@
+"""Iter 78p — Phase 2 vision verification logic unit tests.
+
+These cover the deterministic parts of `hover_vision`: page detection,
+JSON parsing, and warning-building. The actual Claude Vision call is
+NOT exercised here (would require a real HOVER PDF + live API). Live
+testing happens on the user's next real HOVER upload — the wiring is
+defensive (every external call is wrapped in try/except so a vision
+failure never breaks the import).
+"""
+import io
+
+import fitz  # PyMuPDF
+
+from routes.hover_vision import (
+    _ELEV_RE,
+    _build_warnings,
+    _json_from_reply,
+    _pct_delta,
+    _render_pdf_pages,
+)
+
+
+def test_elev_re_matches_standard_labels():
+    assert _ELEV_RE.search("FRONT ELEVATION") is not None
+    assert _ELEV_RE.search("Left Elevation") is not None
+    assert _ELEV_RE.search("Side A Elevation") is not None
+    assert _ELEV_RE.search("Rear Elevation") is not None
+
+
+def test_elev_re_ignores_unrelated():
+    assert _ELEV_RE.search("Roof Plan") is None
+    assert _ELEV_RE.search("Window Schedule") is None
+    assert _ELEV_RE.search("Front Door") is None  # no "Elevation"
+
+
+def test_json_from_reply_fenced():
+    reply = '```json\n{"a": 1, "b": "x"}\n```'
+    assert _json_from_reply(reply) == {"a": 1, "b": "x"}
+
+
+def test_json_from_reply_with_preface():
+    reply = 'Here is the result:\n{"facade_width_ft": 30}'
+    assert _json_from_reply(reply) == {"facade_width_ft": 30}
+
+
+def test_json_from_reply_garbage():
+    assert _json_from_reply("not json at all") == {}
+    assert _json_from_reply("") == {}
+
+
+def test_pct_delta_basics():
+    # 10 / max(100, 110) × 100 = 9.09%
+    assert abs(_pct_delta(100, 110) - 9.0909) < 0.01
+    assert _pct_delta(0, 0) == 0
+    assert _pct_delta(0, 50) == 100
+    assert _pct_delta(100, 100) == 0
+
+
+def _make_pdf_with_label(label: str) -> bytes:
+    """Build a tiny PDF containing one page with the given text label so
+    we can exercise `_render_pdf_pages` without shipping a real HOVER."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)  # US Letter
+    page.insert_text((72, 100), label, fontsize=24)
+    buf = io.BytesIO()
+    doc.save(buf)
+    doc.close()
+    return buf.getvalue()
+
+
+def test_render_pdf_pages_finds_elevation():
+    pdf = _make_pdf_with_label("Front Elevation")
+    pages = _render_pdf_pages(pdf)
+    assert len(pages) == 1
+    assert pages[0]["label"] == "Front"
+    assert pages[0]["png_bytes"]
+
+
+def test_render_pdf_pages_skips_non_elevation():
+    pdf = _make_pdf_with_label("Roof Plan")
+    pages = _render_pdf_pages(pdf)
+    assert pages == []
+
+
+def test_render_pdf_pages_caps_at_six():
+    """Even if the PDF has many elevation pages, only `MAX_ELEVATION_PAGES`
+    should render (cost control)."""
+    # Real HOVER reports can have up to 8 distinct elevation labels
+    # (Front, Back, Left, Right, Side A–D). Stuff 8 in to verify the cap.
+    labels = ["Front", "Back", "Left", "Right",
+              "Side A", "Side B", "Side C", "Side D"]
+    doc = fitz.open()
+    for lbl in labels:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((72, 100), f"{lbl} Elevation", fontsize=24)
+    buf = io.BytesIO()
+    doc.save(buf)
+    doc.close()
+    pages = _render_pdf_pages(buf.getvalue())
+    assert len(pages) == 6
+
+
+def test_render_pdf_pages_handles_bad_pdf():
+    assert _render_pdf_pages(b"not a pdf") == []
+
+
+def test_build_warnings_flags_per_elevation_mismatch():
+    vision_results = [
+        {"elevation_label": "Front", "siding_sqft": 600,
+         "gross_wall_sqft": 700, "confidence": "high"},
+    ]
+    measurements = {
+        "siding_sqft": 1000,
+        "per_elevation_siding": {"Front": 500},
+    }
+    warns = _build_warnings(vision_results, measurements)
+    codes = {w["code"] for w in warns}
+    assert "vision_elev_delta_front" in codes
+
+
+def test_build_warnings_no_flag_when_close():
+    vision_results = [
+        {"elevation_label": "Front", "siding_sqft": 505,
+         "gross_wall_sqft": 600, "confidence": "high"},
+    ]
+    measurements = {
+        "siding_sqft": 500,
+        "per_elevation_siding": {"Front": 500},
+    }
+    warns = _build_warnings(vision_results, measurements)
+    codes = {w["code"] for w in warns}
+    assert "vision_elev_delta_front" not in codes
+
+
+def test_build_warnings_flags_total_delta():
+    """Even without per-elevation breakdown, total siding drawing-vs-text
+    delta should be flagged."""
+    vision_results = [
+        {"elevation_label": "Front", "siding_sqft": 800, "gross_wall_sqft": 800, "confidence": "high"},
+        {"elevation_label": "Back", "siding_sqft": 800, "gross_wall_sqft": 800, "confidence": "high"},
+    ]
+    measurements = {"siding_sqft": 1000}  # drawings sum 1600 vs text 1000
+    warns = _build_warnings(vision_results, measurements)
+    codes = {w["code"] for w in warns}
+    assert "vision_total_delta" in codes
+
+
+def test_build_warnings_info_when_no_text_total():
+    """If text didn't extract siding_sqft, we still surface what the
+    drawings showed (info-level)."""
+    vision_results = [
+        {"elevation_label": "Front", "siding_sqft": 600, "gross_wall_sqft": 700, "confidence": "high"},
+    ]
+    warns = _build_warnings(vision_results, {})
+    codes = {w["code"] for w in warns}
+    assert "vision_drawings_sum_info" in codes
+    assert next(w for w in warns if w["code"] == "vision_drawings_sum_info")["level"] == "info"

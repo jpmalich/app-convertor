@@ -487,6 +487,19 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 78p — HOVER AI Verification Phase 2: per-elevation vision pass (2026-02-25)**: Phase 2 of 3 of the verification stack. Claude Opus 4.5 Vision now reads each elevation drawing inside the HOVER PDF and cross-checks the drawing-extracted area against the text-extracted measurements.
+  - **New module** `backend/routes/hover_vision.py` (~270 lines):
+    - `_render_pdf_pages(pdf_bytes)` — opens the PDF with PyMuPDF, detects elevation pages via `_ELEV_RE` (matches "Front/Back/Rear/Left/Right/Side A–D Elevation"), renders each at 144 DPI as PNG. Hard-capped at 6 pages for cost control. Skips images > 2.5 MB to stay under emergentintegrations payload limits.
+    - `_read_one_elevation()` — single Claude Opus 4.5 Vision call per page; prompt asks for `{facade_width_ft, facade_height_ft, gross_wall_sqft, opening_count, siding_sqft, confidence, notes}`. Returns `None` on parse/JSON failures so a flaky vision call never breaks the import.
+    - `_build_warnings()` — per-elevation drawing-vs-text delta (12% threshold) + total-siding drawing-vs-text delta. Returns Phase 1-shaped warning dicts so they render in the same yellow banner. Also emits an info-level "drawings sum to X ft²" line when text didn't extract a siding total.
+    - `run_vision_pass(pdf, measurements, api_key)` — orchestrator. Parallelizes the per-page vision calls with `asyncio.gather` so 4-6 calls take wall-time of 1 (~30-60s total). Returns `(warnings, per_elevation_drawing_data)`.
+  - **Wired** into `POST /api/estimates/hover-import`: after the existing text-extraction + Phase 1 rules, runs the vision pass and merges its warnings into the response. Stashes `per_elevation_siding_from_drawing` on `measurements` — ready for the Per-Elevation Breakdown card to consume.
+  - **Defensive**: the entire vision block is wrapped in try/except. If `EMERGENT_LLM_KEY` is missing, the vision call errors, or PyMuPDF fails to open the PDF, the import proceeds with just the Phase 1 warnings — never breaks.
+  - **Restore path**: vision pass NOT run on `POST /api/measure/map` (we don't have the original PDF bytes by then, only the cached measurements). Phase 1 rules still surface on restore.
+  - **Tests** (`backend/tests/test_hover_vision.py`): 14 unit tests covering page-label regex, JSON parsing (fenced / preface / garbage), percent-delta math, page rendering on synthetic PDFs (matches / non-matches / bad PDFs / 6-page cap), and the `_build_warnings` logic across 4 scenarios. **44/44 backend tests pass**.
+  - **Cost**: ~$0.15–0.30 per HOVER import (4–6 vision calls × Opus 4.5 vision pricing). Cap hard-coded at 6 calls.
+  - **Files**: `backend/routes/hover_vision.py` (new), `backend/routes/hover.py`, `backend/tests/test_hover_vision.py` (new), `memory/PRD.md`.
+
 - **Iter 78o — HOVER AI Verification Phase 1: deterministic sanity checks (2026-02-25)**: First of 3 phases of Howard's "verify HOVER numbers against the drawings" stack. Phase 1 = free deterministic rules over the extracted measurements; Phase 2 = per-elevation vision pass; Phase 3 = Deep Verify scale-bar check.
   - **New module** `backend/routes/hover_sanity.py` — 7 construction-physics rules:
     1. Soffit area ≈ eaves × overhang (±15%)
