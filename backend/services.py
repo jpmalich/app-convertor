@@ -851,6 +851,38 @@ async def ensure_tiers_seeded():
                           "updated_at": datetime.now(timezone.utc).isoformat()}},
             )
             logger.info("Backfilled Ascend prices on tier %s", tier["name"])
+    # Iter 78e (2026-02): backfill mat prices for the 4 new accessory items
+    # (Flash tape, Gutter Sealant, Hangars with Screws, Pipe Clips). When
+    # SECTION_LAYOUT was extended, the migration loop below rebuilt the
+    # affected sections, but during the transient window before TIER_PRICES
+    # had the new entries some tier docs ended up with mat=$0. Force-sync
+    # those rows in place. Bounded to these item names so it can't touch
+    # any other contractor override. Idempotent.
+    ITER78E_NEW_ITEMS = {
+        'Flash tape 3 3/4" x 90\'',
+        'Gutter Sealant',
+        'Hangars with Screws',
+        'Pipe Clips',
+    }
+    async for tier in db.price_tiers.find({}, {"_id": 0, "id": 1, "name": 1, "sections": 1}):
+        prices = TIER_PRICES.get(tier["name"]) or {}
+        sections = tier.get("sections") or []
+        dirty = False
+        for sec in sections:
+            for it in sec.get("items", []) or []:
+                if it.get("name") in ITER78E_NEW_ITEMS:
+                    want = float(prices.get(it["name"], 0))
+                    if want > 0 and float(it.get("mat") or 0) != want:
+                        it["mat"] = want
+                        dirty = True
+        if dirty:
+            await db.price_tiers.update_one(
+                {"id": tier["id"]},
+                {"$set": {"sections": sections,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            logger.info("Iter 78e: synced new accessory prices on tier %s", tier["name"])
+
     existing = {t["name"] async for t in db.price_tiers.find({}, {"name": 1})}
     for name in TIER_NAMES:
         if name not in existing:

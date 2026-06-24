@@ -485,6 +485,11 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 78e — Siding/Gutter accessory items + $0.00 price bug fix (2026-02-25)**: Howard's ask: add 4 new accessory SKUs (Flash Tape, Gutter Sealant, Hangars with Screws, Pipe Clips), all at flat prices across the 4 tiers.
+  - **Catalog** (`catalog_seed.py`): `Flash tape 3 3/4" x 90'` added to both **Siding Accessories** and **LP Siding Accessories** (part #79092500 @ $41.12); `Gutter Sealant` (#71159900 @ $9.31), `Hangars with Screws` (#71160200 @ $2.39), `Pipe Clips` (#71161400 @ $2.58) added to **Seamless Gutter**. All wired into `IDENTICAL_PRICES`, `ITEM_META` (unit=`Each`), and `ITEM_AMI` (part numbers).
+  - **DB migration bug fix** (`services.py`): when SECTION_LAYOUT was extended to include these items during a previous hot-reload race, the rebuild loop landed the rows with `mat=$0.00` (`TIER_PRICES` didn't have the entries yet at that moment, and on subsequent boots the item-set hash matched so the section wasn't re-built). Added a new Iter 78e idempotent backfill block, bounded to these 4 item names, that force-sets `mat` from `TIER_PRICES` on any tier doc where the value is stale. Pattern mirrors the existing LP / Windows price-sync blocks.
+  - **Verified**: direct DB inspection on all 4 tiers shows correct prices ($41.12 / $9.31 / $2.39 / $2.58) post-restart; `GET /api/catalog` echoes the same.
+
 - **Iter 69 — Zero labor on all siding-tab lines (2026-06-22)**: Howard's rule: "all labor entries to be $0 in the siding estimates; leave windows as is." Two-part fix:
   - **Backend migration** (`services.py`): idempotent `update_many` zeros `lab` on every estimate line whose `tab ∈ {vinyl, ascend, lp_smart}`. 44 lines wiped across existing estimates (Gutter 6", Downspout 6", Cap doors, Tear-Off line items inheriting from the old vinyl/ascend defaults).
   - **Frontend lockdown** (`SectionAccordion.jsx`): LAB `<input>` rendered read-only with greyed styling on siding-tab rows; reset-to-default chip suppressed; the input still occupies the column so layout stays aligned with windows-tab rows. Vero/Mezzo/Windows rows untouched.

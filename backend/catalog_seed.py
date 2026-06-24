@@ -123,6 +123,9 @@ SECTION_LAYOUT = [
         '.019 Coil',
         'PVC Trim Coil',
         'Performance G8 Trim Coil',
+        # Iter 78e (2026-02-23): Flash tape — shared across vinyl + LP
+        # accessory sections per Howard's request.
+        'Flash tape 3 3/4" x 90\'',
     ]),
     ("LP SmartSide Soffit", False, [
         # Iter 67: renamed to supplier-spec names. Added 3 new soffit sizes
@@ -160,6 +163,8 @@ SECTION_LAYOUT = [
         'Dryer Vents 4" (82A014)',
         "Shutters (louvered, raised panel) standard sizes",
         "Gable vents (round,octagon)", '1 1/4" Trim Nails',
+        # Iter 78e — Flash tape added per Howard's accessory expansion.
+        'Flash tape 3 3/4" x 90\'',
     ]),
     ("Tear-Off / Clean Up", False, [
         "Tear-Off", "Wood shake tear off (requires a dumpster)",
@@ -188,6 +193,10 @@ SECTION_LAYOUT = [
     ]),
     ("Seamless Gutter", False, [
         'Gutter 6"', 'Downspout 6"', "elbow", "Mitre", "End Cap", "Gutter Guard (USA Shurflo)",
+        # Iter 78e — three new gutter accessories per Howard.
+        'Gutter Sealant',
+        'Hangars with Screws',
+        'Pipe Clips',
     ]),
     ("Misc. Labor Only", False, ["R&R gutter", "R&R downspout"]),
     ("Misc. Labor & Material", False, [
@@ -387,6 +396,11 @@ ITEM_META = {
     'Dryer Vents 4" (82A014)': ("Each", 0),
     "Shutters (louvered, raised panel) standard sizes": ("PR", 0),
     "Gable vents (round,octagon)": ("Each", 0), '1 1/4" Trim Nails': ("Box", 0),
+    # Iter 78e — new accessories (vinyl + LP siding + gutter).
+    'Flash tape 3 3/4" x 90\'': ("Each", 0),
+    'Gutter Sealant': ("Each", 0),
+    'Hangars with Screws': ("Each", 0),
+    'Pipe Clips': ("Each", 0),
     "Tear-Off": ("SQ", 0), "Wood shake tear off (requires a dumpster)": ("SQ", 0),
     "clean up/ haul away job debris": ("JOB", 0), "Dumpster": ("Each", 0),
     'Charter Oak Soffit Standard color': ("PCS", 0),
@@ -608,6 +622,11 @@ IDENTICAL_PRICES = {
     'Shutters (louvered, raised panel) standard sizes': 114.2225,
     'Starter': 7.46,
     'elbow': 2.69,
+    # Iter 78e — new flat-priced accessories per Howard.
+    'Flash tape 3 3/4" x 90\'': 41.12,
+    'Gutter Sealant': 9.31,
+    'Hangars with Screws': 2.39,
+    'Pipe Clips': 2.58,
 }
 
 # 19 service / labor-only line items — $0 material on every tier.
@@ -950,6 +969,11 @@ ITEM_AMI = {
     "J-blocks - UL Blocks (82A017)": "82A017",
     "J-blocks - Jumbo Blocks (82A011)": "82A011",
     'Dryer Vents 4" (82A014)': "82A014",
+    # Iter 78e — new accessories with supplier part numbers from Howard.
+    'Flash tape 3 3/4" x 90\'': "79092500",
+    'Gutter Sealant': "71159900",
+    'Hangars with Screws': "71160200",
+    'Pipe Clips': "71161400",
     # Siding profiles — each gets its own SKU per Alside's price sheet.
     # Iter 34: Standard/Architectural variants share the AMI of their
     # underlying SKU (color is a stocking variant, not a separate part).
