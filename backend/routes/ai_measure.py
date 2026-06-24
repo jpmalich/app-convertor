@@ -1557,6 +1557,12 @@ async def _execute_ai_measure_worker(
             lines = _build_lines(measurements)
         except Exception:
             lines = []
+        # Iter 78o — Phase 1 sanity checks on AI-Measure / Blueprint runs.
+        try:
+            from routes.hover_sanity import run_checks
+            warnings = run_checks(measurements)
+        except Exception:
+            warnings = []
 
         result = {
             "measurements": measurements,
@@ -1568,6 +1574,7 @@ async def _execute_ai_measure_worker(
             "raw_ai": raw,
             "model": MODEL_NAME,
             "session_id": session_id,
+            "warnings": warnings,
         }
         await db.ai_measure_runs.update_one(
             {"run_id": run_id},
@@ -1608,4 +1615,12 @@ async def map_measurements_to_lines(
         lines = _build_lines(measurements)
     except Exception:
         lines = []
-    return {"measurements": measurements, "lines": lines, "vero_openings": []}
+    # Iter 78o — Phase 1 sanity checks also run on the cached-measurement
+    # restore path so the "Restore HOVER lines" modal shows the same
+    # warning banner the fresh-import flow does.
+    try:
+        from routes.hover_sanity import run_checks
+        warnings = run_checks(measurements)
+    except Exception:
+        warnings = []
+    return {"measurements": measurements, "lines": lines, "vero_openings": [], "warnings": warnings}

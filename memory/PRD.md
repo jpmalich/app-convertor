@@ -487,6 +487,22 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 78o — HOVER AI Verification Phase 1: deterministic sanity checks (2026-02-25)**: First of 3 phases of Howard's "verify HOVER numbers against the drawings" stack. Phase 1 = free deterministic rules over the extracted measurements; Phase 2 = per-elevation vision pass; Phase 3 = Deep Verify scale-bar check.
+  - **New module** `backend/routes/hover_sanity.py` — 7 construction-physics rules:
+    1. Soffit area ≈ eaves × overhang (±15%)
+    2. Rakes/eaves ratio inside 0.5–1.4× envelope
+    3. Opening perimeter consistent with `count × typical-perim` (window 14 / entry 19 / patio 22 / garage 32 LF)
+    4. door_count = entry + patio + garage (schema integrity)
+    5. Outside corner count ≤ 12 (warns on bay-window / chimney mis-counts)
+    6. Inside corners ≤ outside corners (info-level)
+    7. Siding sqft lower bound vs `½ × eaves × 9 ft`
+  - Each rule returns `{code, level, message, detail?}` — frontend renders them in a yellow banner above Extracted Measurements with bold heading + mono-num detail row + footer reminder.
+  - **Wired into 3 surfaces**: HOVER import (`POST /api/hover/import`), Restore HOVER (`POST /api/measure/map`), AI Measure / Blueprint async runs (`POST /api/measure/ai-photo` / `ai-blueprint`).
+  - **Tests** (`backend/tests/test_hover_sanity.py`): 12 unit tests covering each rule + the no-warn / empty-dict / non-dict paths. **30/30 backend tests pass**.
+  - **Verified live**: real-world cached HOVER (John Derunk EST-669165) returns 0 warnings (clean read = no false positives). Mocking the `/measure/map` response with a deliberately-broken measurement set surfaces all 6 expected warning codes in the modal banner with proper formatting.
+  - **Cost**: $0 per HOVER. No LLM calls, instant feedback.
+  - **Files**: `backend/routes/hover_sanity.py` (new), `backend/routes/hover.py`, `backend/routes/ai_measure.py`, `backend/tests/test_hover_sanity.py` (new), `frontend/src/components/estimate/HoverImportButton.jsx`, `frontend/src/components/estimate/BlueprintMeasureButton.jsx`, `memory/PRD.md`.
+
 - **Iter 78n — "Restore HOVER Lines" button (2026-02-25)**: Howard shipped a one-tap restore for accidentally-cleared HOVER auto-fills. No new PDF upload, no new LLM call — re-runs the takeoff mapper against the measurements already cached on `estimate.hover_measurements` (persisted since Iter 70) via the existing `POST /api/measure/map` endpoint.
   - **UI**: New blue-outlined `data-testid="hover-restore-btn"` rendered next to **Import HOVER** in `HoverImportButton.jsx`, gated by `hasCached = !!est.hover_measurements`. Tooltip: "Re-apply the auto-fills from the most recent HOVER import — no new upload needed".
   - **Modal**: same preview modal as the fresh-upload flow (Takeoff Recon Card, Coverage Breakdown, Gutter assumptions chips, Apply button) — title flips to **"HOVER Lines Restored (Cached)"** with a timestamp subtitle so the contractor knows it's a recall.

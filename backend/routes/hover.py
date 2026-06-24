@@ -1041,6 +1041,11 @@ class HoverImportResult(BaseModel):
     vero_openings: list[HoverVeroOpening] = []
     mezzo_openings: list[HoverMezzoOpening] = []
     raw_extract_chars: int
+    # Iter 78o — sanity-check warnings from `hover_sanity.run_checks`. List
+    # of {code, level, message, detail?} dicts. Empty = report looks
+    # consistent. Frontend renders these as a yellow banner inside the
+    # preview modal so contractors see discrepancies BEFORE they apply.
+    warnings: list[dict] = []
 
 
 # -----------------------------------------------------------------------------
@@ -1331,10 +1336,16 @@ async def hover_import(
     vero_openings, mezzo_openings = _build_window_openings({"windows": windows_payload})
     measurements["overhang_in"] = overhang_in
     lines = _build_lines(measurements)
+    # Iter 78o — Phase 1 sanity checks: deterministic rules over the
+    # extracted measurements. Surfaced as a yellow banner in the preview
+    # modal so contractors catch HOVER mis-reads BEFORE applying.
+    from routes.hover_sanity import run_checks
+    warnings = run_checks(measurements)
     return HoverImportResult(
         measurements=measurements,
         lines=[HoverLine(**ln) for ln in lines],
         vero_openings=[HoverVeroOpening(**op) for op in vero_openings],
         mezzo_openings=[HoverMezzoOpening(**op) for op in mezzo_openings],
         raw_extract_chars=len(text),
+        warnings=warnings,
     )

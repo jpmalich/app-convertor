@@ -614,6 +614,39 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 </section>
               )}
 
+              {/* Iter 78o — Phase 1 sanity-check warnings (deterministic
+                  reasonableness rules over the extracted measurements).
+                  Shared component with the HOVER import preview banner. */}
+              {Array.isArray(result.warnings) && result.warnings.length > 0 && (
+                <section
+                  className="border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2.5"
+                  data-testid="blueprint-warnings-banner"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-[#B45309]" />
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-[#B45309]">
+                      Sanity check · {result.warnings.length} warning{result.warnings.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {result.warnings.map((w) => (
+                      <div
+                        key={w.code}
+                        className="text-[12px] text-[#78350F] leading-snug"
+                        data-testid={`blueprint-warning-${w.code}`}
+                      >
+                        <div className="font-bold">⚠ {w.message}</div>
+                        {w.detail && (
+                          <div className="text-[10px] font-mono-num text-[#B45309] mt-0.5">
+                            {w.detail}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Summary numbers */}
               <section>
                 <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-1.5">

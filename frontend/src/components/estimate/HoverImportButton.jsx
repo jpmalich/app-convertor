@@ -437,6 +437,44 @@ export default function HoverImportButton({ est, update, save }) {
             </div>
 
             <div className="overflow-y-auto flex-1">
+              {/* Iter 78o — Phase 1 sanity-check warnings. Yellow banner
+                  surfaces deterministic discrepancies the rule engine
+                  caught (eaves×overhang vs soffit, rake/eave ratio,
+                  opening-perim consistency, door-count integrity, corner
+                  plausibility). Empty array = report looks consistent
+                  (banner hidden). */}
+              {Array.isArray(result.warnings) && result.warnings.length > 0 && (
+                <div
+                  className="border-b border-[#FCD34D] bg-[#FFFBEB] px-5 py-3"
+                  data-testid="hover-warnings-banner"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-[#B45309]" />
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-[#B45309]">
+                      Sanity check · {result.warnings.length} warning{result.warnings.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {result.warnings.map((w) => (
+                      <div
+                        key={w.code}
+                        className="text-[12px] text-[#78350F] leading-snug"
+                        data-testid={`hover-warning-${w.code}`}
+                      >
+                        <div className="font-bold">⚠ {w.message}</div>
+                        {w.detail && (
+                          <div className="text-[10px] font-mono-num text-[#B45309] mt-0.5">
+                            {w.detail}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] text-[#92400E] mt-2 italic">
+                    These are heuristic checks — review the elevation drawings to confirm before applying.
+                  </div>
+                </div>
+              )}
               {/* Measurements block */}
               <div className="p-5 border-b border-[#E4E4E7] bg-[#FAFAFA]">
                 <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-3">
