@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import TakeoffReconCard from "@/components/estimate/TakeoffReconCard";
 import { getSavedWasteDefault } from "@/lib/wasteDefaults";
-import { bakeWasteIntoLines } from "@/lib/wasteLogic";
+import { bakeWasteIntoLines, steerLpSoffit } from "@/lib/wasteLogic";
 
 const KEY_LABELS = {
   siding_sqft: "Siding",
@@ -167,8 +167,9 @@ export default function HoverImportButton({ est, update, save }) {
     // the original raw measurement in `raw_qty` so waste-% changes can
     // recompute later.
     const wastePct = Number(est?.waste_pct) || 0;
-    const wastedSource = bakeWasteIntoLines(sourceLines, wastePct);
-    const wastedPaired = bakeWasteIntoLines(pairedLines, wastePct);
+    const soffitType = est?.lp_soffit_type || "mix";
+    const wastedSource = steerLpSoffit(bakeWasteIntoLines(sourceLines, wastePct), soffitType);
+    const wastedPaired = steerLpSoffit(bakeWasteIntoLines(pairedLines, wastePct), soffitType);
     const existing = est.lines || [];
     const keyOf = (l) => `${l.tab || "vinyl"}::${l.section}::${l.name}`;
     const byKey = new Map(existing.map((l, i) => [keyOf(l), i]));
@@ -414,6 +415,7 @@ export default function HoverImportButton({ est, update, save }) {
                 lines={result.lines || []}
                 wastePct={est?.waste_pct || 0}
                 kind={est?.kind || "siding"}
+                lpSoffitType={est?.lp_soffit_type || "mix"}
               />
 
               {/* Vero Windows block — one row per HOVER opening with the

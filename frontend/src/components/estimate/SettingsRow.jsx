@@ -49,6 +49,30 @@ export default function SettingsRow({ est, update }) {
           <p className="mt-1 text-[10px] uppercase tracking-wider text-[#16A34A] font-bold">
             Baked into line qty on import — change % to recompute
           </p>
+          {/* Iter 78 — LP soffit steering (LP-only). Backend's HOVER spec
+              splits LP soffit into Vented (eaves) + Closed (rakes) by
+              surface. This knob lets Howard collapse to all-vented or
+              all-closed for jobs that only use one style. */}
+          {est.kind === "lp_smart" && (
+            <div className="mt-4 pt-4 border-t border-[#E4E4E7]">
+              <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold mb-2">
+                LP Soffit type
+              </div>
+              <select
+                className="input h-9 text-sm"
+                value={est.lp_soffit_type || "mix"}
+                onChange={(e) => update({ lp_soffit_type: e.target.value })}
+                data-testid="lp-soffit-type"
+              >
+                <option value="mix">Mix — Vented on eaves, Closed on rakes (default)</option>
+                <option value="vented">Vented — all soffit qty as Vented (38 Series Vented)</option>
+                <option value="closed">Closed — all soffit qty as Closed (38 Series Closed)</option>
+              </select>
+              <p className="mt-2 text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                Applied on HOVER / Blueprint import — collapses or splits the two soffit lines automatically
+              </p>
+            </div>
+          )}
           {/* Iter 45: soffit overhang in inches — drives the
               Pieces = (Overhang × Length) ÷ panel-area formula on the
               Vinyl Soffit line. Lives in the same card as Waste Factor

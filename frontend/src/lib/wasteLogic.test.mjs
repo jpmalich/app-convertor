@@ -9,6 +9,7 @@ import {
   isCutProneItem,
   bakeWasteIntoLines,
   recomputeWasteQtys,
+  steerLpSoffit,
 } from "./wasteLogic.js";
 
 function eq(actual, expected, label) {
@@ -123,6 +124,24 @@ eq(recomputed[0].qty, 22.5, "Siding qty recomputes to 18 × 1.25 = 22.5");
 eq(recomputed[0].raw_qty, 18, "Siding raw_qty unchanged");
 eq(recomputed[1].qty, 108, "Gutter qty still unchanged (no raw_qty)");
 eq(recomputed[2].qty, 125, "Soffit qty recomputes to 100 × 1.25");
+
+console.log("\nsteerLpSoffit:");
+const lpLines = [
+  { name: "38 Series Soffit 16 x 16 Vented", qty: 7, raw_qty: 6, tab: "lp_smart" },
+  { name: "38 Series Soffit 16 x 16 Closed", qty: 3, raw_qty: 2, tab: "lp_smart" },
+  { name: '38 Series Lap 3/8" x 8" x 16\'', qty: 24, tab: "lp_smart" },
+];
+const mix = steerLpSoffit(lpLines, "mix");
+eq(mix.length, 3, "mix: both soffit rows preserved");
+const vented = steerLpSoffit(lpLines, "vented");
+eq(vented.length, 2, "vented: closed collapsed away");
+const ventedRow = vented.find((l) => l.name === "38 Series Soffit 16 x 16 Vented");
+eq(ventedRow?.qty, 10, "vented: qty = 7 + 3");
+eq(ventedRow?.raw_qty, 8, "vented: raw_qty = 6 + 2");
+const closed = steerLpSoffit(lpLines, "closed");
+eq(closed.length, 2, "closed: vented collapsed away");
+const closedRow = closed.find((l) => l.name === "38 Series Soffit 16 x 16 Closed");
+eq(closedRow?.qty, 10, "closed: qty = 7 + 3");
 
 console.log(
   process.exitCode ? "\n❌ FAILED" : "\n✅ All wasteLogic tests passed"

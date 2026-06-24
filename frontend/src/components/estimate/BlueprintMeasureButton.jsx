@@ -23,7 +23,7 @@ import {
   clearWasteDefault,
   workspaceLabel,
 } from "@/lib/wasteDefaults";
-import { bakeWasteIntoLines } from "@/lib/wasteLogic";
+import { bakeWasteIntoLines, steerLpSoffit } from "@/lib/wasteLogic";
 
 const SIDING_TABS = new Set(["vinyl", "ascend", "lp_smart"]);
 const WINDOWS_TABS = new Set(["windows"]);
@@ -641,6 +641,7 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 lines={result.lines || []}
                 wastePct={est?.waste_pct || 0}
                 kind={est?.kind || "siding"}
+                lpSoffitType={est?.lp_soffit_type || "mix"}
               />
 
               {/* Window schedule */}

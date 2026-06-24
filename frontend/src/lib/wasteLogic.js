@@ -119,3 +119,67 @@ export function recomputeWasteQtys(lines, wastePct) {
     return { ...l, qty: roundUpHalf(raw * factor) };
   });
 }
+
+// LP SmartSide soffit steering (Iter 78).
+//
+// The HOVER spec splits LP soffit into two rows by surface:
+//   • "38 Series Soffit 16 x 16 Vented" — qty derived from eaves_lf
+//   • "38 Series Soffit 16 x 16 Closed" — qty derived from rakes_lf
+//
+// Howard's "Soffit type" knob lets him steer those at apply time:
+//   "mix"    — leave as-is (the smart default for most jobs)
+//   "vented" — collapse Closed qty into Vented (all-vented job)
+//   "closed" — collapse Vented qty into Closed (all-closed job)
+//
+// Combines both line.qty and line.raw_qty so a later waste-% change
+// still recomputes correctly. Lines that aren't LP soffit are untouched.
+const VENTED_SOFFIT = "38 Series Soffit 16 x 16 Vented";
+const CLOSED_SOFFIT = "38 Series Soffit 16 x 16 Closed";
+
+export function steerLpSoffit(lines, soffitType) {
+  const type = soffitType || "mix";
+  if (type === "mix") return lines || [];
+  const out = [];
+  let vented = null;
+  let closed = null;
+  for (const l of lines || []) {
+    if (l?.name === VENTED_SOFFIT) {
+      vented = l;
+      continue;
+    }
+    if (l?.name === CLOSED_SOFFIT) {
+      closed = l;
+      continue;
+    }
+    out.push(l);
+  }
+  // Collapse the two LP soffit qtys into the winning row.
+  const ventedQty = Number(vented?.qty) || 0;
+  const closedQty = Number(closed?.qty) || 0;
+  const ventedRaw = Number(vented?.raw_qty) || 0;
+  const closedRaw = Number(closed?.raw_qty) || 0;
+  const sumQty = ventedQty + closedQty;
+  const sumRaw = ventedRaw + closedRaw;
+  if (type === "vented" && (vented || closed)) {
+    const base = vented || closed;
+    out.push({
+      ...base,
+      name: VENTED_SOFFIT,
+      qty: sumQty,
+      raw_qty: sumRaw > 0 ? sumRaw : (base.raw_qty ?? null),
+    });
+  } else if (type === "closed" && (vented || closed)) {
+    const base = closed || vented;
+    out.push({
+      ...base,
+      name: CLOSED_SOFFIT,
+      qty: sumQty,
+      raw_qty: sumRaw > 0 ? sumRaw : (base.raw_qty ?? null),
+    });
+  } else {
+    // No LP soffit rows in the input — nothing to steer
+    if (vented) out.push(vented);
+    if (closed) out.push(closed);
+  }
+  return out;
+}

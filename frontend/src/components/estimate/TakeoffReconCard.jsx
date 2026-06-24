@@ -13,7 +13,7 @@
 // Reads `measurements` + `lines` from the takeoff result and the
 // estimate's `waste_pct`. Pure presentation — no side effects.
 import React from "react";
-import { isCutProneItem } from "@/lib/wasteLogic";
+import { isCutProneItem, steerLpSoffit } from "@/lib/wasteLogic";
 
 // Items to surface, in display order. Two parallel row sets keyed by
 // estimate.kind: vinyl/ascend uses the standard catalog item names;
@@ -175,9 +175,12 @@ const roundUpHalf = (n) => {
   return Math.ceil(x * 2) / 2;
 };
 
-export default function TakeoffReconCard({ measurements, lines, wastePct = 0, kind = "siding" }) {
+export default function TakeoffReconCard({ measurements, lines, wastePct = 0, kind = "siding", lpSoffitType = "mix" }) {
   if (!measurements || !lines || !lines.length) return null;
   const pct = Math.max(0, Number(wastePct) || 0);
+  // Iter 78 — apply the LP soffit steering for the preview so Howard
+  // sees exactly what will land on the estimate after Apply.
+  const steeredLines = kind === "lp_smart" ? steerLpSoffit(lines, lpSoffitType) : lines;
   const rowSet = kind === "lp_smart" ? LP_RECON_ROWS : VINYL_RECON_ROWS;
 
   // Build a quick lookup: item name (lowercase) → first matching line.

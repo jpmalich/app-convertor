@@ -156,6 +156,14 @@ class EstimateIn(BaseModel):
     mezzo_interior_color: str = ""
     mezzo_exterior_color: str = ""
     waste_pct: float = 0
+    # Iter 78 — LP SmartSide soffit steering. Controls how the
+    # auto-imported soffit qty is split between Vented (eaves) and
+    # Closed (rakes) on LP estimates only. Backend's HOVER spec
+    # splits by surface; this lets the contractor override:
+    #   "mix"    — default, vented on eaves + closed on rakes (current)
+    #   "vented" — 100% vented (collapse closed qty into vented)
+    #   "closed" — 100% closed (collapse vented qty into closed)
+    lp_soffit_type: str = "mix"
     tax_enabled: bool = True
     tax_rate: float = 7.0
     margin_pct: float = 30.0
