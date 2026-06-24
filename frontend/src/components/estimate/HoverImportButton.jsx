@@ -413,6 +413,7 @@ export default function HoverImportButton({ est, update, save }) {
                 measurements={result.measurements || {}}
                 lines={result.lines || []}
                 wastePct={est?.waste_pct || 0}
+                kind={est?.kind || "siding"}
               />
 
               {/* Vero Windows block — one row per HOVER opening with the

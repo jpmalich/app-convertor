@@ -640,6 +640,7 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 measurements={measurements || {}}
                 lines={result.lines || []}
                 wastePct={est?.waste_pct || 0}
+                kind={est?.kind || "siding"}
               />
 
               {/* Window schedule */}

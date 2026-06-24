@@ -15,83 +15,141 @@
 import React from "react";
 import { isCutProneItem } from "@/lib/wasteLogic";
 
-// Items to surface, in display order. Each entry maps:
+// Items to surface, in display order. Two parallel row sets keyed by
+// estimate.kind: vinyl/ascend uses the standard catalog item names;
+// LP SmartSide uses the LP-specific catalog (38 Series Lap, 540 OSC,
+// 440/540 Series Trim, 38 Series Soffit). Gutters / downspouts / end
+// caps are shared across all siding tabs.
+//
+// Each entry maps:
 //   label  — what the contractor sees
 //   raw    — function(measurements) → "108 LF" / "1,800 ft²" / "—"
 //   item   — exact catalog item name to look up in `lines`
-//   tab    — which tab the line lives on (vinyl is the canonical
-//             takeoff target — other tabs mirror)
-//   waste  — true if catalog-level waste applies (Siding, Soffit panels)
-const RECON_ROWS = [
+//   tab    — which tab the line lives on
+const VINYL_RECON_ROWS = [
   {
     label: "Siding",
     raw: (m) => fmtSq(m.siding_sqft),
     item: "Install Vinyl Siding",
     tab: "vinyl",
-    waste: true,
   },
   {
     label: "Outside corners",
     raw: (m) => fmtLf(m.outside_corner_lf),
     item: "Outside corners Standard color",
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "Inside corners",
     raw: (m) => fmtLf(m.inside_corner_lf),
     item: "Inside Corners (Siding) Standard color",
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "J-Channel",
     raw: () => "—",
     item: '3/4" J-Channel Standard color (2 per Sq of siding)',
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "Finish Trim",
     raw: () => "—",
     item: "Finish Trim Standard color",
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "Soffit (Charter Oak)",
     raw: (m) => fmtSqft(m.soffit_sqft),
     item: "Charter Oak Soffit Standard color",
     tab: "vinyl",
-    waste: true,
   },
   {
     label: "Soffit J-Channel",
     raw: () => "—",
     item: '3/4" Soffit J-Channel (Charter Oak) Standard color',
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "Gutter",
     raw: (m) => fmtLf(m.eaves_lf),
     item: 'Gutter 6"',
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "Downspouts",
     raw: () => "—",
     item: 'Downspout 6"',
     tab: "vinyl",
-    waste: false,
   },
   {
     label: "End caps",
     raw: () => "—",
     item: "End Cap",
     tab: "vinyl",
-    waste: false,
+  },
+];
+
+// LP SmartSide rows — uses the LP factory-finish catalog.
+const LP_RECON_ROWS = [
+  {
+    label: "LP Lap Siding (38 Series)",
+    raw: (m) => fmtSq(m.siding_sqft),
+    item: '38 Series Lap 3/8" x 8" x 16\'',
+    tab: "lp_smart",
+  },
+  {
+    label: "Outside Corner (540 OSC)",
+    raw: (m) => fmtLf(m.outside_corner_lf),
+    item: "540 Series OSC 5/4\" x 4\" x 16'",
+    tab: "lp_smart",
+  },
+  {
+    label: "Trim (440 Series)",
+    raw: () => "—",
+    item: '440 Series Trim 4/4" x 4" x 16\'',
+    tab: "lp_smart",
+  },
+  {
+    label: "Trim (540 Series)",
+    raw: () => "—",
+    item: '540 Series Trim 5/4" x 4" x 16\'',
+    tab: "lp_smart",
+  },
+  {
+    label: "Soffit Vented (38 Series)",
+    raw: (m) => fmtSqft(m.soffit_sqft),
+    item: "38 Series Soffit 16 x 16 Vented",
+    tab: "lp_smart",
+  },
+  {
+    label: "Soffit Closed (38 Series)",
+    raw: () => "—",
+    item: "38 Series Soffit 16 x 16 Closed",
+    tab: "lp_smart",
+  },
+  {
+    label: "Coil (.019)",
+    raw: () => "—",
+    item: ".019 Coil",
+    tab: "lp_smart",
+  },
+  {
+    label: "Gutter",
+    raw: (m) => fmtLf(m.eaves_lf),
+    item: 'Gutter 6"',
+    tab: "lp_smart",
+  },
+  {
+    label: "Downspouts",
+    raw: () => "—",
+    item: 'Downspout 6"',
+    tab: "lp_smart",
+  },
+  {
+    label: "End caps",
+    raw: () => "—",
+    item: "End Cap",
+    tab: "lp_smart",
   },
 ];
 
@@ -117,9 +175,10 @@ const roundUpHalf = (n) => {
   return Math.ceil(x * 2) / 2;
 };
 
-export default function TakeoffReconCard({ measurements, lines, wastePct = 0 }) {
+export default function TakeoffReconCard({ measurements, lines, wastePct = 0, kind = "siding" }) {
   if (!measurements || !lines || !lines.length) return null;
   const pct = Math.max(0, Number(wastePct) || 0);
+  const rowSet = kind === "lp_smart" ? LP_RECON_ROWS : VINYL_RECON_ROWS;
 
   // Build a quick lookup: item name (lowercase) → first matching line.
   // Prefer same-tab matches; fall back to any tab so kind=ascend or
@@ -136,7 +195,7 @@ export default function TakeoffReconCard({ measurements, lines, wastePct = 0 }) 
     );
   };
 
-  const rows = RECON_ROWS.map((r) => {
+  const rows = rowSet.map((r) => {
     const ln = byName(r.item, r.tab);
     if (!ln) return null;
     const qty = Number(ln.qty) || 0;
