@@ -26,6 +26,7 @@ import os
 import re
 import tempfile
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 import pdfplumber
@@ -35,6 +36,14 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from deps import get_current_user
+
+# Iter 78q — Phase 3 Deep Verify uses MongoDB to cache rendered elevation
+# page PNGs. The TTL index purges entries 1 hour after creation so we
+# never accumulate stale render data.
+try:
+    from services import db
+except Exception:  # pragma: no cover — defensive at import time
+    db = None
 
 
 # -----------------------------------------------------------------------------
@@ -1046,6 +1055,11 @@ class HoverImportResult(BaseModel):
     # consistent. Frontend renders these as a yellow banner inside the
     # preview modal so contractors see discrepancies BEFORE they apply.
     warnings: list[dict] = []
+    # Iter 78q — Phase 3 Deep Verify cache key. Frontend echoes this back
+    # when the contractor clicks "Deep Verify {Elevation}" — backend uses
+    # it to look up the cached PNG without re-uploading the PDF. None when
+    # no elevation pages were rendered (cached only on successful Phase 2).
+    deep_verify_cache_key: Optional[str] = None
 
 
 # -----------------------------------------------------------------------------
@@ -1302,6 +1316,75 @@ def _build_window_openings(measurements: dict) -> tuple[list[dict], list[dict]]:
 
 
 # -----------------------------------------------------------------------------
+# Iter 78q — Phase 3 Deep Verify
+# -----------------------------------------------------------------------------
+async def _ensure_deep_verify_index():
+    """Create the TTL index on `hover_page_cache.created_at` so cached
+    elevation PNGs auto-purge 1 hour after import. Idempotent — Mongo
+    silently no-ops if the index already exists."""
+    if db is None:
+        return
+    try:
+        await db.hover_page_cache.create_index(
+            "created_at", expireAfterSeconds=3600,
+        )
+    except Exception as e:
+        logger.warning("Iter 78q: TTL index create failed: %s", e)
+
+
+@router.post("/estimates/hover-deep-verify")
+async def hover_deep_verify(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Phase 3 Deep Verify endpoint. Replays a single cached elevation PNG
+    against a scale-bar-focused Claude Vision prompt that explicitly
+    IGNORES the dim callouts and re-derives the wall area from the
+    scale bar. Returns the new measurement + a 3-way comparison
+    (deep-verify vs Phase 2 drawing vs text)."""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    cache_key = (payload or {}).get("cache_key")
+    label = (payload or {}).get("label")
+    measurements = (payload or {}).get("measurements") or {}
+    phase2_drawing = (payload or {}).get("phase2_drawing") or {}
+    if not cache_key or not label:
+        raise HTTPException(
+            status_code=400, detail="cache_key and label are required",
+        )
+    cached = await db.hover_page_cache.find_one(
+        {"cache_key": cache_key, "label": label},
+        {"_id": 0, "png_b64": 1, "user_id": 1},
+    )
+    if not cached or not cached.get("png_b64"):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Cached page not found or expired (1-hour TTL). "
+                "Re-import the HOVER PDF to refresh the cache."
+            ),
+        )
+    if cached.get("user_id") and cached["user_id"] != user.get("id"):
+        # Same-user scope: a contractor can only Deep Verify their own
+        # cached imports.
+        raise HTTPException(status_code=403, detail="Access denied")
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="LLM key not configured")
+    from routes.hover_vision import deep_verify_elevation, reconcile_deep_verify
+    deep_result = await deep_verify_elevation(
+        cached["png_b64"], label, api_key,
+        session_id=f"deep-verify-{user.get('id','anon')}-{cache_key[:8]}",
+    )
+    if not deep_result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail=f"Deep Verify call failed: {deep_result.get('error', 'unknown')}",
+        )
+    return reconcile_deep_verify(deep_result, measurements, phase2_drawing)
+
+
+# -----------------------------------------------------------------------------
 # Endpoint
 # -----------------------------------------------------------------------------
 @router.post("/estimates/hover-import", response_model=HoverImportResult)
@@ -1346,19 +1429,43 @@ async def hover_import(
     # area to text-extracted siding_sqft / per_elevation_siding. Returns
     # additional warnings (same banner) + per-elevation drawing data we
     # stash on `measurements` for the Per-Elevation Breakdown card.
+    # Iter 78q — also stash rendered PNGs in MongoDB (TTL 1h) so the
+    # contractor can trigger Phase 3 Deep Verify on any elevation without
+    # re-uploading the PDF.
+    deep_verify_cache_key: Optional[str] = None
     try:
         from routes.hover_vision import run_vision_pass
         api_key = os.environ.get("EMERGENT_LLM_KEY")
         if api_key:
+            deep_verify_cache_key = f"dv-{uuid.uuid4().hex}"
+
+            async def _cache_writer(key: str, label: str, png_b64: str, page_num: int):
+                if db is None:
+                    return
+                await db.hover_page_cache.update_one(
+                    {"cache_key": key, "label": label},
+                    {"$set": {
+                        "cache_key": key,
+                        "label": label,
+                        "page_num": page_num,
+                        "png_b64": png_b64,
+                        "user_id": user.get("id"),
+                        "created_at": datetime.now(timezone.utc),
+                    }},
+                    upsert=True,
+                )
+
             vision_warns, per_elev_drawing = await run_vision_pass(
                 raw, measurements, api_key,
                 session_id=f"hover-vision-{user.get('id','anon')}",
+                cache_key=deep_verify_cache_key,
+                cache_writer=_cache_writer,
             )
             warnings.extend(vision_warns)
             if per_elev_drawing:
                 measurements["per_elevation_siding_from_drawing"] = per_elev_drawing
     except Exception as e:
-        logger.warning("Iter 78p: vision pass failed silently: %s", e)
+        logger.warning("Iter 78p/q: vision pass failed silently: %s", e)
     return HoverImportResult(
         measurements=measurements,
         lines=[HoverLine(**ln) for ln in lines],
@@ -1366,4 +1473,5 @@ async def hover_import(
         mezzo_openings=[HoverMezzoOpening(**op) for op in mezzo_openings],
         raw_extract_chars=len(text),
         warnings=warnings,
+        deep_verify_cache_key=deep_verify_cache_key,
     )

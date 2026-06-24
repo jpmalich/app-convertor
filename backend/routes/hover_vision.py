@@ -267,6 +267,8 @@ async def run_vision_pass(
     measurements: dict,
     api_key: str,
     session_id: str = "hover-vision",
+    cache_key: Optional[str] = None,
+    cache_writer=None,
 ) -> tuple[list[dict], dict]:
     """Public entrypoint. Renders elevation pages, runs Claude Vision on
     each, returns `(warnings, per_elevation_drawing_data)`.
@@ -274,11 +276,27 @@ async def run_vision_pass(
     `per_elevation_drawing_data` is the raw per-elevation dict
     `{label: {gross, siding_sqft, opening_count, confidence}}` ready to
     stash on the estimate for the Per-Elevation Breakdown card.
+
+    If `cache_key` and `cache_writer` are provided, the rendered PNG of
+    each elevation is stashed via `cache_writer(cache_key, label, png_b64)`
+    so Phase 3 Deep Verify can replay the same image without re-uploading
+    the PDF. Cache writes happen even when vision parsing fails.
     """
     pages = _render_pdf_pages(pdf_bytes)
     if not pages:
         logger.info("Iter 78p: no elevation pages detected — skipping vision pass")
         return [], {}
+
+    # Iter 78q — stash the rendered PNGs for Phase 3 Deep Verify before
+    # we hit the LLM. Even if every vision call fails, the contractor can
+    # still trigger Deep Verify manually on a flagged elevation.
+    if cache_key and cache_writer:
+        try:
+            for p in pages:
+                png_b64 = base64.b64encode(p["png_bytes"]).decode("ascii")
+                await cache_writer(cache_key, p["label"], png_b64, p["page_num"])
+        except Exception as e:
+            logger.warning("Iter 78q: page cache write failed: %s", e)
 
     logger.info("Iter 78p: running vision pass on %d elevation pages", len(pages))
     # Parallelize the vision calls — they're network-bound (~30-60s each)
@@ -307,3 +325,116 @@ async def run_vision_pass(
             "page_num": r.get("__page_num"),
         }
     return warnings, per_elev
+
+
+# =============================================================================
+# Iter 78q — Phase 3: Deep Verify (scale-bar measurement)
+# =============================================================================
+
+DEEP_VERIFY_PROMPT = """\
+You are looking at a single ELEVATION drawing from a HOVER measurement report.
+This is a SECOND-OPINION verification pass. Your job is to measure the
+facade using ONLY the visible scale bar — IGNORE the labeled dimension
+callouts entirely.
+
+Methodology:
+1. Find the scale bar on the drawing. Read its labeled length (e.g. "20 ft").
+2. Measure that scale bar's pixel length on the image (use the leftmost
+   and rightmost endpoints).
+3. Compute the ft-per-pixel ratio.
+4. Measure the eave run (top horizontal of the wall) in pixels.
+5. Measure the facade height (ground line to eave) in pixels.
+6. Multiply by the ft-per-pixel ratio.
+
+Return ONE JSON object (no markdown, no commentary):
+{
+  "scale_bar_label_ft": <number>,            // e.g. 20
+  "scale_bar_pixels": <number>,
+  "ft_per_pixel": <number>,                  // = label / pixels
+  "measured_width_ft": <number>,             // eave run × ft_per_pixel
+  "measured_height_ft": <number>,            // ground-to-eave × ft_per_pixel
+  "measured_gross_wall_sqft": <number>,      // width × height
+  "scale_bar_found": <true | false>,
+  "confidence": "high" | "medium" | "low",
+  "notes": "<string — anomalies, occluded scale bar, unusual roof shape, etc>"
+}
+
+CRITICAL RULES:
+- Do NOT use any number from a labeled dim callout.
+- If the scale bar is missing/illegible, set `scale_bar_found: false`,
+  confidence "low", and leave measurements as best-effort estimates.
+- This is a cross-check; precision matters more than speed.
+"""
+
+
+async def deep_verify_elevation(
+    png_b64: str,
+    label: str,
+    api_key: str,
+    session_id: str = "hover-deep-verify",
+) -> dict:
+    """Run the Phase 3 scale-bar prompt on a single elevation image."""
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=session_id,
+        system_message=DEEP_VERIFY_PROMPT,
+    ).with_model("anthropic", MODEL_NAME)
+    msg = UserMessage(
+        text=(
+            f"Verify the '{label} Elevation' by independently measuring "
+            f"against the scale bar. Return JSON only."
+        ),
+        file_contents=[ImageContent(image_base64=png_b64)],
+    )
+    try:
+        reply = await chat.send_message(msg)
+    except Exception as e:
+        logger.warning("Iter 78q: Deep Verify call failed: %s", e)
+        return {"ok": False, "error": str(e)}
+    parsed = _json_from_reply(reply or "")
+    parsed["ok"] = True
+    parsed["label"] = label
+    return parsed
+
+
+def reconcile_deep_verify(
+    deep_result: dict,
+    measurements: dict,
+    phase2_drawing: dict,
+) -> dict:
+    """Compare the Deep Verify (scale-bar) numbers to the Phase 2 numbers
+    AND the text-extracted numbers. Returns a verdict block the frontend
+    renders in the modal as a three-way comparison panel."""
+    label = deep_result.get("label") or "?"
+    measured = float(deep_result.get("measured_gross_wall_sqft") or 0)
+    phase2_gross = float(phase2_drawing.get("gross_wall_sqft") or 0)
+    phase2_net = float(phase2_drawing.get("siding_sqft") or 0)
+    text_per_elev = measurements.get("per_elevation_siding") or {}
+    text_raw = text_per_elev.get(label) or text_per_elev.get(label.lower())
+    if isinstance(text_raw, dict):
+        text_area = float(text_raw.get("siding_sqft") or text_raw.get("net")
+                          or text_raw.get("gross") or 0)
+    else:
+        text_area = float(text_raw or 0)
+
+    def _verdict_pct(a: float, b: float) -> str:
+        if a == 0 or b == 0:
+            return "—"
+        d = abs(a - b) / max(abs(a), abs(b)) * 100
+        return f"Δ {d:.0f}%"
+
+    return {
+        "label": label,
+        "scale_bar_found": deep_result.get("scale_bar_found", False),
+        "scale_bar_label_ft": deep_result.get("scale_bar_label_ft"),
+        "measured_width_ft": deep_result.get("measured_width_ft"),
+        "measured_height_ft": deep_result.get("measured_height_ft"),
+        "measured_gross_wall_sqft": measured,
+        "phase2_gross_wall_sqft": phase2_gross,
+        "phase2_net_siding_sqft": phase2_net,
+        "text_area_sqft": text_area,
+        "confidence": deep_result.get("confidence"),
+        "notes": deep_result.get("notes"),
+        "delta_vs_phase2": _verdict_pct(measured, phase2_gross or phase2_net),
+        "delta_vs_text": _verdict_pct(measured, text_area),
+    }

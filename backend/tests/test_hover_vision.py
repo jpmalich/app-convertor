@@ -155,3 +155,47 @@ def test_build_warnings_info_when_no_text_total():
     codes = {w["code"] for w in warns}
     assert "vision_drawings_sum_info" in codes
     assert next(w for w in warns if w["code"] == "vision_drawings_sum_info")["level"] == "info"
+
+
+# ─── Iter 78q — Phase 3 Deep Verify reconcile tests ─────────────────────────
+from routes.hover_vision import reconcile_deep_verify  # noqa: E402
+
+
+def test_reconcile_deep_verify_3way_compare():
+    deep = {
+        "label": "Front",
+        "scale_bar_found": True,
+        "scale_bar_label_ft": 20,
+        "measured_width_ft": 30,
+        "measured_height_ft": 18,
+        "measured_gross_wall_sqft": 540,
+        "confidence": "high",
+        "notes": "",
+    }
+    measurements = {"per_elevation_siding": {"Front": 500}}
+    phase2 = {"gross_wall_sqft": 600, "siding_sqft": 540}
+    out = reconcile_deep_verify(deep, measurements, phase2)
+    assert out["label"] == "Front"
+    assert out["measured_gross_wall_sqft"] == 540
+    assert out["phase2_gross_wall_sqft"] == 600
+    assert out["text_area_sqft"] == 500
+    # Delta vs phase2 gross 600: |540-600|/600 = 10%
+    assert out["delta_vs_phase2"] == "Δ 10%"
+    # Delta vs text 500: |540-500|/540 = 7%
+    assert out["delta_vs_text"] == "Δ 7%"
+    assert out["scale_bar_found"] is True
+
+
+def test_reconcile_deep_verify_no_text_area():
+    """When text didn't break out per-elevation, text_area = 0 and the
+    delta_vs_text shows as a dash."""
+    deep = {
+        "label": "Front",
+        "scale_bar_found": True,
+        "measured_gross_wall_sqft": 540,
+    }
+    out = reconcile_deep_verify(deep, {}, {"gross_wall_sqft": 600})
+    assert out["text_area_sqft"] == 0
+    assert out["delta_vs_text"] == "—"
+    assert out["delta_vs_phase2"] == "Δ 10%"
+

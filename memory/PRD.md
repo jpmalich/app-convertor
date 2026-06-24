@@ -487,6 +487,22 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 78q — HOVER AI Verification Phase 3: Deep Verify scale-bar measurement (2026-02-25)**: Final phase of Howard's "verify HOVER drawings vs reported numbers" stack. Contractor-triggered second-opinion pass that re-measures a specific elevation against its on-page scale bar — ignoring the dim callouts entirely.
+  - **Backend**:
+    - Phase 2 now also stashes each rendered elevation PNG (base64) into a new MongoDB collection `hover_page_cache`, keyed by a UUID `deep_verify_cache_key` returned in the HOVER import response. **TTL index = 1 hour** so renders auto-purge after a typical preview session — never accumulates.
+    - New endpoint `POST /api/estimates/hover-deep-verify` (auth-gated, same-user scope): takes `{cache_key, label, measurements, phase2_drawing}` → loads the cached PNG → calls `deep_verify_elevation()` with a scale-bar-focused prompt → returns a 3-way reconciliation `{measured_width_ft, measured_height_ft, measured_gross_wall_sqft, scale_bar_found, confidence, delta_vs_phase2, delta_vs_text, ...}`.
+    - New `DEEP_VERIFY_PROMPT` explicitly instructs Claude Opus 4.5 Vision to find the scale bar, measure its pixel length, derive ft-per-pixel, then re-measure the eave run + facade height **without using the dim callouts**.
+    - New `reconcile_deep_verify()` helper builds the 3-way comparison block.
+  - **Frontend** (`HoverImportButton.jsx`):
+    - New "🔍 Deep Verify" button renders inline next to any `vision_elev_delta_*` warning when a `deep_verify_cache_key` is present (= fresh import path; restore-from-cache path doesn't have PDF bytes so the button is hidden there).
+    - Loading state shows a spinner + "Verifying…" label.
+    - Result panel renders inline below the warning as a 3-card comparison: Scale-bar (yellow accent) · Phase 2 drawing · Text extract — each showing area, delta, and confidence/notes.
+    - Deep verify state is keyed by warning code so multiple elevations can be verified independently. Resets on modal close / apply.
+  - **Cost**: ~$0.40 per Deep Verify (one Opus 4.5 vision call, careful scale-bar prompt). Cap = whatever the contractor manually triggers.
+  - **Tests** (`backend/tests/test_hover_vision.py`): 2 new tests for `reconcile_deep_verify` (3-way comparison + no-text-area edge case). **46/46 backend tests pass.**
+  - **Verified live**: endpoint reachable, auth + payload validation correct (401 unauth, 400 missing fields, 404 missing cache). Mocked import response with a `vision_elev_delta_front` warning + `deep_verify_cache_key` renders the 🔍 Deep Verify button perfectly in the modal banner; no console errors.
+  - **Files**: `backend/routes/hover_vision.py`, `backend/routes/hover.py`, `backend/startup.py`, `backend/tests/test_hover_vision.py`, `frontend/src/components/estimate/HoverImportButton.jsx`, `memory/PRD.md`.
+
 - **Iter 78p — HOVER AI Verification Phase 2: per-elevation vision pass (2026-02-25)**: Phase 2 of 3 of the verification stack. Claude Opus 4.5 Vision now reads each elevation drawing inside the HOVER PDF and cross-checks the drawing-extracted area against the text-extracted measurements.
   - **New module** `backend/routes/hover_vision.py` (~270 lines):
     - `_render_pdf_pages(pdf_bytes)` — opens the PDF with PyMuPDF, detects elevation pages via `_ELEV_RE` (matches "Front/Back/Rear/Left/Right/Side A–D Elevation"), renders each at 144 DPI as PNG. Hard-capped at 6 pages for cost control. Skips images > 2.5 MB to stay under emergentintegrations payload limits.
