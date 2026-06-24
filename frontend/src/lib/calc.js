@@ -93,13 +93,20 @@ export function calcTotals(est, { tab } = {}) {
     lines.reduce((s, l) => s + (l.qty || 0) * (l.lab || 0) + addersLabTotal(l), 0) +
     miscMat.reduce((s, l) => s + (l.lab || 0), 0) +
     miscLab.reduce((s, l) => s + (l.lab || 0), 0);
-  // Iter 78 — Waste is now baked into the line.qty itself on
-  // HOVER/Blueprint import for cut-prone items (siding, soffit, J,
-  // finish trim, corners, starter). The on-screen qty IS the order
-  // qty, so we no longer add a separate dollar waste bump here —
-  // that would double-count. `wasteAdd` stays at 0 to keep the
-  // returned shape stable for callers that read it.
-  const wasteAdd = 0;
+  // Iter 78b — Compute the actual dollar amount of cut waste baked into
+  // the material total. For each cut-prone line that has a stored
+  // raw_qty (from HOVER/Blueprint import or the manual recompute
+  // button), wasteAdd is the dollar delta vs. the raw quantity:
+  //   line wasteAdd = (qty − raw_qty) × mat
+  // Lines without raw_qty contribute $0 (their qty IS the raw qty).
+  // This replaces the legacy "subMat × waste%" formula, which over-
+  // counted because waste is now in the qty itself.
+  const wasteAdd = lines.reduce((s, l) => {
+    const qty = Number(l?.qty) || 0;
+    const raw = Number(l?.raw_qty);
+    if (!isFinite(raw) || raw <= 0 || raw >= qty) return s;
+    return s + (qty - raw) * (Number(l?.mat) || 0);
+  }, 0);
   const wasted = subMat + wasteAdd;
   const tax = est?.tax_enabled ? wasted * ((est?.tax_rate || 0) / 100) : 0;
   const base = wasted + tax + subLab;
@@ -115,5 +122,5 @@ export function calcTotals(est, { tab } = {}) {
     sell = base * (1 + pct);
   }
   const profit = sell - base;
-  return { subMat, subLab, wasted, tax, base, sell, profit };
+  return { subMat, subLab, wasted, wasteAdd, tax, base, sell, profit };
 }
