@@ -319,6 +319,19 @@ export default function TakeoffReconCard({ measurements, lines, wastePct = 0, ki
 
   const showCoverage = finishTrimLine || soffitJLine;
 
+  // Iter 78j — Gutter assumptions chip. The same `runs = max(2, ceil(eaves/30))`
+  // value drives End Caps (× 2) and adds 1 to Hangars per run. Expose it
+  // here so contractors have ONE spot to spot-check the shared assumption
+  // — fix the eave LF or override the chip mentally, and 3 line counts
+  // reflow consistently in their head before sending the quote.
+  const endCapLine = kind === "lp_smart" ? byName("End Cap", "lp_smart") : byName("End Cap", "vinyl");
+  const hangersLine = byName("Hangars with Screws", kind === "lp_smart" ? "lp_smart" : "vinyl");
+  const downspoutLine = byName(kind === "lp_smart" ? 'Downspout 6"' : 'Downspout 6"',
+                               kind === "lp_smart" ? "lp_smart" : "vinyl");
+  const gutterRuns = eavesLf > 0 ? Math.max(2, Math.ceil(eavesLf / 30)) : 0;
+  const downspoutCount = eavesLf > 0 ? Math.max(2, Math.ceil(eavesLf / 25)) : 0;
+  const showGutterAssumptions = (endCapLine || hangersLine || downspoutLine) && eavesLf > 0;
+
   return (
     <section
       className="p-5 border-b border-[#E4E4E7] bg-white"
@@ -376,7 +389,7 @@ export default function TakeoffReconCard({ measurements, lines, wastePct = 0, ki
           </tbody>
         </table>
       </div>
-      {showCoverage && (
+      {(showCoverage || showGutterAssumptions) && (
         <div className="mt-4 pt-3 border-t border-[#E4E4E7]" data-testid="coverage-breakdown">
           <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-2">
             Coverage Breakdown
@@ -409,6 +422,46 @@ export default function TakeoffReconCard({ measurements, lines, wastePct = 0, ki
               unit={soffitJLine.unit || "PCS"}
               formula="Formula: ceil((Eaves + 2 × Rakes) ÷ 12.5) — 2 passes per rake (wall side + fascia return)"
             />
+          )}
+          {showGutterAssumptions && (
+            <div className="mt-3 pt-2.5 border-t border-dashed border-[#E4E4E7]" data-testid="gutter-assumptions">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-1.5">
+                Gutter assumptions
+              </div>
+              <p className="text-[10px] text-[#71717A] leading-snug mb-2">
+                One shared run count drives End Caps (× 2) and the +1-per-run on Hangars. Downspouts use their own 25 LF spacing rule.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <div className="inline-flex items-baseline gap-1.5 border border-[#0EA5E9] bg-[#F0F9FF] px-2 py-1" data-testid="chip-gutter-runs">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#0369A1]">Gutter runs</span>
+                  <span className="text-[13px] font-mono-num font-bold text-[#0C4A6E]">{gutterRuns}</span>
+                  <span className="text-[10px] font-mono-num text-[#0369A1]">
+                    ({eavesLf.toFixed(0)} LF ÷ 30{gutterRuns === 2 && eavesLf / 30 < 2 ? ", min 2" : ""})
+                  </span>
+                </div>
+                {endCapLine && (
+                  <div className="inline-flex items-baseline gap-1.5 border border-[#E4E4E7] bg-[#FAFAFA] px-2 py-1" data-testid="chip-end-caps">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">End Caps</span>
+                    <span className="text-[13px] font-mono-num font-bold text-[#09090B]">{Number(endCapLine.qty) || 0}</span>
+                    <span className="text-[10px] font-mono-num text-[#71717A]">({gutterRuns} runs × 2)</span>
+                  </div>
+                )}
+                {hangersLine && (
+                  <div className="inline-flex items-baseline gap-1.5 border border-[#E4E4E7] bg-[#FAFAFA] px-2 py-1" data-testid="chip-hangars">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">Hangars</span>
+                    <span className="text-[13px] font-mono-num font-bold text-[#09090B]">{Number(hangersLine.qty) || 0}</span>
+                    <span className="text-[10px] font-mono-num text-[#71717A]">({Math.ceil(eavesLf / 2)} + {gutterRuns} runs)</span>
+                  </div>
+                )}
+                {downspoutLine && (
+                  <div className="inline-flex items-baseline gap-1.5 border border-[#E4E4E7] bg-[#FAFAFA] px-2 py-1" data-testid="chip-downspouts">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">Downspouts</span>
+                    <span className="text-[13px] font-mono-num font-bold text-[#09090B]">{downspoutCount}</span>
+                    <span className="text-[10px] font-mono-num text-[#71717A]">({eavesLf.toFixed(0)} LF ÷ 25{downspoutCount === 2 && eavesLf / 25 < 2 ? ", min 2" : ""})</span>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}

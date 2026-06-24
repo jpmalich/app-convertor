@@ -486,6 +486,16 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 ## Recent Changes
 
+- **Iter 78j — Gutter Assumptions chips on the Coverage Breakdown card (2026-02-25)**: Howard wanted one shared spot to spot-check the assumptions that drive 3 gutter line counts. Added a new "Gutter assumptions" subsection below the Coverage Breakdown stacked bars in `TakeoffReconCard.jsx`, showing 4 inline chips:
+  - **Gutter runs** (highlighted blue chip) — `eaves_lf ÷ 30, min 2` — drives End Caps × 2 + Hangars +1/run
+  - **End Caps** — `runs × 2`
+  - **Hangars** — `(eaves/2) + runs`
+  - **Downspouts** — separate `eaves_lf ÷ 25, min 2` rule (called out as not sharing the run count, since its 25 LF spacing is independent)
+  - Min-2 fallback labeled inline on both 25-LF and 30-LF chips when applicable.
+  - Section renders only when eaves_lf > 0 AND at least one of the 3 gutter lines is present on the takeoff.
+  - **Files**: `frontend/src/components/estimate/TakeoffReconCard.jsx`, `memory/PRD.md`.
+  - Smoke-tested in preview — no console errors; the chips surface inside HOVER + Blueprint preview modals where `TakeoffReconCard` already renders.
+
 - **Iter 78i — Hangars with Screws auto-fill (2026-02-25)**: Howard's rule: "1 hanger per 2' + 1 per run", live across AI Measure / HOVER / Blueprint.
   - **Formula** (`backend/routes/hover.py`): `ceil(eaves_lf / 2) + max(2, ceil(eaves_lf / 30))` — 2'-spaced count plus 1 extra hanger per gutter run. Run-count helper (`_gutter_run_count`) is shared with the End-Cap spec so the two rows stay in sync.
   - **Coverage**: single spec entry in `HOVER_MAPPING_SPEC` emits the row on vinyl / ascend / lp_smart tabs. Because AI Measure (`POST /api/measure/map`) and Blueprint both route through the shared `_build_lines` mapper, all 3 sources inherit the formula automatically — no per-source duplication.
