@@ -19,6 +19,9 @@ import { renderAnnotated, describeAnnotations } from "@/lib/photoAnnotate";
 // Iter 78s — HOVER-style elevation drawings, generated from the AI Measure
 // raw_ai output.
 import ElevationDrawing from "@/components/estimate/ElevationDrawing";
+// Iter 78u — Optional 3D preview (Three.js orthographic). Same scene
+// factory the headless PNG renderer uses for the customer Quote PDF.
+import Elevation3DPreview from "@/components/estimate/Elevation3DPreview";
 import { buildElevationsFromAIMeasure } from "@/lib/elevationBuilder";
 
 const ELEVATION_OPTIONS = [
@@ -240,6 +243,10 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // reads the saved session and renders a 1–2 page report with photos,
   // confidence chips, openings schedule, and notes.
   const [reportBusy, setReportBusy] = useState(false);
+  // Iter 78u — Toggle between 2D nudgeable SVG editor and the 3D
+  // orthographic preview (what the customer will see when 3D
+  // drawings are re-enabled in the Quote PDF).
+  const [show3DPreview, setShow3DPreview] = useState(false);
   const downloadReportPdf = async () => {
     if (!estimateId) {
       toast.error("Save the estimate first — the report needs an estimate ID");
@@ -1561,18 +1568,30 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                     return (
                       <div className="mb-4" data-testid="ai-elevation-drawings">
                         <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-2 flex items-center justify-between">
-                          <span>Elevation Drawings <span className="text-[9px] not-italic text-[#71717A]">· HOVER-style takeoff sheets generated from your photos</span></span>
+                          <span>Elevation Drawings <span className="text-[9px] not-italic text-[#71717A]">· {show3DPreview ? "3D orthographic preview — customer PDF look" : "HOVER-style 2D editor · drag any opening to nudge"}</span></span>
+                          <button
+                            type="button"
+                            onClick={() => setShow3DPreview((v) => !v)}
+                            className="text-[9px] uppercase tracking-wider font-bold text-[#7C3AED] bg-[#FAF5FF] border border-[#E9D5FF] px-2 py-0.5 hover:bg-[#F3E8FF]"
+                            data-testid="toggle-3d-elevation-preview"
+                          >
+                            {show3DPreview ? "Edit (2D)" : "View 3D"}
+                          </button>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {merged.map((e) => (
-                            <ElevationDrawing
-                              key={e.label}
-                              elevation={e}
-                              editable
-                              compact
-                              onOpeningMove={handleNudge(e.label)}
-                              onRoofToggle={handleRoof(e.label)}
-                            />
+                            show3DPreview ? (
+                              <Elevation3DPreview key={e.label} elevation={e} pxHeight={220} />
+                            ) : (
+                              <ElevationDrawing
+                                key={e.label}
+                                elevation={e}
+                                editable
+                                compact
+                                onOpeningMove={handleNudge(e.label)}
+                                onRoofToggle={handleRoof(e.label)}
+                              />
+                            )
                           ))}
                         </div>
                       </div>

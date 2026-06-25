@@ -690,3 +690,13 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
 
 
 - **Iter 78t — Elevation drawings removed from customer quote PDF/email (2026-02-13)**: Howard reported the AI-generated elevation drawings render walls to scale but place windows/doors approximately (bbox is photo-normalized, not wall-normalized; HOVER vision path doesn't expose per-window x_pct at all). Until we can do a true 3D render, the customer-facing PDF + email no longer embed the SVGs — contractors still see them in-app (AI Measure modal, HOVER Import modal, Blueprint Measure modal, and Compare Drawings modal) and can drag-nudge any opening + cycle the roof shape. Changes: `frontend/src/lib/emailQuote.js` (commented out `buildElevationsBlock` import + removed `${elevationDrawingsBlock}` from HTML template). `emailElevations.js` kept in place for future re-enable.
+
+- **Iter 78u — 3D elevation renderer scaffolded (Three.js, 2026-02-13)**: Set up the infrastructure to bring elevation drawings back to the customer PDF — this time as true 3D orthographic renders instead of approximate 2D SVGs. Shipped:
+  - **`frontend/src/lib/elevation3D.js`** (new): `buildElevationScene(elev)` builds a complete THREE.Scene (wall + horizontal siding stripes + roof shape per style + per-opening meshes: windows with mullions + glass, doors with panels + knob, garage doors with stripes, patio doors in purple). `renderElevationToPng(elev, {pxWidth, pxHeight})` renders the scene off-DOM via WebGL and returns a PNG data URL — ready to embed in the WeasyPrint customer PDF when we re-enable it.
+  - **`frontend/src/components/estimate/Elevation3DPreview.jsx`** (new): React wrapper that mounts `buildElevationScene()` into a WebGL canvas for in-app preview. Disposes geometry/materials on unmount.
+  - **`frontend/src/lib/elevationBuilder.js`** (rewrite): Position fallback — when AI/HOVER doesn't return wall-relative coordinates, openings are evenly distributed horizontally (1 → 50%, 2 → 33/67%, 3 → 25/50/75%, etc.) and vertically placed using industry-standard sill heights (windows 36" / doors 0" / garage 0" / patio 0" / vents 78"). Also passes `gable_triangle_height_ft` through so the 3D roof gets the right peak.
+  - **`AIMeasureButton.jsx`**: Added `[View 3D]` ↔ `[Edit (2D)]` toggle button on the Elevation Drawings card. 2D stays as the nudgeable editor; 3D shows the customer-PDF-grade preview.
+  - **Dependency**: `three@0.184.0` added via yarn.
+  - **Not yet wired**: Headless render → PNG → embedded in customer Quote PDF/email. That's the next step once Howard confirms the in-app 3D preview looks right.
+  - **Verified**: ESLint clean across all 4 touched files. Smoke screenshot shows the app loads with no compile errors.
+
