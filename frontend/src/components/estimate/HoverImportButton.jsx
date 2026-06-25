@@ -300,6 +300,12 @@ export default function HoverImportButton({ est, update, save }) {
         hoverMeasurementsWithDrawings = {
           ...(result?.measurements || {}),
           _ai_elevations: merged,
+          _ai_elevations_by_source: {
+            ...((result?.measurements || {})._ai_elevations_by_source
+              || est?.hover_measurements?._ai_elevations_by_source
+              || {}),
+            hover: merged,
+          },
         };
       }
     } catch {

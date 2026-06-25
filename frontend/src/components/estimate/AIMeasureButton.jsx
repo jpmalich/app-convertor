@@ -968,9 +968,19 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
           };
         });
         if (merged.length) {
+          // Iter 78u — write to source-keyed bucket so Compare modal can
+          // surface drift across multiple measurement sources. Keep
+          // `_ai_elevations` populated with the most recent set (used by
+          // the customer Quote PDF).
+          const prevBySource =
+            toApply.measurements?._ai_elevations_by_source || {};
           toApply = {
             ...toApply,
-            measurements: { ...(toApply.measurements || {}), _ai_elevations: merged },
+            measurements: {
+              ...(toApply.measurements || {}),
+              _ai_elevations: merged,
+              _ai_elevations_by_source: { ...prevBySource, ai_photo: merged },
+            },
           };
         }
       } catch {

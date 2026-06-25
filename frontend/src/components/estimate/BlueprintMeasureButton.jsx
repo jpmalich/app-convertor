@@ -369,6 +369,10 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
         nextHoverMeasurements = {
           ...(est.hover_measurements || result?.measurements || {}),
           _ai_elevations: merged,
+          _ai_elevations_by_source: {
+            ...((est.hover_measurements || {})._ai_elevations_by_source || {}),
+            blueprint: merged,
+          },
         };
       }
     } catch {

@@ -7,10 +7,17 @@ import HoverImportButton from "@/components/estimate/HoverImportButton";
 import AIMeasureButton from "@/components/estimate/AIMeasureButton";
 import BlueprintMeasureButton from "@/components/estimate/BlueprintMeasureButton";
 import PairToLpButton from "@/components/estimate/PairToLpButton";
+// Iter 78u — Compare Drawings modal trigger
+import { useState } from "react";
+import { Layers } from "lucide-react";
+import ElevationCompareModal, { countSources } from "@/components/estimate/ElevationCompareModal";
 
 export default function JobInfoPanel({ est, update, save, setInstallMethod, setHomePre1978 }) {
   const t = useT();
   const { lang } = useLang();
+  // Iter 78u — Compare Drawings modal state
+  const [showCompare, setShowCompare] = useState(false);
+  const numDrawingSources = countSources(est);
   // Brand-filtered vinyl siding color groups. Computed inline on every
   // render — cheap (an array filter over <30 items) and avoids the
   // hooks/preserve-manual-memoization lint complaint about useMemo +
@@ -33,6 +40,20 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
           <HoverImportButton est={est} update={update} save={save} />
           <BlueprintMeasureButton est={est} update={update} save={save} />
           <PairToLpButton est={est} />
+          {/* Iter 78u — Compare Drawings button; only renders when the
+              estimate has elevation drawings from 2+ measurement sources. */}
+          {numDrawingSources >= 2 && (
+            <button
+              type="button"
+              onClick={() => setShowCompare(true)}
+              className="px-3 py-1.5 bg-white text-[#7C3AED] border border-[#7C3AED] hover:bg-[#FAF5FF] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+              title="Side-by-side compare drawings across your measurement sources"
+              data-testid="compare-drawings-btn"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Compare Drawings ({numDrawingSources})
+            </button>
+          )}
           <AIMeasureButton
             kind={est.kind || "siding"}
             address={est?.address}
@@ -539,6 +560,11 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
         </div>
         )}
       </div>
+      <ElevationCompareModal
+        est={est}
+        open={showCompare}
+        onClose={() => setShowCompare(false)}
+      />
     </section>
   );
 }
