@@ -91,6 +91,11 @@ function pointsToBbox(points) {
 export default function ProfileAnnotator({
   estimateId, photos, initialAnnotations, defaultElevationByIdx,
   onClose, onSaved, onSaveAndRerun,
+  // Iter 78z+++ — Optional bridge from AI Measure's Wall Scale Anchor.
+  // Shape: { [photoKey]: { p1: {x,y}, p2: {x,y}, inches } | null }.
+  // When provided, this photo's scale_ref is auto-derived from the
+  // Wall Anchor instead of running OCR (blueprints don't pass this).
+  wallScaleRefByPhotoKey,
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [annotations, setAnnotations] = useState(initialAnnotations || {});
@@ -442,6 +447,59 @@ export default function ProfileAnnotator({
     if (autoOcrFiredRef.current.has(currentUploadName)) return;
     if (ocrBusy) return;
     if (!imgPx.w || !imgPx.h) return; // wait until image dimensions are measured
+
+    // Iter 78z+++ — Prefer the Wall Scale Anchor from AI Measure if
+    // the parent threaded one in for this photo. Saves the user from
+    // setting scale twice (once in PhotoAnnotateModal, once here).
+    const wallAnchor = wallScaleRefByPhotoKey?.[photoKey];
+    const naturalH = imgRef.current?.naturalHeight || 0;
+    const naturalW = imgRef.current?.naturalWidth || 0;
+    if (
+      wallAnchor &&
+      wallAnchor.p1 && wallAnchor.p2 &&
+      typeof wallAnchor.inches === "number" && wallAnchor.inches > 0 &&
+      naturalH > 0 && naturalW > 0
+    ) {
+      const dxNat = (wallAnchor.p2.x || 0) - (wallAnchor.p1.x || 0);
+      const dyNat = (wallAnchor.p2.y || 0) - (wallAnchor.p1.y || 0);
+      const naturalDist = Math.sqrt(dxNat * dxNat + dyNat * dyNat);
+      if (naturalDist > 0) {
+        // Wall anchor p1/p2 are in NATURAL photo pixels; project to
+        // display pixels so the scale_ref aligns with the same units
+        // ProfileAnnotator's draw handlers use (display imgPx).
+        const naturalToDisplay = imgPx.h / naturalH;
+        const displayDist = naturalDist * naturalToDisplay;
+        const realFt = wallAnchor.inches / 12;
+        autoOcrFiredRef.current.add(currentUploadName);
+        const newRefs = { ...(annotations._scale_refs || {}) };
+        newRefs[photoKey] = {
+          px_height: displayDist,
+          real_ft: realFt,
+          img_w: imgPx.w,
+          img_h: imgPx.h,
+        };
+        // Recompute any existing boxes' sqft so a previously-saved
+        // sentinel 50 doesn't leak through.
+        const recomputed = (annotations[photoKey] || []).map((b) => {
+          if (b.shape === "polygon" && Array.isArray(b.points)) {
+            const s = computeSqftFromPolygon(b.points, imgPx, newRefs[photoKey]);
+            return s != null ? { ...b, sqft: s } : b;
+          }
+          const s = computeSqftFromBox(b, imgPx, newRefs[photoKey]);
+          return s != null ? { ...b, sqft: s } : b;
+        });
+        setAnnotations((prev) => ({
+          ...prev,
+          [photoKey]: recomputed,
+          _scale_refs: newRefs,
+        }));
+        toast.success(
+          `Scale inherited from Wall Anchor · ${realFt.toFixed(2)} ft over ${Math.round(displayDist)} px`,
+        );
+        return;
+      }
+    }
+
     autoOcrFiredRef.current.add(currentUploadName);
     // Fire after a short delay so the page render doesn't block.
     // silent=true → no error toast (upload could be cleaned off disk
@@ -451,7 +509,7 @@ export default function ProfileAnnotator({
       autoDetectScale(true);
     }, 250);
     return () => clearTimeout(t);
-  }, [currentUploadName, scaleRef, imgPx.w, imgPx.h]);
+  }, [currentUploadName, scaleRef, imgPx.w, imgPx.h, photoKey]);
 
   // Iter 78z+ — Auto-detect scale via Claude OCR. Sets the scale_ref
   // for THIS photo on success. Boxes already on the photo get their

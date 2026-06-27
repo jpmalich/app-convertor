@@ -2692,6 +2692,11 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
           }))}
           initialAnnotations={savedProfileAnnotations}
           defaultElevationByIdx={photoUrls.map((name) => photoAnnotations[name]?.elevation || "other")}
+          /* Iter 78z+++ — thread the Wall Scale Anchor from PhotoAnnotateModal
+             so the contractor doesn't have to set scale twice. */
+          wallScaleRefByPhotoKey={Object.fromEntries(
+            photoUrls.map((name, i) => [String(i), photoAnnotations[name]?.reference || null])
+          )}
           onClose={() => setProfileAnnotatorOpen(false)}
           onSaved={(saved) => {
             setSavedProfileAnnotations(saved);
