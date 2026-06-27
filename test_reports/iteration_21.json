@@ -1,0 +1,47 @@
+{
+  "summary": "Backend-only regression for Iter 78z P1.4 (Gutter/downspout geometry accuracy) + sanity for Swap Profile transport. Ran the 4 required pytest suites (96 unit tests) and added 10 new HTTP integration cases against POST /api/measure/map. All 106 tests pass. Downspout LF now scales by avg_wall_height / story_count, Mitre / Pipe Clips / Gutter Sealant new HOVER_MAPPING_SPEC entries surface correctly on hip roofs and suppress correctly on gable roofs / zero-eaves. No regression in the per-elevation profile-split feature (siding + new gutter accessories coexist orthogonally). One minor spec-vs-implementation discrepancy in the review_request math (informational only — implementation is internally consistent and matches the dev's unit tests).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/measure/map",
+        "issue": "Review request stated the 2-story hip-roof example (100 LF eaves, avg_wall_height=18) should yield Downspout LF=147 (7 downspouts × 21 LF) and Pipe Clips=28. The actual implementation uses `max(2, ceil(eaves/25))` (matching the dev's existing _downspout_count helper), giving 4 downspouts × 21 LF = 84 LF Downspout and 4 × 4 = 16 Pipe Clips. Mitre=4 and Gutter Sealant=4 (review said 6) — sealant formula = ceil((mitres + 2×runs + outlets)/4) = ceil(16/4) = 4. The unit test test_downspout_lf_two_story_doubles_one_story explicitly asserts 84 LF, so the dev's intent is 84/16/4/4, not 147/28/6/4. Either the review_request math is stale or the spec wants /15 instead of /25 for downspout spacing — confirm with product owner. Functionally the under-count bug IS fixed (84 LF vs the old ~40 LF) and the ratio scales correctly with story count."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gutter_geometry.py",
+    "/app/backend/tests/test_gutter_geometry_http.py",
+    "/app/backend/tests/test_profile_siding_lines.py",
+    "/app/backend/tests/test_profile_callouts.py",
+    "/app/backend/tests/test_hover_perimeter.py",
+    "/app/backend/tests/test_measure_map_per_profile_http.py",
+    "/app/test_reports/pytest/iter21_gutter.xml",
+    "/app/test_reports/pytest/iter21_gutter_http.xml"
+  ],
+  "action_items": [
+    "Reconcile review_request's stated expectation (147 LF / 28 clips / 6 sealant for the 2-story example) with the implementation's actual output (84 LF / 16 clips / 4 sealant). Implementation matches the dev's own unit tests in test_gutter_geometry.py, so the review_request math is likely stale. Confirm with product owner whether downspout spacing should be 1/25 LF (current) or 1/15 LF (would give 7 downspouts)."
+  ],
+  "critical_code_review_comments": [
+    "routes/hover.py is now 1781 lines (was 1607) — still well over the 700-line guideline. The new gutter geometry helpers (_downspout_drop_ft, _downspout_lf, _has_gable_wall, _gutter_corner_count, _mitre_count, _pipe_clips_count, _sealant_count + their _breakdown twins) are a natural extraction candidate into routes/hover/gutter.py.",
+    "_gutter_corner_count() falls back to h=9.0 only when _ai_avg_wall_height_ft <= 0, but the same dict may be missing the key entirely — current `float(m.get(...) or 0)` handles None correctly; verified by test_downspout_drop_final_fallback.",
+    "_sealant_count() uses max(1, ceil(joints/4)) when joints > 0 — guarantees at least 1 tube when any joint exists, which is sensible. Cleanly suppressed (returns 0) when eaves_lf <= 0.",
+    "All three new HOVER_MAPPING_SPEC rows (Mitre / Pipe Clips / Gutter Sealant) correctly use the zero-qty filter so they vanish when their respective formulas return 0 — verified by test_zero_eaves_suppresses_all_gutter_accessories and test_gable_roof_zero_mitres_but_clips_and_sealant_emit.",
+    "PerElevationBreakdownCard.jsx (Swap Profile feature) compiles cleanly in webpack — only warnings, no errors. Frontend loads HTTP 200 and /api/auth/login returns 200 with admin user payload. UI flow not exercised per review_request (would require LLM cost)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gutter_geometry_http.py (new — 10 HTTP integration cases against live /api/measure/map)"
+  ],
+  "success_rate": {"backend": "100% (106/106 tests pass)", "frontend": "n/a (compile-only check per request — passes)"},
+  "test_credentials": "hhunt6677@yahoo.com / Admin123! (session-cookie auth, worked first try)",
+  "seed_data_creation": "None — /api/measure/map is a pure deterministic mapper, no DB writes, no LLM cost.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 78z P1.4 gutter geometry fully covered by /app/backend/tests/test_gutter_geometry.py (16 unit) + /app/backend/tests/test_gutter_geometry_http.py (10 HTTP). Cumulative regression footprint across P1.2+P1.3+P1.4: 106 tests in ~3.5s. Key non-obvious behaviours to remember: (a) downspout count = max(2, ceil(eaves/25)) — NOT /15 as the review_request math implied; (b) gable detection looks at _per_elevation_breakdown[*].gable_sqft > 0 OR _ai_gable_sqft > 0; (c) on gable roofs outside mitres = 0 but inside mitres still emit; (d) all 3 new gutter accessories suppressed when eaves_lf <= 0. Swap Profile is purely a frontend feature that re-POSTs to /api/measure/map — backend transport already covered by the per-profile HTTP suite from iter_20.",
+  "rca of the issue": "No bug found in the implementation. The review_request's stated numerical expectation (147 LF / 28 clips / 6 sealant) differs from the implementation's output (84 LF / 16 clips / 4 sealant). Implementation matches the developer's own unit tests in test_gutter_geometry.py (test_downspout_lf_two_story_doubles_one_story explicitly asserts 84 LF). Root cause: the review_request math used 1/15 LF spacing, but the actual code (line 187 of routes/hover.py) uses 1/25 LF spacing — same as the pre-existing _downspout_count helper used by Elbows. The fix vs. Howard's reconciliation is real: the LF-per-downspout multiplier scaled from ~10 LF (flat) to 21 LF (2-story), so the 2x undercount is resolved. Whether the spacing should also tighten to 1/15 is a product-owner question, not a bug."
+}

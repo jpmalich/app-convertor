@@ -52,20 +52,150 @@ const ACCENT_OPTIONS = [
   { value: "nickel_gap",   label: "Nickel Gap" },
 ];
 
-function ProfileChip({ family, sqft, suffix }) {
+function ProfileChip({ family, sqft, suffix, onClick, disabled }) {
   const c = PROFILE_COLORS[family] || PROFILE_COLORS.unknown;
   const label = PROFILE_LABELS[family] || family;
   const sqftStr = Math.round(sqft).toLocaleString();
+  const clickable = !!onClick && !disabled;
   return (
-    <div
-      className="inline-flex items-baseline gap-1.5 border px-2 py-0.5 text-[11px]"
+    <button
+      type="button"
+      onClick={clickable ? onClick : undefined}
+      disabled={disabled}
+      title={clickable ? "Click to swap profile" : undefined}
+      className={`inline-flex items-baseline gap-1.5 border px-2 py-0.5 text-[11px] ${
+        clickable ? "hover:opacity-80 cursor-pointer" : "cursor-default"
+      }`}
       style={{ background: c.bg, borderColor: c.border, color: c.text }}
       data-testid={`profile-chip-${family}`}
     >
       <span className="font-bold uppercase tracking-wider text-[10px]">{label}</span>
       <span className="font-mono-num font-bold">{sqftStr}</span>
       <span className="text-[9px] opacity-75">ft²{suffix ? ` · ${suffix}` : ""}</span>
+    </button>
+  );
+}
+
+function SwapProfileModal({ currentProfile, role, elevationLabel, sqft, onClose, onSubmit }) {
+  const [profile, setProfile] = useState(currentProfile);
+  const [busy, setBusy] = useState(false);
+  const canSubmit = profile !== currentProfile && !busy;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    try {
+      await onSubmit(profile);
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Failed to swap profile");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const roleLabel = {
+    body:   "wall body",
+    gable:  "gable",
+    dormer: "dormer",
+    accent: "accent",
+  }[role] || role;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      data-testid="swap-profile-modal"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white max-w-md w-full border border-[#E4E4E7]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#E4E4E7]">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-[#A1A1AA] font-bold">
+              {elevationLabel} · {roleLabel}
+            </div>
+            <div className="text-sm font-bold">Swap profile</div>
+          </div>
+          <button
+            type="button"
+            className="text-[#71717A] hover:text-[#09090B]"
+            onClick={onClose}
+            data-testid="swap-profile-cancel"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-[11px] text-[#52525B] leading-snug">
+            Change the profile family for this{" "}
+            <span className="font-bold">{Math.round(sqft).toLocaleString()} ft² {roleLabel}</span>{" "}
+            without re-running AI. The catalog lines will update on the next save.
+          </p>
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wider text-[#71717A] font-bold">
+              Profile
+            </span>
+            <select
+              className="block w-full mt-1 border border-[#E4E4E7] px-2 py-1.5 text-sm"
+              value={profile}
+              onChange={(e) => setProfile(e.target.value)}
+              data-testid="swap-profile-select"
+            >
+              {ACCENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="text-[10px] text-[#A1A1AA] font-mono-num">
+            Current: <span className="text-[#71717A] font-bold">{PROFILE_LABELS[currentProfile] || currentProfile}</span>
+            {profile !== currentProfile && (
+              <> → <span className="text-[#F97316] font-bold">{PROFILE_LABELS[profile] || profile}</span></>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#E4E4E7] bg-[#FAFAFA]">
+          <button
+            type="button"
+            className="border border-[#E4E4E7] px-3 py-1.5 text-sm hover:bg-white"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            className="bg-[#F97316] text-white px-3 py-1.5 text-sm font-bold disabled:opacity-50 hover:bg-[#EA580C]"
+            onClick={submit}
+            data-testid="swap-profile-submit"
+          >
+            {busy ? "Swapping…" : "Swap"}
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Re-aggregate per-profile sqft from the elevation breakdown. Mirrors
+// the backend `breakdown_walls_by_profile` aggregation so a chip swap
+// produces the exact same totals the AI would have on a fresh pass.
+function recomputePerProfile(perElev) {
+  const out = {};
+  const add = (fam, sq) => {
+    if (!SIDING_FAMILIES.has(fam)) return; // skip stone/brick/stucco/unknown
+    if (!sq || sq <= 0) return;
+    out[fam] = (out[fam] || 0) + sq;
+  };
+  (perElev || []).forEach((e) => {
+    if (e.wall_body_sqft > 0) add(e.wall_body_profile, e.wall_body_sqft);
+    if (e.gable_sqft > 0) add(e.gable_profile || e.wall_body_profile, e.gable_sqft);
+    if (e.dormer_sqft > 0) add(e.dormer_profile || e.wall_body_profile, e.dormer_sqft);
+    (e.accents || []).forEach((a) => add(a.profile, Number(a.sqft) || 0));
+  });
+  return Object.fromEntries(
+    Object.entries(out).map(([k, v]) => [k, Math.round(v * 10) / 10]),
   );
 }
 
@@ -193,6 +323,9 @@ function AddAccentModal({ elevationLabel, onClose, onSubmit }) {
 
 export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
   const [accentElev, setAccentElev] = useState(null);
+  // Iter 78z (Swap Profile) — currently-open swap target.
+  // Shape: { elevIdx, role: "body"|"gable"|"dormer"|"accent", accentIdx? }
+  const [swapTarget, setSwapTarget] = useState(null);
 
   const perElevation = measurements?._per_elevation_breakdown || [];
   const perProfile = useMemo(
@@ -251,6 +384,35 @@ export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
     toast.success(`Added ${PROFILE_LABELS[profile]} ${sqft} ft² to ${perElevation[accentElev].label}`);
   };
 
+  const handleSwapProfile = async (newProfile) => {
+    if (!swapTarget) return;
+    const { elevIdx, role, accentIdx } = swapTarget;
+    const newPerElev = perElevation.map((e, i) => {
+      if (i !== elevIdx) return e;
+      if (role === "body")   return { ...e, wall_body_profile: newProfile };
+      if (role === "gable")  return { ...e, gable_profile: newProfile };
+      if (role === "dormer") return { ...e, dormer_profile: newProfile };
+      if (role === "accent") {
+        const accents = (e.accents || []).map((a, ai) =>
+          ai === accentIdx ? { ...a, profile: newProfile } : a,
+        );
+        return { ...e, accents };
+      }
+      return e;
+    });
+    const newPerProfile = recomputePerProfile(newPerElev);
+    const newMeasurements = {
+      ...measurements,
+      _per_elevation_breakdown: newPerElev,
+      _per_profile_sqft: newPerProfile,
+    };
+    const res = await api.post("/measure/map", { measurements: newMeasurements });
+    const data = res?.data || {};
+    if (!data?.lines) throw new Error("Backend did not return updated lines");
+    onUpdate({ measurements: data.measurements || newMeasurements, lines: data.lines });
+    toast.success(`Swapped to ${PROFILE_LABELS[newProfile] || newProfile}`);
+  };
+
   return (
     <section
       className="p-5 border-b border-[#E4E4E7] bg-white"
@@ -271,7 +433,9 @@ export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
       </div>
       <p className="text-[11px] text-[#52525B] leading-snug mb-3">
         AI reads the wall callouts on each elevation and splits siding into
-        separate quote lines per profile. Use{" "}
+        separate quote lines per profile.{" "}
+        <span className="font-bold">Click any chip</span> to swap the profile
+        (e.g. Lap → Shake), or use{" "}
         <span className="font-bold">+ Add Accent</span> to inject anything
         the AI missed (porch B&B, column shake, dormer scallop, etc.).
       </p>
@@ -319,13 +483,28 @@ export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {bodyOk && (
-                  <ProfileChip family={e.wall_body_profile} sqft={e.wall_body_sqft} suffix="body" />
+                  <ProfileChip
+                    family={e.wall_body_profile}
+                    sqft={e.wall_body_sqft}
+                    suffix="body"
+                    onClick={() => setSwapTarget({ elevIdx: i, role: "body" })}
+                  />
                 )}
                 {e.gable_sqft > 0 && SIDING_FAMILIES.has(e.gable_profile) && (
-                  <ProfileChip family={e.gable_profile} sqft={e.gable_sqft} suffix="gable" />
+                  <ProfileChip
+                    family={e.gable_profile}
+                    sqft={e.gable_sqft}
+                    suffix="gable"
+                    onClick={() => setSwapTarget({ elevIdx: i, role: "gable" })}
+                  />
                 )}
                 {e.dormer_sqft > 0 && SIDING_FAMILIES.has(e.dormer_profile) && (
-                  <ProfileChip family={e.dormer_profile} sqft={e.dormer_sqft} suffix="dormer" />
+                  <ProfileChip
+                    family={e.dormer_profile}
+                    sqft={e.dormer_sqft}
+                    suffix="dormer"
+                    onClick={() => setSwapTarget({ elevIdx: i, role: "dormer" })}
+                  />
                 )}
                 {(e.accents || []).map((a, ai) => (
                   <ProfileChip
@@ -333,6 +512,7 @@ export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
                     family={a.profile}
                     sqft={a.sqft}
                     suffix={a.location || "accent"}
+                    onClick={() => setSwapTarget({ elevIdx: i, role: "accent", accentIdx: ai })}
                   />
                 ))}
                 {e.stone_sqft > 0 && (
@@ -355,6 +535,30 @@ export default function PerElevationBreakdownCard({ measurements, onUpdate }) {
           onSubmit={handleAddAccent}
         />
       )}
+      {swapTarget !== null && (() => {
+        const { elevIdx, role, accentIdx } = swapTarget;
+        const elev = perElevation[elevIdx] || {};
+        let currentProfile = "lap";
+        let sqft = 0;
+        if (role === "body")   { currentProfile = elev.wall_body_profile || "lap"; sqft = elev.wall_body_sqft || 0; }
+        if (role === "gable")  { currentProfile = elev.gable_profile || elev.wall_body_profile || "lap"; sqft = elev.gable_sqft || 0; }
+        if (role === "dormer") { currentProfile = elev.dormer_profile || elev.wall_body_profile || "lap"; sqft = elev.dormer_sqft || 0; }
+        if (role === "accent") {
+          const a = (elev.accents || [])[accentIdx] || {};
+          currentProfile = a.profile || "lap";
+          sqft = a.sqft || 0;
+        }
+        return (
+          <SwapProfileModal
+            currentProfile={currentProfile}
+            role={role}
+            elevationLabel={elev.label || "Selected"}
+            sqft={sqft}
+            onClose={() => setSwapTarget(null)}
+            onSubmit={handleSwapProfile}
+          />
+        );
+      })()}
     </section>
   );
 }

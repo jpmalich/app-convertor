@@ -187,15 +187,40 @@ def _downspout_count(m: dict) -> int:
     return max(2, math.ceil(eaves / 25))
 
 
+# Iter 78z (P1.4) — Story-aware downspout drop length.
+# A downspout's vertical drop ≈ eave height + 2 ft kick-out + 1 ft slack.
+# For 1-story homes (~9 ft eave) drop ≈ 12 LF; for 2-story (~18 ft eave)
+# drop ≈ 21 LF. The previous flat 10 LF/downspout assumption
+# under-counted 2-story homes by >2x, which is exactly what Howard
+# called out on his LETRICK reconciliation. Source priority for height:
+#   1. `_ai_avg_wall_height_ft` (AI Measure / Blueprint vision-extracted)
+#   2. fallback by `_ai_story_count`: 1 → 9 ft, 2 → 18 ft, 3 → 27 ft
+#   3. final fallback: 9 ft (single-story baseline)
+def _downspout_drop_ft(m: dict) -> float:
+    h = float(m.get("_ai_avg_wall_height_ft") or 0)
+    if h <= 0:
+        s = int(m.get("_ai_story_count") or 1) or 1
+        h = max(1, s) * 9.0
+    return h + 3.0  # +2 ft kick + 1 ft slack
+
+
+def _downspout_lf(m: dict) -> int:
+    """Total downspout coil LF for the job (count × per-drop)."""
+    n = _downspout_count(m)
+    return int(round(n * _downspout_drop_ft(m)))
+
+
 def _downspout_breakdown(m: dict) -> str:
     eaves = float(m.get("eaves_lf") or 0)
     if eaves <= 0:
         return "No eaves → 0 downspouts"
     raw = eaves / 25
     n = _downspout_count(m)
+    drop = _downspout_drop_ft(m)
+    total_lf = _downspout_lf(m)
     min_hit = " (min 2)" if n == 2 and raw < 2 else ""
     return (f"{eaves:.0f} LF eaves ÷ 25 = {raw:.1f} → ceil = "
-            f"{n} downspouts{min_hit} × 10 LF = {n * 10} LF coil")
+            f"{n} downspouts{min_hit} × {drop:.0f} LF drop = {total_lf} LF coil")
 
 
 def _elbow_breakdown(m: dict) -> str:
@@ -235,6 +260,123 @@ def _hangers_breakdown(m: dict) -> str:
     runs = _gutter_run_count(m)
     return (f"{eaves:.0f} LF ÷ 2 ft spacing = {spaced} + {runs} runs "
             f"(1 per run) = {spaced + runs} hangers")
+
+
+# Iter 78z (P1.4) — Gutter geometry: mitres, pipe clips, sealant.
+#
+# Mitre count = number of outside (or inside) corners the gutter run
+# wraps. We infer roof type from AI walls: any gable wall present
+# means the gutter doesn't wrap (typical 2-run front+back layout, 0
+# mitres). On a pure hip roof every elevation flows water into the
+# gutter so the gutter wraps the full perimeter — 4 mitres for a basic
+# rectangular footprint, +1 per additional outside corner. We pull
+# corner count from `outside_corner_lf / avg_wall_height` (rounded).
+# Inside corners (re-entrant L-shaped footprints) add inside mitres
+# 1:1 with `inside_corner_lf / avg_wall_height`.
+def _has_gable_wall(m: dict) -> bool:
+    """True when at least one wall in the per-elevation breakdown was
+    flagged as a gable (gable_sqft > 0). Falls back to `_ai_gable_sqft`
+    aggregate when the per-elevation grid isn't available."""
+    per_elev = m.get("_per_elevation_breakdown") or []
+    if isinstance(per_elev, list):
+        for e in per_elev:
+            if float(e.get("gable_sqft") or 0) > 0:
+                return True
+    return float(m.get("_ai_gable_sqft") or 0) > 0
+
+
+def _gutter_corner_count(m: dict) -> tuple[int, int]:
+    """Returns (outside_corners, inside_corners) of the gutter run.
+
+    Outside corners drive ROOFLINE mitres. Inside corners (re-entrant
+    L-shaped footprints) also drive mitres 1:1.
+    """
+    h = float(m.get("_ai_avg_wall_height_ft") or 0)
+    if h <= 0:
+        h = 9.0  # single-story baseline
+    out_lf = float(m.get("outside_corner_lf") or 0)
+    in_lf = float(m.get("inside_corner_lf") or 0)
+    out_n = round(out_lf / h) if h > 0 else 0
+    in_n = round(in_lf / h) if h > 0 else 0
+    return max(0, out_n), max(0, in_n)
+
+
+def _mitre_count(m: dict) -> int:
+    if float(m.get("eaves_lf") or 0) <= 0:
+        return 0
+    out_n, in_n = _gutter_corner_count(m)
+    # Gable house: gutter doesn't wrap → 0 outside mitres. Inside
+    # corners (porches / L-shapes) still get a mitre because the gutter
+    # has to follow the re-entrant fascia.
+    if _has_gable_wall(m):
+        return in_n
+    # Pure hip roof: gutter wraps → mitres at every outside + inside corner.
+    return out_n + in_n
+
+
+def _mitre_breakdown(m: dict) -> str:
+    if float(m.get("eaves_lf") or 0) <= 0:
+        return "No eaves → 0 mitres"
+    out_n, in_n = _gutter_corner_count(m)
+    gable = _has_gable_wall(m)
+    n = _mitre_count(m)
+    if gable:
+        return (f"Gable roof — gutter doesn't wrap. "
+                f"Outside corners ({out_n}) skipped; inside corners {in_n} → {n} mitres")
+    return (f"Hip roof — gutter wraps. "
+            f"Outside {out_n} + inside {in_n} = {n} mitres")
+
+
+# Pipe Clips: 1 clip per 6 ft of downspout drop (industry standard).
+# Most installs use 2 clips per single-story drop (~12 LF / 6 = 2),
+# 4 clips per 2-story drop. Each clip secures the downspout to the
+# wall against wind load.
+def _pipe_clips_count(m: dict) -> int:
+    n_down = _downspout_count(m)
+    if n_down <= 0:
+        return 0
+    drop = _downspout_drop_ft(m)
+    per_down = max(2, math.ceil(drop / 6))
+    return n_down * per_down
+
+
+def _pipe_clips_breakdown(m: dict) -> str:
+    n_down = _downspout_count(m)
+    if n_down <= 0:
+        return "No downspouts → 0 pipe clips"
+    drop = _downspout_drop_ft(m)
+    per_down = max(2, math.ceil(drop / 6))
+    total = n_down * per_down
+    return (f"{n_down} downspouts × {per_down} clips ({drop:.0f} LF drop ÷ 6) "
+            f"= {total} clips")
+
+
+# Gutter Sealant: 1 tube per 4 connection points. Connection points =
+# every mitre + every end cap + every outlet (1 outlet per downspout).
+# A standard 10 oz tube covers ~16-20 ft of joint, and each connection
+# uses ~4-5 ft. Howard's job-cost rule of thumb: 1 tube per 4 joints.
+def _sealant_count(m: dict) -> int:
+    if float(m.get("eaves_lf") or 0) <= 0:
+        return 0
+    mitres = _mitre_count(m)
+    runs = _gutter_run_count(m)
+    end_caps = runs * 2
+    outlets = _downspout_count(m)
+    joints = mitres + end_caps + outlets
+    return max(1, math.ceil(joints / 4)) if joints > 0 else 0
+
+
+def _sealant_breakdown(m: dict) -> str:
+    if float(m.get("eaves_lf") or 0) <= 0:
+        return "No eaves → 0 sealant tubes"
+    mitres = _mitre_count(m)
+    runs = _gutter_run_count(m)
+    end_caps = runs * 2
+    outlets = _downspout_count(m)
+    joints = mitres + end_caps + outlets
+    n = _sealant_count(m)
+    return (f"{mitres} mitres + {end_caps} end caps + {outlets} outlets "
+            f"= {joints} joints ÷ 4 = {n} tubes")
 
 
 def _j_channel_pcs(m: dict) -> int:
@@ -822,13 +964,11 @@ HOVER_MAPPING_SPEC = [
         "section": "Seamless Gutter",
         "item": "Downspout 6\"",
         "unit": "LF",
-        # Iter 78: 1 downspout per 25 LF (tightened from 30), minimum 2.
-        # Each downspout = ~10 LF run from gutter to splash block on a
-        # single-story (≈ eave-height + 2 ft kick + slack).
-        "extract": lambda m: (
-            max(2, math.ceil((m.get("eaves_lf") or 0) / 25)) * 10
-            if (m.get("eaves_lf") or 0) > 0 else 0
-        ),
+        # Iter 78z (P1.4): story-aware drop length. 1 downspout per 25 LF
+        # eaves (min 2), drop = avg_wall_height + 3 ft (kick + slack).
+        # 1-story → ~12 LF/drop, 2-story → ~21 LF/drop. Previous flat 10 LF
+        # under-counted 2-story by 2x per Howard's LETRICK reconciliation.
+        "extract": lambda m: _downspout_lf(m),
         # Iter 78h — surface the per-job math so Howard can spot drift.
         "note": lambda m: _downspout_breakdown(m),
     },
@@ -876,6 +1016,41 @@ HOVER_MAPPING_SPEC = [
         "extract": lambda m: _hangers_count(m),
         "note": lambda m: _hangers_breakdown(m),
     },
+    # Iter 78z (P1.4) — Mitre auto-fill. Inferred from roof type
+    # (gable vs hip) + corner counts. Gable houses get 0 outside mitres
+    # because the gutter doesn't wrap; hip roofs get a mitre at every
+    # outside + inside corner. Inside corners (L-shaped footprints) get
+    # a mitre regardless of roof type. See `_mitre_count` for the full
+    # math + `_mitre_breakdown` for the human-readable formula chip.
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Seamless Gutter",
+        "item": "Mitre",
+        "unit": "Each",
+        "extract": lambda m: _mitre_count(m),
+        "note": lambda m: _mitre_breakdown(m),
+    },
+    # Iter 78z (P1.4) — Pipe Clips auto-fill. Industry standard: 1 clip
+    # per 6 ft of downspout drop, minimum 2 per downspout. Scales
+    # correctly with story count via `_downspout_drop_ft`.
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Seamless Gutter",
+        "item": "Pipe Clips",
+        "unit": "Each",
+        "extract": lambda m: _pipe_clips_count(m),
+        "note": lambda m: _pipe_clips_breakdown(m),
+    },
+    # Iter 78z (P1.4) — Gutter Sealant auto-fill. 1 tube per 4 joint
+    # points (mitre + end cap + outlet). Howard's job-cost rule of thumb.
+    {
+        "tabs": ["vinyl", "ascend", "lp_smart"],
+        "section": "Seamless Gutter",
+        "item": "Gutter Sealant",
+        "unit": "Each",
+        "extract": lambda m: _sealant_count(m),
+        "note": lambda m: _sealant_breakdown(m),
+    },
     # Iter 57w — Mirror Gutter + Downspout into the ISS catalog. ISS uses
     # the "Seamless Gutter with Siding" section with plainer item names
     # ("Gutter" / "Downspout"), so they need their own spec entries. ISS
@@ -895,10 +1070,9 @@ HOVER_MAPPING_SPEC = [
         "section": "Seamless Gutter with Siding",
         "item": "Downspout",
         "unit": "LF",
-        "extract": lambda m: (
-            max(2, math.ceil((m.get("eaves_lf") or 0) / 25)) * 10
-            if (m.get("eaves_lf") or 0) > 0 else 0
-        ),
+        # Iter 78z (P1.4): story-aware drop, same formula as the vinyl
+        # side. See `_downspout_drop_ft` for the height heuristic.
+        "extract": lambda m: _downspout_lf(m),
         "note": lambda m: _downspout_breakdown(m),
     },
     # =====================================================================
