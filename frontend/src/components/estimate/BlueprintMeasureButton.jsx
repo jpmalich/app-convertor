@@ -17,6 +17,7 @@ import { FileText, Loader2, X, Check, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import TakeoffReconCard from "@/components/estimate/TakeoffReconCard";
+import PerElevationBreakdownCard from "@/components/estimate/PerElevationBreakdownCard";
 import {
   getSavedWasteDefault,
   saveWasteDefault,
@@ -798,6 +799,18 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 wastePct={est?.waste_pct || 0}
                 kind={est?.kind || "siding"}
                 lpSoffitType={est?.lp_soffit_type || "mix"}
+              />
+
+              {/* Iter 78z (P1.3) — Per-Elevation Breakdown + "+ Add Accent" */}
+              <PerElevationBreakdownCard
+                measurements={measurements || {}}
+                onUpdate={({ measurements: newMeas, lines: newLines }) => {
+                  setResult((r) => r && ({
+                    ...r,
+                    measurements: newMeas,
+                    lines: newLines,
+                  }));
+                }}
               />
 
               {/* Window schedule */}

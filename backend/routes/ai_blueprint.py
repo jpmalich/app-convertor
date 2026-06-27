@@ -489,6 +489,18 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
         "_ai_notes": raw.get("notes") or "",
         "_blueprint_sheets": raw.get("sheets_identified") or [],
     }
+    # Iter 78z (P1.2) — Per-elevation profile breakdown so the catalog
+    # mapper can split siding into per-profile SKU lines AND so the
+    # frontend can render a per-elevation breakdown card. Mirrors the
+    # AI Measure aggregator (see routes/ai_measure.py).
+    try:
+        from profile_callouts import breakdown_walls_by_profile
+        breakdown = breakdown_walls_by_profile(walls)
+        measurements["_per_elevation_breakdown"] = breakdown["per_elevation"]
+        measurements["_per_profile_sqft"] = breakdown["per_profile_sqft"]
+    except Exception:
+        measurements["_per_elevation_breakdown"] = []
+        measurements["_per_profile_sqft"] = {}
     return measurements
 
 

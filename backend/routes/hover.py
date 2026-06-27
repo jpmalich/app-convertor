@@ -342,6 +342,14 @@ HOVER_MAPPING_SPEC = [
     # HEADLINE SIDING — one per tab. We use HOVER's "+ Openings < 20ft²
     # +10%" row (from SIDING WASTE TOTALS) so the small-opening adder is
     # already baked in. Raw facades area is the fallback.
+    #
+    # Iter 78z (P1.2) — When measurements carry a multi-profile breakdown
+    # (`_per_profile_sqft` has >1 family — Lap + Shake + B&B etc.), the
+    # default single-SKU siding rows below are SKIPPED in `_build_lines`
+    # and replaced with per-profile lines via `_profile_siding_lines()`.
+    # The `_is_default_siding: True` marker tags these rows for that
+    # skip logic. Single-profile (or no breakdown) houses still hit the
+    # default mapping with the small-opening adder baked in.
     # =====================================================================
     {
         "tabs": ["vinyl"],
@@ -353,6 +361,7 @@ HOVER_MAPPING_SPEC = [
             1,
         ),
         "note": "From HOVER 'SIDING WASTE TOTALS → + Openings < 20ft² +10%'",
+        "_is_default_siding": True,
     },
     {
         "tabs": ["ascend"],
@@ -364,6 +373,7 @@ HOVER_MAPPING_SPEC = [
             1,
         ),
         "note": "Default Ascend profile — change via edit if needed",
+        "_is_default_siding": True,
     },
     {
         "tabs": ["lp_smart"],
@@ -375,6 +385,7 @@ HOVER_MAPPING_SPEC = [
             round(((m.get("siding_with_openings_sqft") or m.get("siding_sqft") or 0)) * 0.11),
         ),
         "note": "11 PCS per Sq (LP 8\" lap exposure); sqft × 0.11 rounded",
+        "_is_default_siding": True,
     },
     # Iter 68 (2026-06-22) — LP starter-pack auto-fill so HOVER imports
     # don't leave the LP tab empty. Note: 6" Lap is intentionally NOT
@@ -1241,9 +1252,108 @@ async def _ask_claude(text: str, session_id: str) -> dict:
         ) from e
 
 
+# Iter 78z (P1.2) — Per-profile siding SKU lookup. Maps a canonical
+# profile family (from profile_callouts.classify_profile) to the right
+# catalog SKU on each siding tab. Tuple shape: (item_name, unit,
+# sqft_per_unit). qty = ceil(sqft / sqft_per_unit) rounded to 1 decimal.
+# When a profile has no SKU on a given tab (e.g. Ascend has no Shake),
+# the row is silently skipped — the contractor can manually add a
+# substitute. The vinyl + ascend SQ rates use 100 sqft/SQ; LP uses 11
+# PCS/SQ for lap/shake/nickel-gap (consistent with Iter 67 conversion),
+# and 32 sqft/PCS for 4'×8' panels.
+_PROFILE_SKU_MAP: dict[tuple[str, str], tuple[str, str, float]] = {
+    # ---- Vinyl tab — Charter Oak family ------------------------------
+    ("lap",          "vinyl"):    ('Charter Oak Standard color Dutch Lap 4.5" .046', "SQ", 100.0),
+    ("dutch_lap",    "vinyl"):    ('Charter Oak Standard color Dutch Lap 4.5" .046', "SQ", 100.0),
+    ("shake",        "vinyl"):    ('Pelican Bay Shakes 9"',                          "SQ", 100.0),
+    ("board_batten", "vinyl"):    ('vertical board and batten Standard color 7"',   "SQ", 100.0),
+    ("vertical",     "vinyl"):    ('vertical board and batten Standard color 7"',   "SQ", 100.0),
+    # ---- Ascend tab --------------------------------------------------
+    ("lap",          "ascend"):   ('Ascend Composite Lap Siding 7"',                       "SQ", 100.0),
+    ("dutch_lap",    "ascend"):   ('Ascend Composite Lap Siding 7"',                       "SQ", 100.0),
+    ("board_batten", "ascend"):   ('Ascend Composite B&B 12" (add 30% Waste)',             "SQ", 100.0),
+    ("vertical",     "ascend"):   ('Ascend Composite B&B 12" (add 30% Waste)',             "SQ", 100.0),
+    # Shake has no Ascend SKU — skipped.
+    # ---- LP tab — 38 Series + Shake + Nickel Gap ---------------------
+    ("lap",          "lp_smart"): ('38 Series Lap 3/8" x 8" x 16\'', "PCS", 100.0 / 11),  # ≈9.09 sqft/pc
+    ("dutch_lap",    "lp_smart"): ('38 Series Lap 3/8" x 8" x 16\'', "PCS", 100.0 / 11),
+    ("shake",        "lp_smart"): ('Shake',                          "PCS", 100.0 / 11),
+    ("nickel_gap",   "lp_smart"): ('Nickel Gap',                     "PCS", 100.0 / 11),
+    ("board_batten", "lp_smart"): ('38 Series Vertical Panel',       "PCS", 32.0),
+    ("vertical",     "lp_smart"): ('38 Series Vertical Panel',       "PCS", 32.0),
+}
+
+# Section per tab for the per-profile siding lines (keyed by tab).
+_PROFILE_SECTION_BY_TAB = {
+    "vinyl":    "Vinyl Siding",
+    "ascend":   "Ascend Cladding",
+    "lp_smart": "LP Smart Siding",
+}
+
+
+def _profile_siding_lines(measurements: dict) -> list[dict]:
+    """Emit one siding line per profile family per tab when the AI/
+    Blueprint pipeline returned a multi-profile breakdown.
+
+    Returns [] when:
+      - `_per_profile_sqft` is absent (HOVER PDF imports — keep
+        default mapping)
+      - only 1 profile family is present (single-profile house —
+        default mapping still wins because it uses HOVER's small-
+        opening 10% adder)
+      - no profiles have positive sqft
+
+    Notes the contractor will see on each emitted line:
+      "Per-elevation breakdown: SHAKE 168 ft²"
+    """
+    per_profile = measurements.get("_per_profile_sqft") or {}
+    if not isinstance(per_profile, dict):
+        return []
+    positive = {f: s for f, s in per_profile.items() if isinstance(s, (int, float)) and s > 0}
+    if len(positive) <= 1:
+        return []
+    out: list[dict] = []
+    for tab in ("vinyl", "ascend", "lp_smart"):
+        section = _PROFILE_SECTION_BY_TAB[tab]
+        for family, sqft in positive.items():
+            sku = _PROFILE_SKU_MAP.get((family, tab))
+            if not sku:
+                continue
+            item, unit, sqft_per_unit = sku
+            if sqft_per_unit <= 0:
+                continue
+            qty = round(sqft / sqft_per_unit, 1)
+            if qty <= 0:
+                continue
+            out.append({
+                "tab": tab,
+                "section": section,
+                "name": item,
+                "unit": unit,
+                "qty": qty,
+                "note": f"Per-elevation breakdown: {family.upper().replace('_', ' ')} {sqft:.0f} ft²",
+            })
+    return out
+
+
+
+
 def _build_lines(measurements: dict) -> list[dict]:
     out = []
+    # Iter 78z (P1.2) — Multi-profile siding split. When the AI Measure /
+    # Blueprint pipeline returns a per-profile breakdown (Campbell-style
+    # houses with Lap on the body + Shake on the gables + B&B on the
+    # porch), emit ONE siding line per profile family and skip the
+    # default single-SKU rows below. Single-profile houses (or HOVER PDF
+    # imports that don't carry the breakdown) keep the existing default
+    # mapping.
+    profile_lines = _profile_siding_lines(measurements)
+    skip_default_siding = len(profile_lines) > 0
+    if profile_lines:
+        out.extend(profile_lines)
     for spec in HOVER_MAPPING_SPEC:
+        if skip_default_siding and spec.get("_is_default_siding"):
+            continue
         try:
             qty = float(spec["extract"](measurements))
         except (TypeError, ValueError):

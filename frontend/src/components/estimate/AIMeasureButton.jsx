@@ -23,6 +23,8 @@ import ElevationDrawing from "@/components/estimate/ElevationDrawing";
 // factory the headless PNG renderer uses for the customer Quote PDF.
 import Elevation3DPreview from "@/components/estimate/Elevation3DPreview";
 import { buildElevationsFromAIMeasure } from "@/lib/elevationBuilder";
+// Iter 78z (P1.3) — Per-Elevation Breakdown card + "+ Add Accent" override
+import PerElevationBreakdownCard from "@/components/estimate/PerElevationBreakdownCard";
 
 const ELEVATION_OPTIONS = [
   { key: "",            label: "Untagged" },
@@ -1519,6 +1521,17 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                       {preview.measurements._ai_notes}
                     </div>
                   )}
+                  {/* Iter 78z (P1.3) — Per-Elevation Breakdown + "+ Add Accent" */}
+                  <PerElevationBreakdownCard
+                    measurements={preview.measurements || {}}
+                    onUpdate={({ measurements: newMeas, lines: newLines }) => {
+                      setPreview((p) => p && ({
+                        ...p,
+                        measurements: newMeas,
+                        lines: newLines,
+                      }));
+                    }}
+                  />
                   {/* Iter 78s — HOVER-style elevation drawings, generated
                       from raw_ai.walls + raw_ai.openings. Includes any
                       contractor-applied nudges + roof-shape overrides

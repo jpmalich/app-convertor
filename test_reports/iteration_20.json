@@ -1,0 +1,43 @@
+{
+  "summary": "Backend-only regression for Iter 78z P1.2 (Per-Elevation siding breakdown). Ran the 3 required pytest suites + added 6 new HTTP integration tests against POST /api/measure/map. 86/86 tests pass. Multi-profile measurements correctly split into separate Vinyl/Ascend/LP siding lines per profile family with the 'Per-elevation breakdown:' note, single-profile and legacy (no _per_profile_sqft) flows preserve the default Charter Oak mapping, and cascading accessories (J-Channel, Starter, Outside Corners, House Wrap, Coil, Soffit J-Channel, etc.) still emit on the vinyl tab when the split fires. One minor spec deviation observed (informational, not a regression).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/measure/map",
+        "issue": "Review request stated LP Smart tab would emit 2 lines (lap + shake) for the Campbell multi-profile case, but the actual _PROFILE_SKU_MAP also maps 'board_batten' → '38 Series Vertical Panel' on the LP tab, so LP returns 3 lines (lap + shake + B&B) when the breakdown contains all three. This is additive (more accurate, not double-counting) and matches the Vinyl tab's behaviour, but flag it in case the spec really wants LP B&B suppressed. Vinyl=3 lines, Ascend=2 lines (no Shake SKU on Ascend, as expected). Confirm with product owner."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_profile_siding_lines.py",
+    "/app/backend/tests/test_profile_callouts.py",
+    "/app/backend/tests/test_hover_perimeter.py",
+    "/app/backend/tests/test_measure_map_per_profile_http.py",
+    "/app/test_reports/pytest/iter_p1_2_final.xml",
+    "/app/test_reports/pytest/iter_p1_2_http.xml"
+  ],
+  "action_items": [
+    "Decide whether LP Smart tab should emit B&B (38 Series Vertical Panel) when _per_profile_sqft contains board_batten — review_request spec said 'lp_smart emits 2 lines (lap + shake)' but code emits 3. If intentional, update review notes; if not, drop board_batten from the LP entry in _PROFILE_SKU_MAP."
+  ],
+  "critical_code_review_comments": [
+    "routes/hover.py is 1607 lines — exceeds the 700-line guideline. Consider splitting per-tab mapping, _build_lines, _profile_siding_lines, j-channel/perimeter helpers, and HOVER_MAPPING_SPEC into separate modules (e.g. routes/hover/profile_lines.py, routes/hover/perimeter.py).",
+    "_profile_siding_lines() correctly handles single-profile / no-breakdown / zero-or-negative sqft / unknown-family edge cases (verified by 8 unit tests).",
+    "Per-elevation 'note' format starts with the required 'Per-elevation breakdown:' prefix on every emitted line — front-end can rely on the prefix to identify split lines.",
+    "Default HOVER_MAPPING_SPEC siding row is correctly suppressed (no double-counting) when _per_profile_sqft has ≥2 positive families — verified by test_build_lines_skips_default_when_multi_profile and the HTTP test_no_double_counting_when_multi_profile."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_measure_map_per_profile_http.py (new — 6 HTTP integration cases via live /api/measure/map)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a (skipped per request)"},
+  "test_credentials": "hhunt6677@yahoo.com / Admin123! (worked first try, session cookie auth)",
+  "seed_data_creation": "None — /api/measure/map is a pure deterministic mapper, no DB writes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Iter 78z P1.2 backend regression covered by /app/backend/tests/test_profile_siding_lines.py (8 unit) + /app/backend/tests/test_measure_map_per_profile_http.py (6 HTTP). Total 86 tests across the 4 files pass in ~3s. Watch for the LP B&B ambiguity flagged in minor issues if product reopens the spec. Frontend PerElevationBreakdownCard.jsx exists and frontend supervisor is up — no compile errors in webpack log — but full UI flow not exercised per review_request (would require real LLM call)."
+}
