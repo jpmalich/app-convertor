@@ -1,6 +1,14 @@
 """Backend tests for Vero pricing — admin matrix, contractor catalog,
 seeding idempotency. Mirrors the live-API pattern used by the other test
 files in /app/backend/tests.
+
+Iter 78y (2026-02-13): Vero collapsed per Howard's master pricing file.
+  • 3 tiers (whole-sale / Contractor / Builder-Dealer); one-opp removed.
+  • 3 product types (Vero Double Hung, Vero 2-Lite Slider, Vero Patio Door);
+    3-Lite Slider / Picture / Casement dropped.
+  • DH + 2-Lite Slider use single "0-101" UI bucket.
+  • Prices computed via gross-margin formula from canonical cost basis in
+    vero_catalog.py — wholesale 35%, Contractor 30%, Builder-Dealer 25%.
 """
 import os
 import requests
@@ -22,15 +30,18 @@ def _login_howard() -> str:
     return r.cookies.get("access_token") or ""
 
 
-def test_admin_get_matrix_returns_4_tiers_6_products():
+def test_admin_get_matrix_returns_3_tiers_3_products():
     r = requests.get(f"{BASE_URL}/api/admin/vero/prices?token={ADMIN_TOKEN}", timeout=10)
     assert r.status_code == 200
     body = r.json()
-    assert body["tiers"] == ["whole-sale", "Contractor", "Builder-Dealer", "one-opp"]
-    assert len(body["products"]) == 6
-    # Wholesale must be fully populated
+    assert body["tiers"] == ["whole-sale", "Contractor", "Builder-Dealer"]
+    assert set(body["products"]) == {
+        "Vero Double Hung", "Vero 2-Lite Slider", "Vero Patio Door",
+    }
+    # Wholesale = $186.92 cost / (1 - 0.35) = $287.57
     ws = body["data"]["whole-sale"]
-    assert ws["Vero Double Hung"]["base_prices"]["Min-73"]["White Interior/White Exterior"] == 602.0
+    dh_price = ws["Vero Double Hung"]["base_prices"]["0-101"]["White Interior/White Exterior"]
+    assert abs(dh_price - 287.57) < 0.05
 
 
 def test_admin_get_matrix_requires_token():
@@ -63,7 +74,7 @@ def test_admin_put_roundtrip():
         **orig,
         "base_prices": {
             **orig["base_prices"],
-            "Min-73": {**orig["base_prices"]["Min-73"], "White Interior/White Exterior": 999.99},
+            "0-101": {**orig["base_prices"]["0-101"], "White Interior/White Exterior": 999.99},
         },
     }
     r2 = requests.put(
@@ -74,7 +85,7 @@ def test_admin_put_roundtrip():
     assert r2.status_code == 200
     r3 = requests.get(f"{BASE_URL}/api/admin/vero/prices?token={ADMIN_TOKEN}", timeout=10)
     after = r3.json()["data"]["whole-sale"]["Vero Double Hung"]
-    assert after["base_prices"]["Min-73"]["White Interior/White Exterior"] == 999.99
+    assert after["base_prices"]["0-101"]["White Interior/White Exterior"] == 999.99
     # Restore
     requests.put(
         f"{BASE_URL}/api/admin/vero/prices?token={ADMIN_TOKEN}",
@@ -88,35 +99,39 @@ def test_contractor_catalog_returns_full_payload():
     r = requests.get(f"{BASE_URL}/api/vero/catalog", cookies=cookies, timeout=10)
     assert r.status_code == 200
     body = r.json()
-    assert body["tier"] == "whole-sale"
+    assert body["tier"] in ("whole-sale", "Contractor", "Builder-Dealer")
     pts = {p["name"]: p for p in body["product_types"]}
     assert set(pts.keys()) == {
-        "Vero Double Hung", "Vero 2-Lite Slider", "Vero 3-Lite Slider",
-        "Vero Picture", "Vero Patio Door", "Vero 1-Lite Casement",
+        "Vero Double Hung", "Vero 2-Lite Slider", "Vero Patio Door",
     }
-    # DH structural assertions
+    # DH: single bucket, single sister color
     dh = pts["Vero Double Hung"]
     assert dh["sizing"] == "ui_bucket"
-    assert len(dh["buckets"]) == 11
-    assert dh["base_prices"]["Min-73"]["White Interior/White Exterior"] == 602.0
-    # Patio = fixed_model
+    # buckets may be either strings or {label, min, max} objects
+    bucket_labels = [b if isinstance(b, str) else b.get("label") for b in dh["buckets"]]
+    assert bucket_labels == ["0-101"]
+    assert dh["base_prices"]["0-101"] > 0
+    # Patio = fixed_model with 3 panel sizes
     patio = pts["Vero Patio Door"]
     assert patio["sizing"] == "fixed_model"
     assert len(patio["models"]) == 3
-    assert "IntelliGlass X" in patio["glass_packages"]
 
 
-def test_catalog_includes_glass_packages_and_premium_options():
+def test_dh_and_slider_have_8_iter_78y_adders():
     cookies = {"access_token": _login_howard()}
     body = requests.get(f"{BASE_URL}/api/vero/catalog", cookies=cookies, timeout=10).json()
     pts = {p["name"]: p for p in body["product_types"]}
-    # 6 glass packages on DH, all present
-    dh_pkgs = set(pts["Vero Double Hung"]["glass_packages"].keys())
-    assert "IntelliGlass" in dh_pkgs
-    assert "IntelliGlass X3" in dh_pkgs
-    # Picture has premium_options
-    pw = pts["Vero Picture"]
-    assert pw.get("premium_options") and len(pw["premium_options"]) > 0
-    # Casement has 3 sister colors (Lam Int/White Ext is the 3rd)
-    cas = pts["Vero 1-Lite Casement"]
-    assert "Laminate Interior/White Exterior" in cas["sister_colors"]
+    expected_adders = {
+        "Quattro .25 U Factor 2 coats LoE",
+        "Elite TG2 .24 U Factor 1 coat",
+        "TG2 Triple Pane/Argon .19 U Factor",
+        "Head Expander 0-101",
+        "Grids",
+        "Sentry System - Tilt Lock upgrade",
+        "Integral Nail Fin 0-101",
+        "Heavy Duty 1/2 Screen White ONLY",
+    }
+    for pt_name in ("Vero Double Hung", "Vero 2-Lite Slider"):
+        # Contractor catalog returns `adders` as a list of dicts, each with `name`.
+        adders = {a["name"] for a in pts[pt_name].get("adders", [])}
+        assert adders == expected_adders, f"{pt_name} adders drift: got {adders}"

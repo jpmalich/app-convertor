@@ -722,3 +722,16 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Regression test suite**: 7 pytests in `backend/tests/test_lp_catalog.py` lock in the 4 deletions, the new SKU's cost basis, and the margin formula per tier. All passing.
   - **Verified live**: `GET /api/admin/tiers` confirms all 4 tier docs have the 4 SKUs gone + Trim Coil Aluminum present at the correct margin-computed prices.
   - **Status of master-pricing rollout**: P1 done (LP catalog changes). P2-P5 (Mezzo list-price refactor, Importer engine, Admin UI, polish) await Howard's go-ahead.
+
+- **Iter 78y — Vero collapsed to match master pricing file (2026-02-13)**: Howard delivered the new Vero tab in Pro-Quotes Master Excel. Big architectural simplification:
+  - **3 tiers only** (was 4): whole-sale (35% margin) / Contractor (30%) / Builder-Dealer (25%). `one-opp` removed from `VERO_TIER_NAMES`. Legacy one-opp companies fall back to Builder-Dealer pricing via `compute_tier_price` for new estimates; saved snapshots stay frozen.
+  - **3 product types only** (was 5): Vero Double Hung, Vero 2-Lite Slider, Vero Patio Door. **3-Lite Slider + Picture removed entirely**; idempotent `delete_many` in `startup.py` purges them from `db.vero_prices` on every boot.
+  - **DH + 2-Lite Slider use a single UI bucket "0-101"** (was 14 buckets each going to 171-180 UI).
+  - **Patio Door = 3 fixed models** (4792PD 2 Panel 5068 / 6068 / 8068) at Howard's supplier-sheet costs ($718.19 / $780.29 / $877.16).
+  - **8 adders** replace the previous 12 (Climatech Plus, Solid Color Flat Grids, Foam Wrap, etc. → Quattro .25, Elite TG2 .24, TG2 Triple Pane .19, Head Expander 0-101, Grids, Sentry System - Tilt Lock, Integral Nail Fin 0-101, Heavy Duty 1/2 Screen White ONLY). All margin-computed per tier.
+  - **Canonical cost basis lives in `vero_catalog.py`** (`VERO_BASE_COSTS`, `VERO_PATIO_COSTS`, `VERO_ADDER_COSTS`, `VERO_MARGIN_PCT`, `compute_tier_price()`). Single edit point for the next supplier price refresh.
+  - **`build_vero_seed.py`** generates `vero_seed_prices.json` from the cost basis. Force-refresh on boot via `seed_vero_prices(force=True)` after dropping obsolete docs — Howard's price changes land immediately on next deploy.
+  - **`_guess_vero_product_type()`** in `routes/hover.py` updated to only return DH or 2-Lite Slider (Casement/3-Lite/Picture removed); legacy `_VERO_TO_MEZZO` map keeps fallback rows for old saved vero_openings.
+  - **15 new regression pytests** in `tests/test_vero_iter_78y.py` + `tests/test_lp_catalog.py` lock in the new pricing structure. Updated `tests/test_vero_pricing.py`, `test_vero_iter_b.py`, `test_hover_window_style.py` to match new structure. 47 tests in this scope all pass.
+  - **Verified live**: Wholesale $287.57 / Contractor $267.03 / Builder-Dealer $249.23 for DH 0-101 (matches $186.92 cost ÷ tier margin formula). Patio Door 5068: WS $1104.91 / Contr $1025.99 / BD $957.59.
+- **Status of master-pricing rollout**: P1 (LP) ✓ + Vero (Iter 78y) ✓ done. Mezzo list-price refactor (P2) and master Excel importer engine (P3-P5) await Howard's go-ahead.

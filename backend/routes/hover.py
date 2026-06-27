@@ -57,20 +57,35 @@ except Exception:  # pragma: no cover — defensive at import time
 # dimensions strongly indicate otherwise.
 # -----------------------------------------------------------------------------
 def _guess_vero_product_type(width_in: float, height_in: float) -> str:
+    """Heuristic to pick a Vero product type from rough opening dims.
+
+    Iter 78y (2026-02-13): Vero collapsed to 3 product types: Double Hung,
+    2-Lite Slider, Patio Door. Casement / 3-Lite Slider / Picture were
+    dropped — small narrow windows now classify as DH, wide windows as
+    2-Lite Slider. Patio Door is reserved for explicit door classification
+    upstream (HOVER labels), never inferred from dims here.
+    """
+    try:
+        w = float(width_in or 0)
+        h = float(height_in or 0)
+    except (TypeError, ValueError):
+        return "Vero Double Hung"
+    if w <= 0 or h <= 0:
+        return "Vero Double Hung"
+    # Wider than tall + at least 40" wide → 2-Lite Slider
+    if w >= 40 and w > h:
+        return "Vero 2-Lite Slider"
+    # Everything else defaults to DH (small, tall, or narrow)
+    return "Vero Double Hung"
     w = float(width_in or 0)
     h = float(height_in or 0)
     if w <= 0 or h <= 0:
         return "Vero Double Hung"
 
-    # Casement = TRULY small openings (kitchen above-sink, bath transom).
-    # Howard's stock answer is DH for anything else, so keep this tight.
-    if w <= 28 and h <= 36:
-        return "Vero 1-Lite Casement"
-    # Iter 57t — Vero pricing freeze: `Vero Picture` and `Vero 3-Lite Slider`
-    # are hidden until reliable pricing lands, so the heuristic now only
-    # picks between Double Hung, 2-Lite Slider, and Casement. Anything
-    # that previously routed to Picture/3-Lite falls through to the
-    # corresponding open product (2-Lite for wide-landscape, DH otherwise).
+    # Iter 78y — Casement product type removed. Tight small openings
+    # (kitchen above-sink, bath transom) now classify as DH per Howard's
+    # bias for replacements. 3-Lite Slider + Picture were also removed —
+    # very wide AND square landscape windows now route to 2-Lite Slider.
     # 2-Lite slider (XO) = wide AND landscape orientation
     if w >= 40 and w > h:
         return "Vero 2-Lite Slider"
@@ -78,14 +93,18 @@ def _guess_vero_product_type(width_in: float, height_in: float) -> str:
     return "Vero Double Hung"
 
 
-# Vero → Mezzo product type map. Mezzo doesn't have a Casement option, so
-# small Casement-guessed openings fall back to DH on the Mezzo side.
+# Vero → Mezzo product type map. Iter 78y — Vero collapsed to 3 active
+# product types (DH / 2-Lite Slider / Patio Door). The historical
+# Casement/3-Lite/Picture keys remain here as a safety net so any saved
+# vero_opening carrying one of those legacy types gets mapped to a
+# still-valid Mezzo equivalent during snapshot reconcile.
 _VERO_TO_MEZZO = {
     "Vero Double Hung":      "Mezzo Double Hung",
     "Vero 2-Lite Slider":    "Mezzo 2-Lite Slider",
-    "Vero 3-Lite Slider":    "Mezzo 3-Lite Slider",
-    "Vero Picture":          "Mezzo Picture",
-    "Vero 1-Lite Casement":  "Mezzo Double Hung",  # no casement in Mezzo line
+    # Legacy fallbacks (Vero types no longer offered):
+    "Vero 3-Lite Slider":    "Mezzo 2-Lite Slider",
+    "Vero Picture":          "Mezzo Double Hung",
+    "Vero 1-Lite Casement":  "Mezzo Double Hung",
 }
 
 

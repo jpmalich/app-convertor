@@ -24,36 +24,19 @@ def _login_howard_cookies() -> dict:
 
 
 # ─────────── Admin matrix: products_meta + sizing per product ───────────
+# Iter 78y (2026-02-13): collapsed to 3 product types (DH, 2-Lite Slider,
+# Patio Door). 3-Lite Slider / Picture / Casement dropped per Howard.
 def test_admin_matrix_includes_products_meta_with_sizing():
     r = requests.get(f"{BASE_URL}/api/admin/vero/prices?token={ADMIN_TOKEN}", timeout=10)
     assert r.status_code == 200
     body = r.json()
     meta = body.get("products_meta") or {}
-    # 6 products, each with a sizing key
     assert set(meta.keys()) == {
-        "Vero Double Hung", "Vero 2-Lite Slider", "Vero 3-Lite Slider",
-        "Vero Picture", "Vero Patio Door", "Vero 1-Lite Casement",
+        "Vero Double Hung", "Vero 2-Lite Slider", "Vero Patio Door",
     }
     assert meta["Vero Double Hung"]["sizing"] == "ui_bucket"
+    assert meta["Vero 2-Lite Slider"]["sizing"] == "ui_bucket"
     assert meta["Vero Patio Door"]["sizing"] == "fixed_model"
-    assert meta["Vero 1-Lite Casement"]["sizing"] == "ui_bucket"
-    # has_premium_options is True only for DH + Picture
-    assert meta["Vero Double Hung"]["has_premium_options"] is True
-    assert meta["Vero Picture"]["has_premium_options"] is True
-    assert meta["Vero 3-Lite Slider"]["has_premium_options"] is False
-    assert meta["Vero Patio Door"]["has_premium_options"] is False
-
-
-# ─────────── Contractor catalog: Casement sister colors ───────────
-def test_casement_has_three_sister_colors_including_laminate():
-    r = requests.get(
-        f"{BASE_URL}/api/vero/catalog", cookies=_login_howard_cookies(), timeout=10
-    )
-    assert r.status_code == 200
-    pts = {p["name"]: p for p in r.json()["product_types"]}
-    cas = pts["Vero 1-Lite Casement"]
-    assert len(cas["sister_colors"]) == 3
-    assert "Laminate Interior/White Exterior" in cas["sister_colors"]
 
 
 # ─────────── Contractor catalog: Patio Door fixed-model layout ───────────
@@ -64,11 +47,14 @@ def test_patio_door_has_three_fixed_models():
     pts = {p["name"]: p for p in r.json()["product_types"]}
     patio = pts["Vero Patio Door"]
     assert patio["sizing"] == "fixed_model"
-    # Model labels may include size suffixes like '5068 (58 3/8" x 79 1/2")'
+    # Iter 78y — model labels now include the 4792PD prefix + size suffix
+    # (e.g. "4792PD 2 Panel 5068 (58 3/4\" x 79 1/2\")").
     models = patio["models"]
     assert len(models) == 3
-    prefixes = {m.split(" ")[0] for m in models}
-    assert prefixes >= {"5068", "6068", "8068"}
+    # Each model contains the panel size code (5068 / 6068 / 8068)
+    sizes_in_models = {code for code in ("5068", "6068", "8068")
+                       if any(code in m for m in models)}
+    assert sizes_in_models == {"5068", "6068", "8068"}
     # Patio uses patio_prices not base_prices
     assert "patio_prices" in patio
 

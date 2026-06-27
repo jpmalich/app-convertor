@@ -46,6 +46,24 @@ async def run_startup():
     # Seed Vero prices (same pattern — bundled JSON snapshot, idempotent).
     await vero_prices.ensure_indexes()
     await vero_prices.seed_vero_prices()
+    # Iter 78y (2026-02-13): force-refresh Vero docs from the canonical
+    # seed file every boot, AND drop product types / tiers that were
+    # removed in the Iter 78y collapse. Running this AFTER the idempotent
+    # seed means a fresh install is fast (seed populates, force refresh
+    # is a no-op delta), and an upgrade applies Howard's new master file
+    # without manual intervention.
+    from vero_catalog import VERO_PRODUCT_TYPES, VERO_TIER_NAMES
+    OBSOLETE_VERO_PRODUCTS = ["Vero 3-Lite Slider", "Vero Picture"]
+    OBSOLETE_VERO_TIERS = ["one-opp"]
+    await db.vero_prices.delete_many(
+        {"product_type": {"$in": OBSOLETE_VERO_PRODUCTS}}
+    )
+    await db.vero_prices.delete_many(
+        {"tier": {"$in": OBSOLETE_VERO_TIERS}}
+    )
+    # Force overwrite the 3×3 active (tier, product) docs with the
+    # canonical seed values so the new pricing lands immediately.
+    await vero_prices.seed_vero_prices(force=True)
 
     # Migrate old catalog docs that still have `sections` -> convert to empty overrides
     # (material now comes from tier; we keep their labor if it differed by storing as override).

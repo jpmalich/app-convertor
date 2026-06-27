@@ -6,13 +6,29 @@ After Iter 44 the Vero pricing model mirrors Mezzo 1:1:
   - All adders are flat (no sqft-based rate on Vero)
   - Patio Door stays fixed-model (just base prices on 3 panel sizes)
 
+Iter 78y (2026-02-13): collapsed to match Howard's master pricing file:
+  - 3 tiers only (one-opp removed); fall back to Builder-Dealer for
+    new estimates created by one-opp companies.
+  - 3 product types only: Double Hung, 2-Lite Slider, Patio Door.
+    3-Lite Slider + Picture dropped per Howard's directive (master file
+    doesn't carry them anymore).
+  - DH + Slider use a single UI bucket "0-101" (was 14 buckets).
+  - 8 cost-basis adders replace the previous 12.
+  - All prices computed from cost via gross-margin formula:
+    sell = cost / (1 - margin%) with margins 35% / 30% / 25%.
+
 This file is the structural source of truth. Prices live in Mongo
-(seeded from `vero_seed_prices.json` on first boot).
+(seeded from `vero_seed_prices.json` on first boot; force-refreshed
+on every boot via the Iter 78y migration in services.py).
 """
 from __future__ import annotations
 from typing import Optional
 
-VERO_TIER_NAMES = ["whole-sale", "Contractor", "Builder-Dealer", "one-opp"]
+# Iter 78y — one-opp removed from Vero. Companies on the one-opp tier
+# fall back to Builder-Dealer pricing for any new Vero estimates
+# (see vero_prices.get_prices fallback). Saved snapshots keep their
+# original prices.
+VERO_TIER_NAMES = ["whole-sale", "Contractor", "Builder-Dealer"]
 
 
 # ──────────────────── Bucket helpers ────────────────────
@@ -40,61 +56,30 @@ def buckets_to_objects(labels: list[str]) -> list[dict]:
 
 # ──────────────────── Adder names per product ────────────────────
 
-# Canonical adder order — display order in the UI ("most common" rows
-# first). Howard's preference per the Iter-44 conversation:
-#   Row 1: Climatech Plus, Solid Color Flat Grids, Head Expander, Sentry System
-#   Row 2: Obscure Full, Climatech TG2 Plus, Foam Wrap, Foam Frame
-#   Row 3: Climatech Plus Tempered, Climatech TG2 Tempered, Integral Nailing Fin, Oriel Style Double Hung
+# Iter 78y — Vero adders replaced per Howard's master pricing file.
+# DH + 2-Lite Slider share the same 8-adder list. Patio Door has none.
+# Display order is the order in the master Excel (left → right) which
+# Howard wants preserved in the UI.
 VERO_ADDER_NAMES = {
     "Vero Double Hung": [
-        "Climatech Plus",
-        "Solid Color Flat Grids",
-        "Head Expander",
-        "Sentry System",
-        "Obscure Full",
-        "Climatech TG2 Plus",
-        "Foam Wrap",
-        "Foam Frame",
-        "Climatech Plus Tempered",
-        "Climatech TG2 Tempered",
-        "Integral Nailing Fin",
-        "Oriel Style Double Hung",
+        "Quattro .25 U Factor 2 coats LoE",
+        "Elite TG2 .24 U Factor 1 coat",
+        "TG2 Triple Pane/Argon .19 U Factor",
+        "Head Expander 0-101",
+        "Grids",
+        "Sentry System - Tilt Lock upgrade",
+        "Integral Nail Fin 0-101",
+        "Heavy Duty 1/2 Screen White ONLY",
     ],
     "Vero 2-Lite Slider": [
-        "Climatech Plus",
-        "Solid Color Flat Grids",
-        "Head Expander",
-        "Obscure Full",
-        "Climatech TG2 Plus",
-        "Foam Wrap",
-        "Foam Frame",
-        "Climatech Plus Tempered",
-        "Climatech TG2 Tempered",
-        "Integral Nailing Fin",
-    ],
-    "Vero 3-Lite Slider": [
-        "Climatech Plus",
-        "Solid Color Flat Grids",
-        "Head Expander",
-        "Obscure Full",
-        "Climatech TG2 Plus",
-        "Foam Wrap",
-        "Foam Frame",
-        "Climatech Plus Tempered",
-        "Climatech TG2 Tempered",
-        "Integral Nailing Fin",
-    ],
-    "Vero Picture": [
-        "Climatech Plus",
-        "Solid Color Flat Grids",
-        "Head Expander",
-        "Obscure Full",
-        "Climatech TG2 Plus",
-        "Foam Wrap",
-        "Foam Frame",
-        "Climatech Plus Tempered",
-        "Climatech TG2 Tempered",
-        "Integral Nailing Fin",
+        "Quattro .25 U Factor 2 coats LoE",
+        "Elite TG2 .24 U Factor 1 coat",
+        "TG2 Triple Pane/Argon .19 U Factor",
+        "Head Expander 0-101",
+        "Grids",
+        "Sentry System - Tilt Lock upgrade",
+        "Integral Nail Fin 0-101",
+        "Heavy Duty 1/2 Screen White ONLY",
     ],
     "Vero Patio Door": [],  # fixed-model; adders not applicable
 }
@@ -102,13 +87,63 @@ VERO_ADDER_NAMES = {
 
 # ──────────────────── Product type registry ────────────────────
 
+# Iter 78y — 3-Lite Slider and Picture removed. Each remaining product
+# carries the canonical UI bucket list ("0-101" single bucket for the
+# two sashed products; fixed models for Patio Door).
 VERO_PRODUCT_TYPES: dict[str, dict] = {
     "Vero Double Hung":   {"sizing": "ui_bucket"},
     "Vero 2-Lite Slider": {"sizing": "ui_bucket"},
-    "Vero 3-Lite Slider": {"sizing": "ui_bucket"},
-    "Vero Picture":       {"sizing": "ui_bucket"},
     "Vero Patio Door":    {"sizing": "fixed_model"},
 }
+
+
+# ──────────────────── Cost basis + margin model ────────────────────
+# Iter 78y — single source of truth for Vero pricing. Tier prices are
+# computed via the gross-margin formula `sell = cost / (1 − margin%)`.
+# Update only this section when Howard ships a new master pricing file.
+
+VERO_MARGIN_PCT = {
+    "whole-sale":     35,
+    "Contractor":     30,
+    "Builder-Dealer": 25,
+}
+_VERO_MARGIN_DIVISOR = {tier: round(1 - pct / 100, 2) for tier, pct in VERO_MARGIN_PCT.items()}
+
+# Cost basis per UI-bucket product (single bucket "0-101" each).
+VERO_BASE_COSTS = {
+    "Vero Double Hung":   {"0-101": 186.92},
+    "Vero 2-Lite Slider": {"0-101": 186.92},
+}
+
+# Cost basis for the 8 adders shared by DH + 2-Lite Slider.
+VERO_ADDER_COSTS = {
+    "Quattro .25 U Factor 2 coats LoE":    37.26,
+    "Elite TG2 .24 U Factor 1 coat":       55.58,
+    "TG2 Triple Pane/Argon .19 U Factor":  66.76,
+    "Head Expander 0-101":                  3.73,
+    "Grids":                               30.12,
+    "Sentry System - Tilt Lock upgrade":   26.70,
+    "Integral Nail Fin 0-101":             13.66,
+    "Heavy Duty 1/2 Screen White ONLY":    18.01,
+}
+
+# Cost basis for Patio Door fixed models (3 panel sizes).
+VERO_PATIO_COSTS = {
+    "4792PD 2 Panel 5068 (58 3/4\" x 79 1/2\")":  718.19,
+    "4792PD 2 Panel 6068 (70 3/4\" x 79 1/2\")":  780.29,
+    "4792PD 2 Panel 8068 (94 3/4\" x 79 1/2\")":  877.16,
+}
+
+VERO_SINGLE_SISTER_COLOR = "White Interior/White Exterior"
+VERO_SINGLE_BUCKET = "0-101"
+
+
+def compute_tier_price(cost: float, tier: str) -> float:
+    """Apply the Vero gross-margin formula. Falls back to wholesale
+    (highest price) for any tier not in the divisor table — keeps
+    one-opp companies in a sane safe state until they're re-tiered."""
+    divisor = _VERO_MARGIN_DIVISOR.get(tier) or _VERO_MARGIN_DIVISOR.get("Builder-Dealer")
+    return round(float(cost) / float(divisor), 2)
 
 
 # ──────────────────── Catalog assembly ────────────────────
