@@ -1065,10 +1065,15 @@ def _merge_dormer_hits(raw: dict, dormer_hits: list[dict]) -> None:
 
 
 
-def _aggregate_to_hover_shape(raw: dict) -> dict:
+def _aggregate_to_hover_shape(raw: dict, annotations: dict | None = None) -> dict:
     """Roll up Claude's per-wall / per-opening estimates into the same
     measurements dict that the HOVER PDF importer returns. The frontend
     diff modal is reused 1-for-1.
+
+    Iter 78z — When `annotations` is provided (user-drawn profile boxes
+    from the ProfileAnnotator), they're layered on top of Claude's
+    auto-detected breakdown as authoritative accent overrides. See
+    `apply_annotations_to_breakdown` in profile_callouts.py.
 
     Each wall now carries:
       - `siding_pct_this_wall` (0-100). If Claude saw brick / garage /
@@ -1252,11 +1257,16 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
     # the takeoff card can render a profile-by-elevation table and the
     # catalog mapper can split siding into multiple SKU lines.
     try:
-        from profile_callouts import breakdown_walls_by_profile
+        from profile_callouts import breakdown_walls_by_profile, apply_annotations_to_breakdown
         breakdown = breakdown_walls_by_profile(walls)
+        # Iter 78z — apply user annotations as authoritative accent
+        # overrides (from the ProfileAnnotator UI). Annotations win
+        # within the boxed region; Claude's auto-detect still drives
+        # body/gable/dormer outside the box.
+        breakdown = apply_annotations_to_breakdown(breakdown, annotations)
         measurements["_per_elevation_breakdown"] = breakdown["per_elevation"]
         measurements["_per_profile_sqft"] = breakdown["per_profile_sqft"]
-    except Exception as _e:
+    except Exception:
         # Never let the breakdown helper block a successful measurement
         # response — Claude's wall data may have unusual shapes from old
         # sessions.
@@ -1410,6 +1420,7 @@ async def ai_measure(
         siding_exposure_in=siding_exposure_in,
         deep_dormer_scan=deep_dormer_scan,
         elevation_tags=elevation_tags,
+        estimate_id=estimate_id,
     ))
 
     return {
@@ -1525,6 +1536,7 @@ async def _execute_ai_measure_worker(
     siding_exposure_in: Optional[float],
     deep_dormer_scan: bool,
     elevation_tags: Optional[str],
+    estimate_id: Optional[str] = None,
 ):
     """Background worker — runs the Claude call(s), aggregates, maps to
     catalog lines, and writes the final result back to the run doc.
@@ -1626,7 +1638,19 @@ async def _execute_ai_measure_worker(
                 _merge_dormer_hits(raw, all_hits)
 
         await _set_stage("aggregating")
-        measurements = _aggregate_to_hover_shape(raw)
+        # Iter 78z — Load user-drawn profile annotations from the
+        # estimate (if any) so the breakdown overlay can fire. This
+        # ensures user-tagged Shake/B&B regions become guaranteed
+        # accent lines on the materials list.
+        annotations: dict | None = None
+        if estimate_id:
+            est_doc = await db.estimates.find_one(
+                {"id": estimate_id},
+                {"_id": 0, "profile_annotations": 1},
+            )
+            if est_doc:
+                annotations = est_doc.get("profile_annotations") or None
+        measurements = _aggregate_to_hover_shape(raw, annotations=annotations)
         measurements["overhang_in"] = float(overhang_in)
 
         await _set_stage("mapping")

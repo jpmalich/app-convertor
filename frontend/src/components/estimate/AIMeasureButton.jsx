@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import PhotoMeasureButton from "@/components/estimate/PhotoMeasureButton";
 import PhotoAnnotateModal from "@/components/estimate/PhotoAnnotateModal";
+// Iter 78z — Profile annotator: lets contractor draw boxes tagged
+// Shake / B&B / etc. so the AI worker treats those regions as
+// authoritative accent material. Both AI Measure + Blueprint share it.
+import ProfileAnnotator from "@/components/estimate/ProfileAnnotator";
 import GuidedCaptureWizard from "@/components/estimate/GuidedCaptureWizard";
 import { renderAnnotated, describeAnnotations } from "@/lib/photoAnnotate";
 // Iter 78s — HOVER-style elevation drawings, generated from the AI Measure
@@ -76,6 +80,9 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // before sending to Claude, and described as text alongside.
   const [photoAnnotations, setPhotoAnnotations] = useState({});
   const [annotateOpenFor, setAnnotateOpenFor] = useState(null); // filename or null
+  // Iter 78z — Profile annotator modal (box-tag Shake / B&B regions).
+  const [profileAnnotatorOpen, setProfileAnnotatorOpen] = useState(false);
+  const [savedProfileAnnotations, setSavedProfileAnnotations] = useState({});
   // Iter 56c — free aerial fetch via Esri World Imagery.
   const [satBusy, setSatBusy] = useState(false);
   const [resumePrompt, setResumePrompt] = useState(false); // shows banner
@@ -399,6 +406,21 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
       cancelled = true;
     };
   }, [estimateId, open, sessionChecked, photoUrls.length, preview]);
+
+  // Iter 78z — Load saved profile annotations for this estimate.
+  useEffect(() => {
+    if (!estimateId || !open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get(`/estimates/${estimateId}/profile-annotations`);
+        if (!cancelled) setSavedProfileAnnotations(data?.annotations || {});
+      } catch {
+        // No annotations yet — that's fine
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [estimateId, open]);
 
   // Iter 57r — Resume support. On modal open, fetch the most recent
   // AI Measure run for this estimate. If it's still "running" or
@@ -2348,13 +2370,31 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                   </button>
                 )}
                 {!preview ? (
-                  <button
-                    type="button"
-                    onClick={runMeasure}
-                    disabled={busy || photoUrls.length === 0 || files.length > 0}
-                    className="px-3 py-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
-                    data-testid="ai-measure-run-btn"
-                  >
+                  <>
+                    {photoUrls.length > 0 && estimateId && (
+                      <button
+                        type="button"
+                        onClick={() => setProfileAnnotatorOpen(true)}
+                        disabled={busy}
+                        className="px-3 py-2 bg-white text-[#F97316] border border-[#F97316] hover:bg-[#FFF7ED] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50 mr-1"
+                        data-testid="ai-measure-tag-profiles-btn"
+                        title="Draw boxes to tag Shake / B&B / etc. — guarantees those materials hit the quote"
+                      >
+                        Tag Profiles
+                        {Object.entries(savedProfileAnnotations).filter(([k, v]) => !k.startsWith("_") && Array.isArray(v) && v.length > 0).length > 0 && (
+                          <span className="bg-[#F97316] text-white px-1 py-0 text-[9px]">
+                            {Object.entries(savedProfileAnnotations).reduce((a, [k, v]) => a + (k.startsWith("_") ? 0 : (Array.isArray(v) ? v.length : 0)), 0)}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={runMeasure}
+                      disabled={busy || photoUrls.length === 0 || files.length > 0}
+                      className="px-3 py-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                      data-testid="ai-measure-run-btn"
+                    >
                     {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     {busy
                       ? (busyStage === "claude" ? "Claude vision…"
@@ -2365,6 +2405,7 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                         : "Analyzing…")
                       : files.length > 0 ? "Uploading…" : "Run AI Measure"}
                   </button>
+                  </>
                 ) : (
                   <>
                     {/* Advanced tools toggle — gates Refine on Photo.
@@ -2566,6 +2607,23 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
         onClose={() => setWizardOpen(false)}
         onComplete={handleWizardComplete}
       />
+      {/* Iter 78z — Profile Annotator (Tag Shake / B&B / etc.) */}
+      {profileAnnotatorOpen && estimateId && (
+        <ProfileAnnotator
+          estimateId={estimateId}
+          photos={photoUrls.map((name, i) => ({
+            url: `/api/uploads/${name}`,
+            label: photoAnnotations[name]?.elevation || `#${i + 1}`,
+          }))}
+          initialAnnotations={savedProfileAnnotations}
+          defaultElevationByIdx={photoUrls.map((name) => photoAnnotations[name]?.elevation || "other")}
+          onClose={() => setProfileAnnotatorOpen(false)}
+          onSaved={(saved) => {
+            setSavedProfileAnnotations(saved);
+            toast.message("Profile annotations saved · Run AI Measure to apply them to the takeoff");
+          }}
+        />
+      )}
     </div>
   );
 }

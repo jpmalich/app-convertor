@@ -448,3 +448,68 @@ async def delete_estimate(est_id: str, user: dict = Depends(get_current_user)):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+
+# ---------------------------------------------------------------------------
+# Iter 78z — Profile Annotations
+#
+# Annotations are ground-truth profile callouts (Shake / B&B / etc.) the
+# contractor draws as bounding boxes on uploaded photos or blueprint
+# pages BEFORE Claude analyzes them. The worker injects each annotation
+# as an accent on the matching elevation, guaranteeing the catalog
+# mapper emits the right per-profile line (e.g. Pelican Bay Shakes for
+# the gable). Stored on the estimate so the boxes survive re-uploads
+# and re-runs.
+#
+# Schema (free-form dict on `estimates.profile_annotations`):
+#   {
+#     "<photo_idx>": [
+#        {"id": uuid, "x_norm": 0-1, "y_norm": 0-1, "w_norm": 0-1, "h_norm": 0-1,
+#         "elevation_label": "front",
+#         "profile":  "shake" | "board_batten" | ...,
+#         "sqft":     number,
+#         "callout":  "optional user note"},
+#        ...
+#     ],
+#     "_scale_refs": {
+#       "<photo_idx>": {"px_height": 220.0, "real_ft": 6.67}
+#     }
+#   }
+# ---------------------------------------------------------------------------
+@router.get("/estimates/{est_id}/profile-annotations")
+async def get_profile_annotations(
+    est_id: str, user: dict = Depends(get_current_user),
+):
+    doc = await db.estimates.find_one(
+        {"id": est_id, "company_id": user["company_id"]},
+        {"_id": 0, "profile_annotations": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"annotations": doc.get("profile_annotations") or {}}
+
+
+@router.put("/estimates/{est_id}/profile-annotations")
+async def set_profile_annotations(
+    est_id: str, payload: dict, user: dict = Depends(get_current_user),
+):
+    """Replace the entire profile_annotations blob for this estimate.
+    Accept a flat dict where keys are photo_idx (str) and values are
+    arrays of box dicts. The `_scale_refs` key is reserved for per-photo
+    scale reference points."""
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload must be an object")
+    annotations = payload.get("annotations")
+    if not isinstance(annotations, dict):
+        raise HTTPException(status_code=400, detail="missing 'annotations' object")
+    res = await db.estimates.update_one(
+        {"id": est_id, "company_id": user["company_id"]},
+        {"$set": {
+            "profile_annotations": annotations,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True, "annotations": annotations}

@@ -1,0 +1,33 @@
+{
+  "summary": "Iter 78z+ ProfileAnnotator backend testing: 9 annotation overlay unit tests pass, 9 new HTTP/integration tests pass, 116-test regression suite passes. Frontend login page loads cleanly with no JS pageerrors (ProfileAnnotator.jsx bundle compiles). Total: 125/125 backend tests green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_annotation_overlay.py",
+    "/app/backend/tests/test_profile_annotations_http.py",
+    "/app/test_reports/pytest/iter23_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "estimates.py /api/estimates/{id}/profile-annotations endpoints are clean: scoped by company_id, JSON-validated, _id excluded, updated_at touched on PUT.",
+    "ai_measure._aggregate_to_hover_shape correctly threads `annotations` through to apply_annotations_to_breakdown; the try/except around the breakdown helper at line 1269 is broad (`except Exception`) — could hide annotation overlay bugs by silently zeroing _per_profile_sqft. Consider logging the exception for observability.",
+    "ProfileAnnotator endpoints accept fully free-form box dicts (no Pydantic schema). Acceptable for the rapid Iter 78z ship, but worth a follow-up to add a typed schema (x_norm/y_norm/w_norm/h_norm bounds, profile enum) before exposing to non-admin users."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_profile_annotations_http.py (new — 9 tests covering endpoints, auth, and worker integration)"
+  ],
+  "success_rate": {"backend": "100% (125/125)", "frontend": "smoke OK"},
+  "test_credentials": "Admin hhunt6677@yahoo.com / Admin123! — login verified via /api/auth/login (200).",
+  "seed_data_creation": "None. Tests use any existing estimate from GET /api/estimates and clean up the annotations blob after the roundtrip test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Profile annotator backend is fully exercised. Endpoints: GET/PUT /api/estimates/{id}/profile-annotations. Worker integration tested via direct call to routes.ai_measure._aggregate_to_hover_shape with hand-built `raw` walls dict (note: `walls[*].width_ft` + `wall_body_profile_callout`, not `length_ft`/`primary_profile`). Frontend ProfileAnnotator.jsx + Tag Profiles button were NOT exercised end-to-end (per request — requires real photo upload + canvas box drawing). Blueprint UI wiring is still queued; only the backend overlay is shared between ai_measure and ai_blueprint workers.",
+  "rca of the issue": "No bugs found."
+}

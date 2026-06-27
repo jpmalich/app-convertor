@@ -268,3 +268,133 @@ def breakdown_walls_by_profile(walls: list, default_body_profile: str = "lap") -
         "per_elevation":      per_elevation,
         "per_profile_sqft":   per_profile_rounded,
     }
+
+
+
+# ---------------------------------------------------------------------------
+# Iter 78z — Apply user-drawn profile annotations to the breakdown.
+#
+# Each annotation is a bounding box the contractor drew on a photo or
+# blueprint page, tagged with a canonical profile family + sqft. The
+# annotation REPLACES Claude's auto-detection WITHIN that box: we inject
+# it as an accent on the matching elevation, so the catalog mapper
+# emits a separate per-profile line guaranteed.
+#
+# This runs AFTER `breakdown_walls_by_profile` so the auto-detection
+# pass still drives the body/gable/dormer profile defaults; annotations
+# layer on top as authoritative overrides for the boxed region.
+# ---------------------------------------------------------------------------
+def apply_annotations_to_breakdown(
+    breakdown: dict, annotations: dict | None,
+) -> dict:
+    """Merge annotation accents into the per-elevation breakdown.
+
+    Args:
+        breakdown: output of `breakdown_walls_by_profile`. Must have
+            `per_elevation` (list) + `per_profile_sqft` (dict).
+        annotations: estimate's stored annotations, shape
+            `{<photo_idx>: [{elevation_label, profile, sqft, callout, ...}], "_scale_refs": {...}}`.
+            None or empty → returns breakdown unchanged.
+
+    Returns:
+        Same shape as input breakdown. `per_elevation[*].accents` may
+        have new entries; `per_profile_sqft` is re-aggregated to
+        reflect the added accent sqft.
+    """
+    if not annotations or not isinstance(annotations, dict):
+        return breakdown
+    per_elev = list(breakdown.get("per_elevation") or [])
+    # Index elevations by lowercased label so annotations match
+    # case-insensitively.
+    by_label = {(e.get("label") or "").strip().lower(): e for e in per_elev}
+    new_accents_by_label: dict[str, list] = {}
+
+    for key, val in annotations.items():
+        if key.startswith("_"):  # reserved keys like _scale_refs
+            continue
+        if not isinstance(val, list):
+            continue
+        for box in val:
+            if not isinstance(box, dict):
+                continue
+            label = (box.get("elevation_label") or "").strip().lower()
+            profile = (box.get("profile") or "").strip().lower()
+            if not profile or profile in ("unknown", ""):
+                continue
+            try:
+                sqft = float(box.get("sqft") or 0)
+            except (TypeError, ValueError):
+                sqft = 0.0
+            if sqft <= 0:
+                continue
+            # Non-siding annotations (stone / brick) DON'T add a siding
+            # accent — they're recorded for traceability but skipped
+            # from the catalog mapper.
+            if is_non_siding_family(profile):
+                continue
+            entry = {
+                "location": box.get("callout") or "manual annotation",
+                "profile": profile,
+                "callout": box.get("callout") or "user box",
+                "sqft": round(sqft, 1),
+                "_source": "annotation",
+            }
+            new_accents_by_label.setdefault(label, []).append(entry)
+
+    if not new_accents_by_label:
+        return breakdown
+
+    # Merge accents onto matching elevations + create synthetic
+    # elevation rows when an annotation targets a label that Claude
+    # didn't surface (rare, e.g. annotated a "porch" elevation that
+    # wasn't in the per_elevation breakdown).
+    for label, new_accents in new_accents_by_label.items():
+        elev = by_label.get(label)
+        if elev is None:
+            synth = {
+                "label":             label or "annotated",
+                "wall_body_sqft":    0.0,
+                "wall_body_profile": "",
+                "wall_body_callout": "",
+                "gable_sqft":        0.0,
+                "gable_profile":     "",
+                "gable_callout":     "",
+                "dormer_sqft":       0.0,
+                "dormer_profile":    "",
+                "dormer_callout":    "",
+                "accents":           list(new_accents),
+                "stone_sqft":        0.0,
+                "stone_callout":     "",
+            }
+            per_elev.append(synth)
+            by_label[label] = synth
+            continue
+        existing = list(elev.get("accents") or [])
+        existing.extend(new_accents)
+        elev["accents"] = existing
+
+    # Re-aggregate per_profile_sqft from the mutated per_elevation list.
+    per_profile: dict[str, float] = {}
+    SIDING_KEEPERS = {
+        "lap", "dutch_lap", "shake", "board_batten",
+        "vertical", "nickel_gap",
+    }
+
+    def _bump(fam: str, sq: float):
+        if not fam or fam == "unknown" or fam not in SIDING_KEEPERS:
+            return
+        if sq <= 0:
+            return
+        per_profile[fam] = per_profile.get(fam, 0.0) + sq
+
+    for e in per_elev:
+        _bump(e.get("wall_body_profile") or "", float(e.get("wall_body_sqft") or 0))
+        _bump(e.get("gable_profile") or "", float(e.get("gable_sqft") or 0))
+        _bump(e.get("dormer_profile") or "", float(e.get("dormer_sqft") or 0))
+        for a in (e.get("accents") or []):
+            _bump(a.get("profile") or "", float(a.get("sqft") or 0))
+
+    return {
+        "per_elevation":    per_elev,
+        "per_profile_sqft": {fam: round(sq, 1) for fam, sq in per_profile.items()},
+    }

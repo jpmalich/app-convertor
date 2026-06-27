@@ -362,7 +362,7 @@ def _render_pdf_to_pngs(raw_pdf: bytes, max_pages: int) -> list[bytes]:
     return out
 
 
-def _aggregate_to_hover_shape(raw: dict) -> dict:
+def _aggregate_to_hover_shape(raw: dict, annotations: dict | None = None) -> dict:
     """Roll Claude's blueprint extraction into the same measurements dict
     the rest of the app speaks. Mirrors the photo-measure aggregator but
     uses the printed dims at face value (no defensive clamps — the
@@ -494,8 +494,9 @@ def _aggregate_to_hover_shape(raw: dict) -> dict:
     # frontend can render a per-elevation breakdown card. Mirrors the
     # AI Measure aggregator (see routes/ai_measure.py).
     try:
-        from profile_callouts import breakdown_walls_by_profile
+        from profile_callouts import breakdown_walls_by_profile, apply_annotations_to_breakdown
         breakdown = breakdown_walls_by_profile(walls)
+        breakdown = apply_annotations_to_breakdown(breakdown, annotations)
         measurements["_per_elevation_breakdown"] = breakdown["per_elevation"]
         measurements["_per_profile_sqft"] = breakdown["per_profile_sqft"]
     except Exception:
@@ -600,6 +601,7 @@ async def ai_blueprint(
         user_id=user_id,
         address=address,
         overhang_in=overhang_in,
+        estimate_id=estimate_id,
     ))
     return {
         "run_id": run_id,
@@ -689,6 +691,7 @@ async def _execute_ai_blueprint_worker(
     user_id: str,
     address: Optional[str],
     overhang_in: float,
+    estimate_id: Optional[str] = None,
 ):
     """Background worker — runs the Claude blueprint read, aggregates,
     maps to lines + Vero/Mezzo openings, and writes the final result
@@ -728,7 +731,18 @@ async def _execute_ai_blueprint_worker(
 
         await _set_stage("aggregating")
         raw = _json_from_reply(reply_text or "")
-        measurements = _aggregate_to_hover_shape(raw)
+        # Iter 78z — Load user-drawn profile annotations from the
+        # estimate so the breakdown overlay can layer them as
+        # authoritative accents.
+        annotations: dict | None = None
+        if estimate_id:
+            est_doc = await db.estimates.find_one(
+                {"id": estimate_id},
+                {"_id": 0, "profile_annotations": 1},
+            )
+            if est_doc:
+                annotations = est_doc.get("profile_annotations") or None
+        measurements = _aggregate_to_hover_shape(raw, annotations=annotations)
         measurements["overhang_in"] = float(overhang_in)
 
         await _set_stage("mapping")
