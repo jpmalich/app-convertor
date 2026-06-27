@@ -261,7 +261,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
           <div className="text-[10px] uppercase tracking-[0.2em] text-[#A1A1AA] font-bold mb-2">
             {t("est.colors")}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
             <div>
               <label className="label">{isLp ? t("est.color.lpSiding") : t("est.color.siding")}</label>
               <select
