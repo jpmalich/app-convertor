@@ -24,15 +24,15 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 
 const PROFILES = [
-  { value: "lap",          label: "Lap",          color: "#3B82F6", isSiding: true },
-  { value: "dutch_lap",    label: "Dutch Lap",    color: "#2563EB", isSiding: true },
-  { value: "shake",        label: "Shake",        color: "#F59E0B", isSiding: true },
-  { value: "board_batten", label: "Board & Batten", color: "#EC4899", isSiding: true },
-  { value: "vertical",     label: "Vertical",     color: "#DB2777", isSiding: true },
-  { value: "nickel_gap",   label: "Nickel Gap",   color: "#A855F7", isSiding: true },
-  { value: "stone",        label: "Stone",        color: "#71717A", isSiding: false },
-  { value: "brick",        label: "Brick",        color: "#92400E", isSiding: false },
-  { value: "stucco",       label: "Stucco",       color: "#9CA3AF", isSiding: false },
+  { value: "lap",          label: "Lap",          short: "LP",  color: "#3B82F6", isSiding: true },
+  { value: "dutch_lap",    label: "Dutch Lap",    short: "DL",  color: "#2563EB", isSiding: true },
+  { value: "shake",        label: "Shake",        short: "SH",  color: "#F59E0B", isSiding: true },
+  { value: "board_batten", label: "Board & Batten", short: "BB", color: "#EC4899", isSiding: true },
+  { value: "vertical",     label: "Vertical",     short: "VT",  color: "#DB2777", isSiding: true },
+  { value: "nickel_gap",   label: "Nickel Gap",   short: "NG",  color: "#A855F7", isSiding: true },
+  { value: "stone",        label: "Stone",        short: "ST",  color: "#71717A", isSiding: false },
+  { value: "brick",        label: "Brick",        short: "BR",  color: "#92400E", isSiding: false },
+  { value: "stucco",       label: "Stucco",       short: "SC",  color: "#9CA3AF", isSiding: false },
 ];
 
 const ELEVATIONS = ["front", "right", "back", "left", "front-left", "front-right", "rear-left", "rear-right", "porch", "other"];
@@ -52,6 +52,37 @@ function computeSqftFromBox(boxNorm, imgPx, scaleRef) {
   return Math.max(0, Math.round(sqft));
 }
 
+// Iter 78z+ — Polygon support. Shoelace area (in pixel space) → ft²
+// via the same scale ref. Used for irregular shapes (gables, porch
+// faces) where a bounding rectangle would massively over-count.
+function polygonAreaPx(points, imgPx) {
+  if (!points || points.length < 3 || !imgPx?.w || !imgPx?.h) return 0;
+  let a = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    a += (points[i].x_norm * imgPx.w) * (points[j].y_norm * imgPx.h);
+    a -= (points[j].x_norm * imgPx.w) * (points[i].y_norm * imgPx.h);
+  }
+  return Math.abs(a / 2);
+}
+
+function computeSqftFromPolygon(points, imgPx, scaleRef) {
+  if (!scaleRef || !scaleRef.px_height || !scaleRef.real_ft) return null;
+  const areaPx = polygonAreaPx(points, imgPx);
+  if (areaPx <= 0) return null;
+  const ftPerPx = scaleRef.real_ft / scaleRef.px_height;
+  return Math.max(0, Math.round(areaPx * ftPerPx * ftPerPx));
+}
+
+function pointsToBbox(points) {
+  if (!points || !points.length) return { x_norm: 0, y_norm: 0, w_norm: 0, h_norm: 0 };
+  const xs = points.map((p) => p.x_norm);
+  const ys = points.map((p) => p.y_norm);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  return { x_norm: xMin, y_norm: yMin, w_norm: xMax - xMin, h_norm: yMax - yMin };
+}
+
 export default function ProfileAnnotator({
   estimateId, photos, initialAnnotations, defaultElevationByIdx,
   onClose, onSaved, onSaveAndRerun,
@@ -59,7 +90,11 @@ export default function ProfileAnnotator({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [annotations, setAnnotations] = useState(initialAnnotations || {});
   const [activeProfile, setActiveProfile] = useState("shake");
-  const [drawing, setDrawing] = useState(null); // {x0, y0, x1, y1}
+  // Iter 78z+ — Draw mode toggle. Rectangles for body wall sections,
+  // polygons for triangular gables / irregular porch B&B / etc.
+  const [drawMode, setDrawMode] = useState("rect"); // "rect" | "polygon"
+  const [drawing, setDrawing] = useState(null); // rect draft {x0, y0, x1, y1}
+  const [polygonDraft, setPolygonDraft] = useState(null); // {points: [...], cursorX, cursorY}
   // Scale ref draft mode: when truthy, a click+drag draws a calibration line.
   const [scaleDraft, setScaleDraft] = useState(null); // {x0,y0,x1,y1,active}
   const [scaleRefInput, setScaleRefInput] = useState({ open: false, pxHeight: 0, realFt: "6.67" });
@@ -97,9 +132,24 @@ export default function ProfileAnnotator({
     const y = (e.clientY - rect.top) / rect.height;
     if (scaleDraft?.active) {
       setScaleDraft({ ...scaleDraft, x0: x, y0: y, x1: x, y1: y, dragging: true });
-    } else {
-      setDrawing({ x0: x, y0: y, x1: x, y1: y });
+      return;
     }
+    if (drawMode === "polygon") {
+      // First click → start polygon; subsequent clicks → append vertex.
+      const pts = polygonDraft?.points || [];
+      // Closing rule: click within 2% of the first vertex → finalize.
+      if (pts.length >= 3) {
+        const dx = pts[0].x_norm - x;
+        const dy = pts[0].y_norm - y;
+        if (Math.hypot(dx, dy) < 0.025) {
+          finalizePolygon(pts);
+          return;
+        }
+      }
+      setPolygonDraft({ points: [...pts, { x_norm: x, y_norm: y }], cursorX: x, cursorY: y });
+      return;
+    }
+    setDrawing({ x0: x, y0: y, x1: x, y1: y });
   };
   const onMouseMove = (e) => {
     if (!imgRef.current) return;
@@ -108,10 +158,50 @@ export default function ProfileAnnotator({
     const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
     if (scaleDraft?.dragging) {
       setScaleDraft({ ...scaleDraft, x1: x, y1: y });
+    } else if (polygonDraft) {
+      setPolygonDraft({ ...polygonDraft, cursorX: x, cursorY: y });
     } else if (drawing) {
       setDrawing({ ...drawing, x1: x, y1: y });
     }
   };
+
+  const finalizePolygon = (points) => {
+    if (!points || points.length < 3) return;
+    const bbox = pointsToBbox(points);
+    const newBox = {
+      id: newId(),
+      ...bbox,
+      points,                       // <-- polygon vertices
+      shape: "polygon",
+      elevation_label: defaultElevation,
+      profile: activeProfile,
+      sqft: 50,
+      callout: "",
+    };
+    const sqftFromPoly = computeSqftFromPolygon(points, imgPx, scaleRef);
+    if (sqftFromPoly != null) newBox.sqft = sqftFromPoly;
+    setAnnotations((prev) => ({
+      ...prev,
+      [photoKey]: [...(prev[photoKey] || []), newBox],
+    }));
+    setPolygonDraft(null);
+  };
+
+  // Keyboard shortcuts: Enter closes polygon, Esc cancels.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") {
+        setPolygonDraft(null);
+        setScaleDraft(null);
+        setDrawing(null);
+      }
+      if (e.key === "Enter" && polygonDraft && polygonDraft.points?.length >= 3) {
+        finalizePolygon(polygonDraft.points);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [polygonDraft, activeProfile, photoKey, imgPx, scaleRef]);
   const onMouseUp = () => {
     if (scaleDraft?.dragging) {
       // finalize calibration line
@@ -127,6 +217,8 @@ export default function ProfileAnnotator({
       setScaleDraft(null);
       return;
     }
+    // Polygon mode → no drag-up behavior; vertices added on click.
+    if (drawMode === "polygon") return;
     if (!drawing) return;
     const xMin = Math.min(drawing.x0, drawing.x1);
     const yMin = Math.min(drawing.y0, drawing.y1);
@@ -140,9 +232,10 @@ export default function ProfileAnnotator({
     const newBox = {
       id: newId(),
       x_norm: xMin, y_norm: yMin, w_norm: w, h_norm: h,
+      shape: "rect",
       elevation_label: defaultElevation,
       profile: activeProfile,
-      sqft: 50, // sane default; recomputed below if scale ref exists
+      sqft: 50,
       callout: "",
     };
     const computed = computeSqftFromBox(newBox, imgPx, scaleRef);
@@ -324,34 +417,61 @@ export default function ProfileAnnotator({
                   draggable={false}
                   style={{ userSelect: "none", cursor: scaleDraft?.active ? "crosshair" : "crosshair" }}
                 />
-                {/* Existing boxes */}
+                {/* Existing boxes (rect + polygon) */}
                 {boxes.map((b) => {
                   const profileDef = PROFILES.find((p) => p.value === b.profile) || PROFILES[0];
+                  const isPolygon = b.shape === "polygon" && Array.isArray(b.points) && b.points.length >= 3;
                   return (
-                    <div
-                      key={b.id}
-                      className="absolute border-2 pointer-events-none"
-                      style={{
-                        left: `${b.x_norm * 100}%`,
-                        top: `${b.y_norm * 100}%`,
-                        width: `${b.w_norm * 100}%`,
-                        height: `${b.h_norm * 100}%`,
-                        borderColor: profileDef.color,
-                        background: `${profileDef.color}22`,
-                      }}
-                      data-testid={`annotator-box-${b.id}`}
-                    >
+                    <React.Fragment key={b.id}>
+                      {isPolygon ? (
+                        <svg
+                          className="absolute inset-0 pointer-events-none"
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="none"
+                          data-testid={`annotator-poly-${b.id}`}
+                        >
+                          <polygon
+                            points={b.points.map((p) => `${p.x_norm * 100},${p.y_norm * 100}`).join(" ")}
+                            fill={`${profileDef.color}22`}
+                            stroke={profileDef.color}
+                            strokeWidth="0.4"
+                          />
+                        </svg>
+                      ) : (
+                        <div
+                          className="absolute border-2 pointer-events-none"
+                          style={{
+                            left: `${b.x_norm * 100}%`,
+                            top: `${b.y_norm * 100}%`,
+                            width: `${b.w_norm * 100}%`,
+                            height: `${b.h_norm * 100}%`,
+                            borderColor: profileDef.color,
+                            background: `${profileDef.color}22`,
+                          }}
+                          data-testid={`annotator-box-${b.id}`}
+                        />
+                      )}
+                      {/* Iter 78z+ — Tiny corner label so it never blocks the drawing.
+                          Short code (SH / BB / etc.) + ft² in 9px. */}
                       <div
-                        className="absolute -top-5 left-0 text-[10px] uppercase tracking-wider font-bold px-1 text-white"
-                        style={{ background: profileDef.color }}
+                        className="absolute pointer-events-none text-white font-bold flex items-center justify-center"
+                        style={{
+                          left: `${b.x_norm * 100}%`,
+                          top: `${b.y_norm * 100}%`,
+                          background: profileDef.color,
+                          fontSize: "9px",
+                          padding: "1px 3px",
+                          lineHeight: 1,
+                          letterSpacing: "0.04em",
+                        }}
                       >
-                        {profileDef.label} · {b.sqft}ft²
+                        {profileDef.short}·{b.sqft}
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
-                {/* In-progress drawing rectangle */}
-                {drawing && (
+                {/* In-progress rect */}
+                {drawing && drawMode === "rect" && (
                   <div
                     className="absolute border-2 border-dashed pointer-events-none"
                     style={{
@@ -363,6 +483,38 @@ export default function ProfileAnnotator({
                       background: `${(PROFILES.find((p) => p.value === activeProfile) || PROFILES[0]).color}33`,
                     }}
                   />
+                )}
+                {/* In-progress polygon (live edges + vertex dots) */}
+                {polygonDraft && polygonDraft.points?.length > 0 && (
+                  <svg
+                    className="absolute inset-0 pointer-events-none"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <polyline
+                      points={[
+                        ...polygonDraft.points.map((p) => `${p.x_norm * 100},${p.y_norm * 100}`),
+                        polygonDraft.cursorX != null
+                          ? `${polygonDraft.cursorX * 100},${polygonDraft.cursorY * 100}`
+                          : null,
+                      ].filter(Boolean).join(" ")}
+                      fill="none"
+                      stroke={(PROFILES.find((p) => p.value === activeProfile) || PROFILES[0]).color}
+                      strokeWidth="0.4"
+                      strokeDasharray="1 0.5"
+                    />
+                    {polygonDraft.points.map((p, i) => (
+                      <circle
+                        key={i}
+                        cx={p.x_norm * 100}
+                        cy={p.y_norm * 100}
+                        r={i === 0 ? 0.8 : 0.5}
+                        fill={(PROFILES.find((px) => px.value === activeProfile) || PROFILES[0]).color}
+                        stroke="white"
+                        strokeWidth="0.15"
+                      />
+                    ))}
+                  </svg>
                 )}
                 {/* Scale calibration line in progress */}
                 {scaleDraft?.dragging && (
@@ -388,7 +540,41 @@ export default function ProfileAnnotator({
           <div className="w-72 border-l border-[#E4E4E7] flex flex-col">
             <div className="p-3 border-b border-[#E4E4E7]">
               <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-2">
-                Profile (drag on image to draw box)
+                Draw mode
+              </div>
+              <div className="grid grid-cols-2 gap-1 mb-3">
+                <button
+                  type="button"
+                  onClick={() => { setDrawMode("rect"); setPolygonDraft(null); }}
+                  className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 border ${drawMode === "rect" ? "bg-[#09090B] text-white border-[#09090B]" : "border-[#E4E4E7] hover:bg-[#FAFAFA]"}`}
+                  data-testid="annotator-mode-rect"
+                >
+                  ▢ Rectangle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawMode("polygon")}
+                  className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 border ${drawMode === "polygon" ? "bg-[#09090B] text-white border-[#09090B]" : "border-[#E4E4E7] hover:bg-[#FAFAFA]"}`}
+                  data-testid="annotator-mode-polygon"
+                  title="Click each corner of the area, then click the first point again (or press Enter) to close"
+                >
+                  ◇ Polygon
+                </button>
+              </div>
+              {drawMode === "polygon" && (
+                <div className="text-[10px] text-[#52525B] bg-[#FEF3C7] border border-[#F59E0B] px-2 py-1 mb-2">
+                  <span className="font-bold">Polygon mode:</span> click each corner →
+                  click first point (or press <kbd className="font-mono-num">Enter</kbd>) to close ·
+                  <kbd className="font-mono-num">Esc</kbd> to cancel.
+                  {polygonDraft?.points?.length > 0 && (
+                    <span className="block mt-1 font-bold text-[#92400E]">
+                      {polygonDraft.points.length} vertex{polygonDraft.points.length === 1 ? "" : "es"} placed
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA] mb-2">
+                Profile {drawMode === "rect" ? "(drag to draw box)" : "(click corners on image)"}
               </div>
               <div className="grid grid-cols-3 gap-1">
                 {PROFILES.map((p) => (
@@ -539,8 +725,14 @@ export default function ProfileAnnotator({
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-[#E4E4E7] bg-[#FAFAFA] text-[10px] text-[#71717A]">
-          Boxes guarantee per-profile material lines. Re-run AI Measure / Blueprint after saving to apply.
+        <div className="px-4 py-2 border-t border-[#E4E4E7] bg-[#FAFAFA] text-[10px] text-[#71717A] leading-snug">
+          <span className="font-bold text-[#3F3F46]">How this helps:</span>{" "}
+          Boxes you draw here are saved on the estimate. When you click{" "}
+          <span className="font-bold">Save &amp; Re-run / Re-read</span>, the AI worker
+          loads your boxes and treats them as <span className="font-bold">authoritative</span>{" "}
+          accent material — the listed sqft for each profile lands on the materials list,
+          no matter what Claude&apos;s vision pass says. Use polygon mode for gables
+          and irregular shapes; the rectangle bounding-box would over-count.
         </div>
       </div>
     </div>
