@@ -530,10 +530,16 @@ async def ai_blueprint(
     from config import UPLOAD_DIR  # local import to dodge cycle
     page_paths: list[str] = []
 
-    def _persist_page_png(png_bytes: bytes) -> str:
-        name = f"bp_{uuid.uuid4().hex}.png"
+    def _persist_page_image(img_bytes: bytes) -> str:
+        # Sniff magic bytes to pick the correct extension. PDF pages
+        # come out as PNG (pypdfium2). Image-sheet uploads pass through
+        # `_compress_for_claude` which JPEG-encodes. /api/uploads
+        # serves raw bytes — extension matters for browser display.
+        is_png = img_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+        ext = "png" if is_png else "jpg"
+        name = f"bp_{uuid.uuid4().hex}.{ext}"
         target = UPLOAD_DIR / name
-        target.write_bytes(png_bytes)
+        target.write_bytes(img_bytes)
         return name
 
     # PDF path — render to PNGs
@@ -554,7 +560,7 @@ async def ai_blueprint(
         page_pngs = _render_pdf_to_pngs(raw, max_pages)
         for png in page_pngs:
             try:
-                page_paths.append(_persist_page_png(png))
+                page_paths.append(_persist_page_image(png))
             except Exception:
                 # If disk write fails we still want Claude to see the
                 # page — we just lose the annotator preview for it.
@@ -582,7 +588,7 @@ async def ai_blueprint(
             # version since that's what Claude sees — keeps box coords
             # aligned with what was analyzed.
             try:
-                page_paths.append(_persist_page_png(compressed))
+                page_paths.append(_persist_page_image(compressed))
             except Exception:
                 page_paths.append("")
 
