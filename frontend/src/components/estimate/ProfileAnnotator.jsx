@@ -53,7 +53,8 @@ function computeSqftFromBox(boxNorm, imgPx, scaleRef) {
 }
 
 export default function ProfileAnnotator({
-  estimateId, photos, initialAnnotations, defaultElevationByIdx, onClose, onSaved,
+  estimateId, photos, initialAnnotations, defaultElevationByIdx,
+  onClose, onSaved, onSaveAndRerun,
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [annotations, setAnnotations] = useState(initialAnnotations || {});
@@ -204,6 +205,21 @@ export default function ProfileAnnotator({
     }
   };
 
+  // Iter 78z+ — Save AND immediately fire the worker (using cached
+  // page bytes server-side). Skips the "click Read Blueprints again"
+  // step. Parent provides `onSaveAndRerun(annotations)` and handles
+  // the polling.
+  const saveAndRerun = async () => {
+    try {
+      await api.put(`/estimates/${estimateId}/profile-annotations`, { annotations });
+      if (onSaved) onSaved(annotations);
+      if (onSaveAndRerun) await onSaveAndRerun(annotations);
+      onClose();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message || "Failed to save & re-run");
+    }
+  };
+
   const totalBoxes = useMemo(() => {
     return Object.entries(annotations).reduce((acc, [k, v]) => (
       k.startsWith("_") ? acc : acc + (Array.isArray(v) ? v.length : 0)
@@ -234,6 +250,17 @@ export default function ProfileAnnotator({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {onSaveAndRerun && (
+              <button
+                type="button"
+                onClick={saveAndRerun}
+                className="bg-[#7C3AED] text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-[#6D28D9] flex items-center gap-1"
+                data-testid="annotator-save-rerun"
+                title="Save annotations and immediately re-read the blueprint with them"
+              >
+                <Save size={12} /> Save & Re-read
+              </button>
+            )}
             <button
               type="button"
               onClick={save}

@@ -654,6 +654,98 @@ async def ai_blueprint(
     }
 
 
+# Iter 78z+ — Re-run a previous blueprint launch using the CACHED page
+# bytes. Lets the contractor save profile annotations and immediately
+# kick off a fresh Claude pass without re-uploading the PDF. New
+# run_id is returned (history of previous runs is preserved on the
+# original doc).
+@router.post("/ai-blueprint/rerun/{prev_run_id}")
+async def ai_blueprint_rerun(
+    prev_run_id: str,
+    user: dict = Depends(get_current_user),
+):
+    prev = await db.ai_blueprint_runs.find_one({"run_id": prev_run_id})
+    if not prev:
+        raise HTTPException(status_code=404, detail="Previous run not found")
+    user_id = user.get("id") or "anon"
+    if prev.get("user_id") not in (user_id, "anon"):
+        raise HTTPException(status_code=403, detail="Not your run")
+
+    page_paths_str = prev.get("page_paths") or ""
+    paths = [p.strip() for p in page_paths_str.split(",") if p.strip()]
+    if not paths:
+        raise HTTPException(
+            status_code=400,
+            detail="No cached blueprint pages on this run — re-upload to use rerun",
+        )
+    from config import UPLOAD_DIR  # local import to dodge cycle
+    image_payloads: list[bytes] = []
+    new_page_paths: list[str] = []
+    for name in paths:
+        target = UPLOAD_DIR / name
+        if not target.exists():
+            continue
+        image_payloads.append(target.read_bytes())
+        new_page_paths.append(name)
+    if not image_payloads:
+        raise HTTPException(
+            status_code=400,
+            detail="Cached blueprint pages are no longer on disk — re-upload",
+        )
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY missing on server")
+
+    run_id = uuid.uuid4().hex
+    now = datetime.now(timezone.utc)
+    address = prev.get("address")
+    estimate_id = prev.get("estimate_id")
+    # Default overhang we surfaced on the previous worker call. Stored on
+    # the result doc; fall back to the schema default (12 in) when absent.
+    prev_overhang = 12.0
+    try:
+        prev_result_meas = ((prev.get("result") or {}).get("measurements") or {})
+        if prev_result_meas.get("overhang_in") is not None:
+            prev_overhang = float(prev_result_meas["overhang_in"])
+    except Exception:
+        prev_overhang = 12.0
+
+    await db.ai_blueprint_runs.insert_one({
+        "run_id":      run_id,
+        "user_id":     user_id,
+        "estimate_id": estimate_id,
+        "status":      "running",
+        "stage":       "starting",
+        "page_count":  len(image_payloads),
+        "page_paths":  ",".join(new_page_paths),
+        "address":     address,
+        "rerun_of":    prev_run_id,
+        "created_at":  now,
+        "updated_at":  now,
+        "completed_at": None,
+        "result":      None,
+        "error":       None,
+    })
+    asyncio.create_task(_execute_ai_blueprint_worker(
+        run_id=run_id,
+        image_payloads=image_payloads,
+        api_key=api_key,
+        user_id=user_id,
+        address=address,
+        overhang_in=prev_overhang,
+        estimate_id=estimate_id,
+    ))
+    return {
+        "run_id":       run_id,
+        "status":       "running",
+        "stage":        "starting",
+        "pages_queued": len(image_payloads),
+        "page_paths":   ",".join(new_page_paths),
+        "rerun_of":     prev_run_id,
+    }
+
+
 @router.get("/ai-blueprint/status/{run_id}")
 async def ai_blueprint_status(
     run_id: str,

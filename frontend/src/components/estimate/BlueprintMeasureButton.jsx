@@ -492,6 +492,55 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
   const schedWindows = (result?.raw_ai?.windows) || [];
   const schedDoors = (result?.raw_ai?.doors) || [];
 
+  // Iter 78z+ — Re-fire the worker using the cached page bytes
+  // server-side (no re-upload). Triggered from the ProfileAnnotator's
+  // "Save & Re-read" button. Reuses the same polling loop the
+  // original run uses.
+  const rerunWithAnnotations = async () => {
+    if (!currentRunId) {
+      toast.error("No previous blueprint run to re-read — upload first");
+      return;
+    }
+    setBusy(true);
+    setBusyStage("starting");
+    setResult(null);
+    try {
+      const launch = await api.post(`/measure/ai-blueprint/rerun/${currentRunId}`);
+      const runId = launch?.data?.run_id;
+      if (!runId) throw new Error("Backend didn't return a new run_id");
+      setCurrentRunId(runId);
+      const pp = (launch?.data?.page_paths || "").split(",").filter(Boolean);
+      if (pp.length) setPagePaths(pp);
+      setBusyStage(launch?.data?.stage || "starting");
+      let pollResult = null;
+      for (let i = 0; i < 100; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        let statusResp;
+        try {
+          statusResp = await api.get(`/measure/ai-blueprint/status/${runId}`);
+        } catch (pollErr) {
+          if (i >= 5) console.warn("ai-blueprint rerun status poll failed", pollErr?.message);
+          continue;
+        }
+        const s = statusResp?.data || {};
+        if (s.stage && s.stage !== busyStage) setBusyStage(s.stage);
+        if (s.status === "error") throw new Error(s.error || "Blueprint re-read failed");
+        if (s.status === "done") { pollResult = s.result; break; }
+      }
+      if (!pollResult) {
+        throw new Error("Blueprint re-read timed out after 5 minutes");
+      }
+      setResult(pollResult);
+      toast.success("Re-read complete · annotations applied to materials list");
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || "Blueprint re-read failed";
+      toast.error(String(detail));
+    } finally {
+      setBusy(false);
+      setBusyStage("");
+    }
+  };
+
   return (
     <div data-testid="blueprint-import">
       <input
@@ -1042,8 +1091,12 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
           onClose={() => setProfileAnnotatorOpen(false)}
           onSaved={(saved) => {
             setSavedProfileAnnotations(saved);
-            toast.message("Annotations saved · Re-read blueprints to apply them to the takeoff");
           }}
+          onSaveAndRerun={currentRunId ? async () => {
+            // Fire-and-forget — the modal closes immediately so the
+            // busy spinner takes over the screen.
+            rerunWithAnnotations();
+          } : null}
         />
       )}
     </div>
