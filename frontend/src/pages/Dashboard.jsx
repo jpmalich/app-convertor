@@ -5,6 +5,24 @@ import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Plus, Trash2, FileText, Search, Download, Copy, Link2 } from "lucide-react";
 import EmailPipeline from "@/components/EmailPipeline";
+import { calcTotals as calcTabTotals } from "@/lib/calc";
+
+// Iter 78z++++ — per-kind tab definitions. Mirrors what the in-estimate
+// StickyBar renders, so the dashboard list row shows the same per-tab
+// breakdown a contractor sees inside the estimate (Vinyl / Ascend / LP
+// for siding, Vero / Mezzo for windows). Single-tab kinds (lp_smart,
+// iss) fall back to one collapsed total.
+const KIND_TABS = {
+  siding: [
+    { id: "vinyl", label: "Vinyl", color: "#F97316" },
+    { id: "ascend", label: "Ascend", color: "#A1A1AA" },
+    { id: "lp_smart", label: "LP", color: "#A1A1AA" },
+  ],
+  windows: [
+    { id: "windows", label: "Vero", color: "#F97316" },
+    { id: "mezzo", label: "Mezzo", color: "#A1A1AA" },
+  ],
+};
 
 // Categorize an estimate into one of the pipeline buckets based on its lifecycle fields.
 function statusOf(e) {
@@ -331,8 +349,43 @@ export default function Dashboard({ kind = "siding" }) {
                   <div className="text-xs text-[#A1A1AA]">{new Date(e.updated_at).toLocaleString()}</div>
                 </div>
                 <div className="col-span-12 md:col-span-3 text-sm text-[#52525B] truncate">{e.address || "—"}</div>
-                <div className="col-span-8 md:col-span-2 text-right font-mono-num text-lg font-bold text-[#09090B]">
-                  {fmt(sell)}
+                <div className="col-span-8 md:col-span-2 text-right">
+                  {/* Iter 78z++++ — Per-tab split mirroring the in-estimate
+                      sticky banner (Vinyl / Ascend / LP for siding,
+                      Vero / Mezzo for windows). Falls back to a single
+                      grand-total for single-tab kinds (LP, ISS). */}
+                  {KIND_TABS[kind] ? (
+                    <div className="flex items-stretch gap-2 justify-end flex-wrap" data-testid={`row-tab-totals-${e.id}`}>
+                      {KIND_TABS[kind].map((tt) => {
+                        const t = calcTabTotals(e, { tab: tt.id });
+                        return (
+                          <div
+                            key={tt.id}
+                            className="px-2 py-0.5 border-l text-right min-w-[78px]"
+                            style={{ borderLeftColor: tt.color }}
+                            data-testid={`row-tab-${tt.id}-${e.id}`}
+                          >
+                            <div
+                              className="text-[9px] uppercase tracking-[0.16em] font-bold"
+                              style={{ color: tt.color }}
+                            >
+                              {tt.label}
+                            </div>
+                            <div
+                              className="font-mono-num text-sm font-bold"
+                              style={{ color: tt.color }}
+                            >
+                              {fmt(t.sell)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="font-mono-num text-lg font-bold text-[#09090B]">
+                      {fmt(sell)}
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-4 md:col-span-1 text-right flex items-center justify-end gap-1">
                   <button
