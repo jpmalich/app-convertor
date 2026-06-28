@@ -277,9 +277,9 @@ export default function Dashboard({ kind = "siding" }) {
       <div className="card">
         <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-[#E4E4E7] text-xs uppercase tracking-[0.18em] text-[#52525B] font-bold">
           <div className="col-span-2">{t("dash.col.estNum")}</div>
-          <div className="col-span-4">{t("dash.col.customer")}</div>
-          <div className="col-span-3">{t("dash.col.address")}</div>
-          <div className="col-span-2 text-right">{t("dash.col.sellPrice")}</div>
+          <div className="col-span-3">{t("dash.col.customer")}</div>
+          <div className="col-span-2">{t("dash.col.address")}</div>
+          <div className="col-span-4 text-right">{t("dash.col.sellPrice")}</div>
           <div className="col-span-1 text-right">{t("dash.col.actions")}</div>
         </div>
 
@@ -324,7 +324,7 @@ export default function Dashboard({ kind = "siding" }) {
                     )}
                   </div>
                 </div>
-                <div className="col-span-12 md:col-span-4">
+                <div className="col-span-12 md:col-span-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="font-semibold text-[#09090B]">{e.customer_name || t("dash.untitled")}</div>
                     {e.accepted_at ? (
@@ -348,35 +348,38 @@ export default function Dashboard({ kind = "siding" }) {
                   </div>
                   <div className="text-xs text-[#A1A1AA]">{new Date(e.updated_at).toLocaleString()}</div>
                 </div>
-                <div className="col-span-12 md:col-span-3 text-sm text-[#52525B] truncate">{e.address || "—"}</div>
-                <div className="col-span-8 md:col-span-2 text-right">
+                <div className="col-span-12 md:col-span-2 text-sm text-[#52525B] truncate">{e.address || "—"}</div>
+                <div className="col-span-8 md:col-span-4 text-right">
                   {/* Iter 78z++++ — Per-tab split mirroring the in-estimate
                       sticky banner (Vinyl / Ascend / LP for siding,
-                      Vero / Mezzo for windows). Falls back to a single
-                      grand-total for single-tab kinds (LP, ISS). */}
+                      Vero / Mezzo for windows). Inline on a single
+                      line; `nowrap` keeps the three pills together
+                      even on tighter viewports. */}
                   {KIND_TABS[kind] ? (
-                    <div className="flex items-stretch gap-2 justify-end flex-wrap" data-testid={`row-tab-totals-${e.id}`}>
+                    <div
+                      className="inline-flex items-baseline gap-x-3 justify-end whitespace-nowrap"
+                      data-testid={`row-tab-totals-${e.id}`}
+                    >
                       {KIND_TABS[kind].map((tt) => {
                         const t = calcTabTotals(e, { tab: tt.id });
                         return (
                           <div
                             key={tt.id}
-                            className="px-2 py-0.5 border-l text-right min-w-[78px]"
-                            style={{ borderLeftColor: tt.color }}
+                            className="inline-flex items-baseline gap-1.5"
                             data-testid={`row-tab-${tt.id}-${e.id}`}
                           >
-                            <div
+                            <span
                               className="text-[9px] uppercase tracking-[0.16em] font-bold"
                               style={{ color: tt.color }}
                             >
                               {tt.label}
-                            </div>
-                            <div
+                            </span>
+                            <span
                               className="font-mono-num text-sm font-bold"
                               style={{ color: tt.color }}
                             >
                               {fmt(t.sell)}
-                            </div>
+                            </span>
                           </div>
                         );
                       })}
