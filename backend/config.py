@@ -27,7 +27,14 @@ if not SIGNUP_CODE:
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 
-CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
+# SEC-001 — Iter 78z+++: CORS allowlist parsing. Each origin is comma
+# separated; whitespace + empty entries get stripped. We deliberately
+# leave the env var with NO default so an unconfigured deploy fails
+# closed (no `*` fallback when credentials are sent). The server-side
+# check in `server.py` refuses to combine `*` with `allow_credentials`.
+CORS_ORIGINS = [
+    o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()
+]
 
 UPLOAD_DIR = ROOT_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

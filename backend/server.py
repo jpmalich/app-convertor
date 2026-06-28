@@ -17,10 +17,17 @@ from startup import run_startup  # noqa: E402
 app = FastAPI(title="Vinyl Siding Estimator API")
 app.include_router(api_router)
 
+# SEC-001 — Iter 78z+++: never combine `*` with credentials. The
+# Starlette CORS middleware reflects the request Origin when set to
+# `*` + credentials, which lets any 3rd-party site read tenant data
+# with the auth cookie. Strip any wildcard out and require an explicit
+# allowlist; if the env var was empty, the list is empty and every
+# preflight is refused (fail closed).
+_allowed_origins = [o for o in CORS_ORIGINS if o != "*"]
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
