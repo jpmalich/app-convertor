@@ -92,9 +92,19 @@ export default function ContractorPicker() {
         <button
           type="button"
           onClick={() => nav("/dashboard/lp_smart")}
-          className="card text-left p-6 sm:p-8 group hover:border-[#F97316] transition-colors"
+          className="card text-left p-6 sm:p-8 group hover:border-[#F97316] transition-colors relative"
           data-testid="contractor-card-lp_smart"
         >
+          {/* Iter 78z++++ — Howard flagged LP SmartSide as under
+              construction while the LP-specific catalog + labor rules
+              are still being finalized. Badge mirrors the Contractor
+              Window Quotes treatment. */}
+          <span
+            className="absolute top-3 right-3 inline-flex items-center px-2.5 py-1 bg-[#FEF3C7] text-[#92400E] text-[10px] font-bold uppercase tracking-[0.16em] border border-[#FCD34D] rounded-sm"
+            data-testid="contractor-lp-under-construction-badge"
+          >
+            {t("home.underConstruction")}
+          </span>
           <div className="flex items-center gap-3 mb-4 text-[#F97316]">
             <Layers className="w-8 h-8" />
             <span className="text-[10px] uppercase tracking-[0.2em] font-bold">

@@ -212,6 +212,25 @@ export default function Dashboard({ kind = "siding" }) {
         />
       </div>
 
+      {/* Iter 78z++++ — Howard flagged LP SmartSide as under construction
+          while the LP-specific catalog + labor rules are still being
+          finalized. Banner shows on the LP dashboard so contractors who
+          deep-link past the picker still see the warning. */}
+      {kind === "lp_smart" && (
+        <div
+          className="mb-6 px-4 py-3 bg-[#FEF3C7] border-l-4 border-[#F59E0B] flex items-start gap-3"
+          data-testid="lp-under-construction-banner"
+        >
+          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#92400E] mt-0.5">
+            Under Construction
+          </span>
+          <div className="text-sm text-[#78350F] leading-relaxed">
+            LP SmartSide is still being finalized — pricing, accessories, and labor rules may change.
+            Use it for drafts only; do not send quotes to customers from this workspace yet.
+          </div>
+        </div>
+      )}
+
       {/* Pipeline stats — Draft / Sent / Accepted with running dollar totals */}
       <div
         className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"
