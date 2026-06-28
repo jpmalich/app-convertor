@@ -13,13 +13,14 @@
 // merge into the current estimate; the window schedule routes to the
 // paired Windows estimate (auto-created via /estimates/{id}/pair).
 import React, { useRef, useState } from "react";
-import { FileText, Loader2, X, Check, AlertTriangle } from "lucide-react";
+import { FileText, Loader2, X, Check, AlertTriangle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import TakeoffReconCard from "@/components/estimate/TakeoffReconCard";
 import PerElevationBreakdownCard from "@/components/estimate/PerElevationBreakdownCard";
 // Iter 78z+ — Profile annotator (Tag Shake / B&B / etc. on blueprint pages).
 import ProfileAnnotator from "@/components/estimate/ProfileAnnotator";
+import { printTakeoff } from "@/lib/printTakeoff";
 import {
   getSavedWasteDefault,
   saveWasteDefault,
@@ -1050,6 +1051,28 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
                 <span>Powered by Claude Opus 4.5</span>
               </div>
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-2 bg-white text-[#0EA5E9] border border-[#0EA5E9] hover:bg-[#F0F9FF] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                  onClick={() =>
+                    printTakeoff({
+                      source: "Blueprint",
+                      measurements: result?.measurements || {},
+                      lines: result?.lines || [],
+                      openings: [
+                        ...((result?.vero_openings) || []),
+                        ...((result?.mezzo_openings) || []),
+                      ],
+                      est,
+                      kind: est?.kind || "siding",
+                    })
+                  }
+                  disabled={applying}
+                  data-testid="blueprint-print-btn"
+                  title="Print this blueprint takeoff preview"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
                 <button
                   type="button"
                   className="px-3 py-2 bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5] text-xs font-bold uppercase tracking-wider disabled:opacity-50"

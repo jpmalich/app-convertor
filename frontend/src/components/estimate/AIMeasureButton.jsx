@@ -9,7 +9,7 @@
 // shape as HOVER, so we hand it to the same `onApply` callback the page
 // already uses for HOVER.
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw, Wand2, FileText } from "lucide-react";
+import { Sparkles, X, Check, Loader2, AlertTriangle, Camera, Upload, Ruler, RotateCcw, Wand2, FileText, Printer } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import PhotoMeasureButton from "@/components/estimate/PhotoMeasureButton";
@@ -29,6 +29,7 @@ import Elevation3DPreview from "@/components/estimate/Elevation3DPreview";
 import { buildElevationsFromAIMeasure } from "@/lib/elevationBuilder";
 // Iter 78z (P1.3) — Per-Elevation Breakdown card + "+ Add Accent" override
 import PerElevationBreakdownCard from "@/components/estimate/PerElevationBreakdownCard";
+import { printTakeoff } from "@/lib/printTakeoff";
 
 const ELEVATION_OPTIONS = [
   { key: "",            label: "Untagged" },
@@ -2533,6 +2534,32 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
                         )}
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        printTakeoff({
+                          source: "AI Photo Measure",
+                          measurements: preview?.measurements || {},
+                          lines: preview?.lines || [],
+                          openings:
+                            preview?.measurements?._ai_openings ||
+                            preview?.raw_ai?.openings ||
+                            [],
+                          est: {
+                            customer_name: "",
+                            address: address || "",
+                            estimate_number: estimateId ? estimateId.slice(0, 8) : "Draft",
+                          },
+                          kind: kind || "siding",
+                        })
+                      }
+                      disabled={busy || !preview}
+                      className="px-3 py-2 bg-white text-[#0EA5E9] border border-[#0EA5E9] hover:bg-[#F0F9FF] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                      data-testid="ai-measure-print-btn"
+                      title="Print this AI takeoff preview"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Print
+                    </button>
                     <button
                       type="button"
                       onClick={apply}

@@ -15,9 +15,10 @@
 // Contractor can switch siding brand row after import (Charter Oak,
 // Ascend Composite, etc.) — the Conquest qty becomes the starting baseline.
 import React, { useRef, useState } from "react";
-import { Upload, FileText, Check, X, Loader2, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Check, X, Loader2, AlertTriangle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { printTakeoff } from "@/lib/printTakeoff";
 
 const KEY_LABELS = {
   siding_sqft: "Siding",
@@ -289,6 +290,23 @@ export default function ISSHoverImportButton({ est, applyLines }) {
                 Existing ISS lines with matching names will have their qty updated.
               </div>
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-white text-[#0EA5E9] border border-[#0EA5E9] hover:bg-[#F0F9FF] text-sm font-bold uppercase tracking-wider flex items-center gap-1.5"
+                  onClick={() =>
+                    printTakeoff({
+                      source: "HOVER",
+                      measurements: preview.measurements || {},
+                      lines: preview.issLines || [],
+                      est,
+                      kind: "iss",
+                    })
+                  }
+                  data-testid="iss-hover-print-btn"
+                  title="Print this ISS takeoff preview"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
                 <button
                   type="button"
                   className="px-4 py-2 bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5] text-sm font-bold uppercase tracking-wider"
