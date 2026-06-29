@@ -47,10 +47,44 @@ import os
 
 def is_enabled() -> bool:
     """LP AI formula module is gated by env. Default OFF so existing
-    behavior is preserved until Howard greenlights production."""
+    behavior is preserved until Howard greenlights production.
+
+    A per-request override (set via `override_flag` context manager
+    below) takes precedence over the env value so the admin preview
+    can compute both legacy + PDF qtys back-to-back inside one
+    request without env mutation.
+    """
+    if _OVERRIDE_FLAG is not None:
+        return _OVERRIDE_FLAG
     return os.environ.get("LP_AI_FORMULAS_V1", "").strip().lower() in {
         "1", "true", "yes", "on",
     }
+
+
+# Thread-unsafe but request-local override. Only used by the admin
+# preview endpoint (which is synchronous within a single async task)
+# and by tests.
+_OVERRIDE_FLAG: bool | None = None
+
+
+class override_flag:  # noqa: N801 — context-manager style camel name
+    """Temporarily force `is_enabled()` to a fixed value for the
+    duration of the `with` block. Restores the prior state on exit."""
+
+    def __init__(self, value: bool):
+        self.value = bool(value)
+        self._prev: bool | None = None
+
+    def __enter__(self):
+        global _OVERRIDE_FLAG
+        self._prev = _OVERRIDE_FLAG
+        _OVERRIDE_FLAG = self.value
+        return self
+
+    def __exit__(self, *exc):
+        global _OVERRIDE_FLAG
+        _OVERRIDE_FLAG = self._prev
+        return False
 
 
 # ────────────────────── Defaults (Howard, 2026-02-28) ──────────────────────

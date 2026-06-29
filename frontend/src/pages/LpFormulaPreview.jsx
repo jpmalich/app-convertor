@@ -1,0 +1,291 @@
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import axios from "axios";
+import { toast } from "sonner";
+import { Shield, FlaskConical, AlertTriangle, CheckCircle2 } from "lucide-react";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// Iter 78ab — Admin-only side-by-side preview of LP qty under the
+// legacy `sqft × 0.11` math vs the new PDF-accurate per-profile
+// formulas. Lets Howard confirm the delta on a Campbell-sized job
+// before flipping `LP_AI_FORMULAS_V1` in production.
+export default function LpFormulaPreview() {
+  const [params] = useSearchParams();
+  const token = params.get("token") || "";
+  const [presets, setPresets] = useState([]);
+  const [preset, setPreset] = useState("campbell");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    axios
+      .get(`${API}/admin/lp-formula-preview/presets`, {
+        headers: { "X-Admin-Token": token },
+      })
+      .then((r) => setPresets(r.data.presets || []))
+      .catch((e) => {
+        setError(
+          e.response?.status === 403
+            ? "Invalid admin token. Check the ?token=... in your URL."
+            : "Failed to load presets: " + (e.response?.data?.detail || e.message)
+        );
+      });
+  }, [token]);
+
+  const runPreview = async (presetKey) => {
+    setLoading(true);
+    setError("");
+    try {
+      const r = await axios.post(
+        `${API}/admin/lp-formula-preview`,
+        { preset: presetKey },
+        { headers: { "X-Admin-Token": token } }
+      );
+      setData(r.data);
+    } catch (e) {
+      setError("Preview failed: " + (e.response?.data?.detail || e.message));
+      toast.error("Preview failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F4F4F5]">
+        <div className="card p-8 max-w-md w-full">
+          <Shield className="w-10 h-10 text-[#F97316] mb-4" />
+          <h1 className="font-heading text-2xl text-[#09090B] mb-2">LP Formula Preview</h1>
+          <p className="text-sm text-[#52525B]">
+            This URL requires an admin token. Append{" "}
+            <code className="font-mono">?token=YOUR_TOKEN</code> to the URL.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F4F4F5] py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        <header className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <FlaskConical className="w-5 h-5 text-[#F97316]" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#71717A]">
+              Supplier Admin · LP Formula Go/No-Go Gate
+            </span>
+          </div>
+          <h1 className="font-heading text-3xl text-[#09090B] mb-1">
+            LP SmartSide AI Formula Preview
+          </h1>
+          <p className="text-sm text-[#52525B] max-w-3xl">
+            Side-by-side LP-line qty diff between the legacy{" "}
+            <code className="font-mono">sqft × 0.11</code> math and the PDF-accurate
+            per-profile formulas (8&quot; Lap / 16&quot; Soffit / 7&quot; Shake reveal + 10% waste).
+            Pick a preset, review the deltas, then decide whether to flip{" "}
+            <code className="font-mono">LP_AI_FORMULAS_V1=true</code> in{" "}
+            <code className="font-mono">backend/.env</code>.
+          </p>
+        </header>
+
+        {data?.flag_currently_enabled !== undefined && (
+          <div
+            className={`mb-4 p-3 border ${
+              data.flag_currently_enabled
+                ? "border-[#16A34A] bg-[#F0FDF4]"
+                : "border-[#71717A] bg-[#FAFAFA]"
+            } flex items-center gap-2 text-sm`}
+            data-testid="lp-flag-status"
+          >
+            {data.flag_currently_enabled ? (
+              <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-[#71717A]" />
+            )}
+            <div>
+              <span className="font-bold">
+                {data.flag_currently_enabled ? "LIVE" : "STAGED (OFF)"}
+              </span>{" "}
+              — <code className="font-mono">LP_AI_FORMULAS_V1</code> is currently{" "}
+              <strong>{data.flag_currently_enabled ? "enabled" : "disabled"}</strong>{" "}
+              in production. {data.flag_currently_enabled
+                ? "Contractors are quoting with the PDF formulas."
+                : "Contractors are quoting with the legacy math."}
+            </div>
+          </div>
+        )}
+
+        <div className="card p-4 mb-4">
+          <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#71717A] block mb-2">
+            Sample Job Preset
+          </label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="input h-10 text-sm flex-1 min-w-[300px]"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value)}
+              data-testid="lp-preview-preset"
+            >
+              {presets.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="px-4 py-2 bg-[#09090B] text-white hover:bg-[#27272A] text-xs font-bold uppercase tracking-wider"
+              onClick={() => runPreview(preset)}
+              disabled={loading}
+              data-testid="lp-preview-run"
+            >
+              {loading ? "Running…" : "Run Side-by-Side Preview"}
+            </button>
+          </div>
+          {data?.preset_label && (
+            <div className="mt-2 text-[11px] text-[#71717A]">
+              <span className="uppercase tracking-wider font-bold mr-1">Scenario:</span>
+              {data.preset_label}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="card p-3 mb-4 border-l-4 border-[#DC2626] bg-[#FEF2F2] text-sm text-[#991B1B]">
+            {error}
+          </div>
+        )}
+
+        {data && (
+          <>
+            <div className="card p-4 mb-4 flex items-center gap-6">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#71717A]">
+                  LP Lines Total
+                </div>
+                <div className="font-mono-num text-2xl font-bold text-[#09090B]">
+                  {data.summary?.lines_total ?? 0}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#71717A]">
+                  Lines With Δ
+                </div>
+                <div
+                  className={`font-mono-num text-2xl font-bold ${
+                    (data.summary?.lines_changed ?? 0) > 0 ? "text-[#F97316]" : "text-[#09090B]"
+                  }`}
+                  data-testid="lp-preview-changed"
+                >
+                  {data.summary?.lines_changed ?? 0}
+                </div>
+              </div>
+            </div>
+
+            <div className="card overflow-x-auto" data-testid="lp-preview-diff-table">
+              <table className="w-full text-sm">
+                <thead className="bg-[#FAFAFA] border-b border-[#E4E4E7]">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      Section
+                    </th>
+                    <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      Item
+                    </th>
+                    <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      Legacy
+                    </th>
+                    <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      PDF Formula
+                    </th>
+                    <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      Δ Qty
+                    </th>
+                    <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-[#71717A]">
+                      Δ %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.diff?.map((row, i) => {
+                    const changed = Math.abs(row.delta_qty) > 0.0001;
+                    return (
+                      <tr
+                        key={`${row.section}-${row.name}-${i}`}
+                        className={`border-b border-[#F4F4F5] ${
+                          changed ? "bg-[#FFF7ED]" : ""
+                        }`}
+                        data-testid={`lp-preview-row-${i}`}
+                      >
+                        <td className="px-3 py-2 text-[12px] text-[#52525B]">
+                          {row.section}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-[#09090B]">
+                          {row.name}
+                          {row.pdf_note && row.pdf_note !== row.legacy_note && (
+                            <div className="text-[10px] text-[#71717A] mt-0.5">
+                              {row.pdf_note}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-right font-mono-num text-[#52525B]">
+                          {row.legacy_qty} <span className="text-[#A1A1AA]">{row.unit}</span>
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-right font-mono-num text-[#09090B] font-bold">
+                          {row.pdf_qty} <span className="text-[#A1A1AA]">{row.unit}</span>
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-[12px] text-right font-mono-num ${
+                            row.delta_qty > 0
+                              ? "text-[#16A34A] font-bold"
+                              : row.delta_qty < 0
+                              ? "text-[#DC2626] font-bold"
+                              : "text-[#71717A]"
+                          }`}
+                        >
+                          {row.delta_qty > 0 ? "+" : ""}
+                          {row.delta_qty}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-[12px] text-right font-mono-num ${
+                            row.delta_pct > 0
+                              ? "text-[#16A34A]"
+                              : row.delta_pct < 0
+                              ? "text-[#DC2626]"
+                              : "text-[#71717A]"
+                          }`}
+                        >
+                          {row.delta_pct > 0 ? "+" : ""}
+                          {row.delta_pct}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {(!data.diff || data.diff.length === 0) && (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-6 text-center text-[#71717A] text-sm">
+                        No LP lines emitted for this preset.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 p-3 border border-[#E4E4E7] bg-[#FAFAFA] text-[11px] text-[#71717A] leading-relaxed">
+              <strong>Go/No-Go decision:</strong> If the deltas above look right, set{" "}
+              <code className="font-mono text-[#09090B]">LP_AI_FORMULAS_V1=true</code> in{" "}
+              <code className="font-mono text-[#09090B]">backend/.env</code> and restart the
+              backend (<code className="font-mono">sudo supervisorctl restart backend</code>).
+              All four ingest paths (HOVER, AI Photo, Blueprint, manual) will pick up the new
+              formulas immediately. Existing quotes are not retroactively recalculated.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

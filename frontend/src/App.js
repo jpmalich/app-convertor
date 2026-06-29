@@ -15,6 +15,7 @@ import EstimateRouter from "@/pages/EstimateRouter";
 import Catalog from "@/pages/Catalog";
 import Team from "@/pages/Team";
 import BrandingAdmin from "@/pages/BrandingAdmin";
+import LpFormulaPreview from "@/pages/LpFormulaPreview";
 import AcceptPage from "@/pages/AcceptPage";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
@@ -45,6 +46,7 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/branding-admin" element={<BrandingAdmin />} />
+                  <Route path="/lp-formula-preview" element={<LpFormulaPreview />} />
                   <Route path="/accept/:token" element={<AcceptPage />} />
                   <Route path="/terms" element={<Terms />} />
                   <Route path="/privacy" element={<Privacy />} />
