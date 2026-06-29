@@ -392,7 +392,15 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
     // Iter 78t — merge any contractor nudges and persist the drawings on
     // hover_measurements._ai_elevations so the customer PDF can render
     // them. Same shape as the AI Measure path.
-    let nextHoverMeasurements = est.hover_measurements;
+    // Iter 78ac — tag the cached blob with `_source: "blueprint"` so
+    // the HOVER tile doesn't show its Restore button after a Blueprint
+    // upload (they're different ingest paths and Blueprint can't be
+    // re-derived from this cache alone).
+    let nextHoverMeasurements = est.hover_measurements
+      ? { ...est.hover_measurements, _source: "blueprint" }
+      : (result?.measurements
+          ? { ...result.measurements, _source: "blueprint" }
+          : null);
     try {
       const fromAI = buildElevationsFromAIMeasure({
         walls: result?.raw_ai?.walls,
@@ -418,6 +426,7 @@ export default function BlueprintMeasureButton({ est, update, save, applyLines }
         });
         nextHoverMeasurements = {
           ...(est.hover_measurements || result?.measurements || {}),
+          _source: "blueprint",
           _ai_elevations: merged,
           _ai_elevations_by_source: {
             ...((est.hover_measurements || {})._ai_elevations_by_source || {}),

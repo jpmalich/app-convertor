@@ -87,7 +87,20 @@ export default function HoverImportButton({ est, update, save }) {
   // a fresh PDF read. Shown as a subtitle in the modal header so the
   // contractor knows no new LLM call was made.
   const [restoredAt, setRestoredAt] = useState(null);
-  const hasCached = !!(est?.hover_measurements && Object.keys(est.hover_measurements).length);
+  // Iter 78ac — only treat the cache as restorable HOVER data when it
+  // was written by the HOVER importer. Blueprint and AI-Photo flows
+  // also persist into `est.hover_measurements`, but their lines can't
+  // be reliably re-derived from the cached payload (annotations + AI
+  // re-run are required), so the Restore HOVER button must hide for
+  // those sources. Legacy data without `_source` is assumed HOVER for
+  // backwards compatibility.
+  const cachedSource = est?.hover_measurements?._source;
+  const hasCached = !!(
+    est?.hover_measurements
+    && Object.keys(est.hover_measurements).length
+    && cachedSource !== "blueprint"
+    && cachedSource !== "ai_photo"
+  );
   // Iter 78q — Phase 3 Deep Verify state. Keyed by warning code so multiple
   // elevations can be verified independently. Value shape:
   //   "loading" | { ok, label, scale_bar_found, measured_*, delta_vs_*, ... }
@@ -287,7 +300,9 @@ export default function HoverImportButton({ est, update, save }) {
     // Iter 78t — merge any contractor nudges into the elevation drawings
     // and stash on hover_measurements._ai_elevations so the customer PDF
     // can render them. Same shape as the AI Measure path.
-    let hoverMeasurementsWithDrawings = result?.measurements || null;
+    let hoverMeasurementsWithDrawings = result?.measurements
+      ? { ...result.measurements, _source: "hover" }
+      : null;
     try {
       const elevs = buildElevationsFromHoverVision(result?.measurements || {});
       if (elevs.length) {
@@ -307,6 +322,7 @@ export default function HoverImportButton({ est, update, save }) {
         });
         hoverMeasurementsWithDrawings = {
           ...(result?.measurements || {}),
+          _source: "hover",
           _ai_elevations: merged,
           _ai_elevations_by_source: {
             ...((result?.measurements || {})._ai_elevations_by_source
