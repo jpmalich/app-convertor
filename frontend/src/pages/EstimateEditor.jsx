@@ -8,6 +8,7 @@ import { useCompany } from "@/lib/company";
 import { useBranding } from "@/lib/branding";
 import useEstimate from "@/lib/useEstimate";
 import useReconcileWindowSnapshots from "@/lib/useReconcileWindowSnapshots";
+import useRecalcSoffitOnOverhang from "@/lib/useRecalcSoffitOnOverhang";
 import { calcTotals } from "@/lib/calc";
 import { buildMaterialListHtml, materialListFilename } from "@/lib/materialList";
 import StickyBar from "@/components/estimate/StickyBar";
@@ -38,6 +39,11 @@ export default function EstimateEditor() {
   // the $0 totals on freshly HOVER-imported windows estimates whose openings
   // arrive with base_mat: 0. No-op for estimates without window openings.
   useReconcileWindowSnapshots(est, update);
+  // Iter 78ai — Auto-recalculate soffit qty (Charter Oak + LP Vented +
+  // LP Closed) when the contractor changes Eave Overhang. Pulls
+  // eaves_lf / rakes_lf from cached hover_measurements; quiet no-op
+  // when no measurement data is present.
+  useRecalcSoffitOnOverhang(est, update);
   // Start with every section collapsed so the editor stays compact —
   // contractors expand only the categories they need for the job.
   const [openSections, setOpenSections] = useState({});
