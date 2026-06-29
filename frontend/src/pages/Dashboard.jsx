@@ -101,35 +101,31 @@ export default function Dashboard({ kind = "siding" }) {
     }
   };
 
+  // Iter 78ad — Single source of truth for the dashboard sell price.
+  // Previously the dashboard ran its own local `calcTotals` that summed
+  // EVERY line regardless of tab. That worked for siding-kind estimates
+  // (which only ever carry vinyl + ascend lines), but broke for LP and
+  // windows kinds — HOVER / Blueprint / AI imports auto-fill catalog
+  // SKUs across vinyl + ascend + lp_smart tabs even on an LP-kind
+  // estimate, so the dashboard total summed all 3 ($71k) while the
+  // editor (correctly filtered to lp_smart) showed only $26k. Now the
+  // dashboard reuses the canonical `calcTotals` from `lib/calc.js`,
+  // summed across the same `visibleTabIds` the editor uses.
+  const visibleTabIdsFor = (e) => {
+    if (e?.kind === "windows") return ["windows", "mezzo"];
+    if (e?.kind === "lp_smart") return ["lp_smart"];
+    if (e?.kind === "iss") return ["iss"];
+    return ["vinyl", "ascend"];  // siding-kind, post-Iter-73
+  };
+
   const calcTotals = (e) => {
-    const isWaste = (l) =>
-      l.section === "Vinyl Siding" ||
-      ((l.section === "Ascend Cladding" ||
-        l.section === "Ascend Cladding/Accessories") &&
-        (l.name === 'Ascend Composite Lap Siding 7"' ||
-          l.name === 'Ascend Composite B&B 12" (add 30% Waste)'));
-    const subMat = (e.lines || []).reduce((s, l) => s + (l.qty || 0) * (l.mat || 0), 0) +
-      (e.misc_material || []).reduce((s, l) => s + (l.mat || 0), 0);
-    const subLab = (e.lines || []).reduce((s, l) => s + (l.qty || 0) * (l.lab || 0), 0) +
-      (e.misc_material || []).reduce((s, l) => s + (l.lab || 0), 0) +
-      (e.misc_labor || []).reduce((s, l) => s + (l.lab || 0), 0);
-    // Waste applies to siding material only — Vinyl Siding + the 2 Ascend
-    // Composite products. Keeps dashboard pipeline totals aligned with the
-    // per-estimate calc in lib/calc.js.
-    const wasteBase = (e.lines || [])
-      .filter(isWaste)
-      .reduce((s, l) => s + (l.qty || 0) * (l.mat || 0), 0);
-    const wasted = subMat + wasteBase * ((e.waste_pct || 0) / 100);
-    const tax = e.tax_enabled ? wasted * ((e.tax_rate || 0) / 100) : 0;
-    const base = wasted + tax + subLab;
-    const pct = (e.margin_pct || 0) / 100;
-    const mode = e.pricing_mode || "markup";
-    let sell;
-    if (mode === "margin") {
-      const denom = 1 - Math.min(pct, 0.99);
-      sell = denom > 0 ? base / denom : base;
-    } else {
-      sell = base * (1 + pct);
+    const tabs = visibleTabIdsFor(e);
+    let base = 0;
+    let sell = 0;
+    for (const tab of tabs) {
+      const t = calcTabTotals(e, { tab });
+      base += t.base || 0;
+      sell += t.sell || 0;
     }
     return { base, sell };
   };
