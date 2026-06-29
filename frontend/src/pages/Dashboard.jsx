@@ -208,21 +208,23 @@ export default function Dashboard({ kind = "siding" }) {
         />
       </div>
 
-      {/* Iter 78z++++ — Howard flagged LP SmartSide as under construction
-          while the LP-specific catalog + labor rules are still being
-          finalized. Banner shows on the LP dashboard so contractors who
-          deep-link past the picker still see the warning. */}
+      {/* Iter 78ae — LP SmartSide is now open for contractor testing.
+          Replaced the amber "Under Construction" warning with a green
+          "feedback welcome" invitation per Howard's Iter 78ae direction
+          (option B + green). The workspace is live; we want real-world
+          feedback to tune pricing / labor / accessory rules. */}
       {kind === "lp_smart" && (
         <div
-          className="mb-6 px-4 py-3 bg-[#FEF3C7] border-l-4 border-[#F59E0B] flex items-start gap-3"
-          data-testid="lp-under-construction-banner"
+          className="mb-6 px-4 py-3 bg-[#ECFDF5] border-l-4 border-[#10B981] flex items-start gap-3"
+          data-testid="lp-feedback-banner"
         >
-          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#92400E] mt-0.5">
-            Under Construction
+          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#065F46] mt-0.5 whitespace-nowrap">
+            We&apos;d Love Your Feedback
           </span>
-          <div className="text-sm text-[#78350F] leading-relaxed">
-            LP SmartSide is still being finalized — pricing, accessories, and labor rules may change.
-            Use it for drafts only; do not send quotes to customers from this workspace yet.
+          <div className="text-sm text-[#065F46] leading-relaxed">
+            <span aria-hidden="true" className="mr-1">💡</span>
+            LP SmartSide is fresh out of the lab. Run quotes, kick the tires, and ping Howard
+            with anything that feels off. Your real-world numbers make this better.
           </div>
         </div>
       )}

@@ -95,15 +95,15 @@ export default function ContractorPicker() {
           className="card text-left p-6 sm:p-8 group hover:border-[#F97316] transition-colors relative"
           data-testid="contractor-card-lp_smart"
         >
-          {/* Iter 78z++++ — Howard flagged LP SmartSide as under
-              construction while the LP-specific catalog + labor rules
-              are still being finalized. Badge mirrors the Contractor
-              Window Quotes treatment. */}
+          {/* Iter 78ae — LP SmartSide is open for contractor testing.
+              Swapped the amber "Under Construction" badge for a green
+              "Beta · Feedback Welcome" invitation that matches the
+              dashboard banner. */}
           <span
-            className="absolute top-3 right-3 inline-flex items-center px-2.5 py-1 bg-[#FEF3C7] text-[#92400E] text-[10px] font-bold uppercase tracking-[0.16em] border border-[#FCD34D] rounded-sm"
-            data-testid="contractor-lp-under-construction-badge"
+            className="absolute top-3 right-3 inline-flex items-center px-2.5 py-1 bg-[#ECFDF5] text-[#065F46] text-[10px] font-bold uppercase tracking-[0.16em] border border-[#6EE7B7] rounded-sm"
+            data-testid="contractor-lp-beta-badge"
           >
-            {t("home.underConstruction")}
+            Beta · Feedback Welcome
           </span>
           <div className="flex items-center gap-3 mb-4 text-[#F97316]">
             <Layers className="w-8 h-8" />
