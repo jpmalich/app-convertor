@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Lightbulb } from "lucide-react";
 import ItemHelpButton from "./ItemHelpButton";
+import { porchMathHint } from "./PorchCeilingsCard";
 import { fmt } from "@/lib/api";
 import { useT, useLang } from "@/lib/i18n";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
@@ -285,6 +286,24 @@ export default function SectionAccordion({
             onChange={(e) => onQty(l.tab, l.section, l.name, e.target.value)}
             data-testid={`qty-${section.title}-${l.name}`}
           />
+          {/* Iter 79 — inline Porch Ceiling math hint. Shows the per-porch
+              derivation (e.g. "22'×10' + 12'×8' = 316 sqft → 32 pcs") so
+              the contractor can verify the auto-populated qty without
+              opening the Porch Ceilings panel. Only renders on the two
+              Porch Ceiling rows when at least one porch with valid
+              L×W dimensions exists. */}
+          {section.title === "Porch Ceiling" && (l.name === "Charter Oak Soffit White" || l.name === "Wrap porch beam") && (() => {
+            const hint = porchMathHint(est?.porch_ceilings, l.name === "Wrap porch beam" ? "lf" : "sqft");
+            return hint ? (
+              <div
+                className="hidden md:block text-[10px] text-[#71717A] mt-1 leading-snug font-mono-num"
+                data-testid={`porch-math-hint-${l.name}`}
+                title={hint}
+              >
+                {hint}
+              </div>
+            ) : null;
+          })()}
         </div>
         <div className="col-span-3 md:col-span-1 relative">
           <label className="md:hidden text-[10px] text-[#A1A1AA] block uppercase tracking-wider mb-1">{t("est.col.lab")}</label>

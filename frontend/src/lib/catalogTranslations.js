@@ -167,12 +167,24 @@ export function tSection(name, lang) {
 
 // Iter 57cc — Legacy item-name aliases. Whenever a catalog item gets
 // renamed, drop an entry here so old estimates' saved `lines[].name`
-// (e.g. "RainDrop") render under the new label ("RainDrop House Wrap")
+// (e.g. "RainDrop House Wrap") render under the new label ("RainDrop")
 // without a destructive DB migration. New estimates always store the
 // new name; this map only kicks in when a stored name is no longer
 // in the catalog.
 const ITEM_NAME_ALIASES = {
-  "RainDrop": "RainDrop House Wrap",
+  // Iter 79 (Feb 2026): supplier-spec renames — show OLD line names
+  // under the NEW catalog label so historical quotes don't show a
+  // mismatched/orphaned row name. The DB migration in services.py
+  // rewrites lines[].name on the next boot, but this alias keeps the
+  // UI consistent in the transient window before the migration runs
+  // OR if an old serialized estimate sneaks through.
+  "RainDrop House Wrap": "RainDrop",
+  "Charter Oak Soffit Standard color": "Soffit & fascia Charter Oak Standard Color",
+  "Charter Oak Soffit Architectural color": "Soffit & fascia Charter Oak Architectural color",
+  "Greenbriar Soffit": "Soffit & fascia Greenbriar",
+  "T2 Soffit": "Soffit & fascia 2T",
+  '1/2" Soffit J-Channel (for T2 Soffit)': '1/2" J-Channel (2 per Sq of siding) White',
+  "With or without siding Charter Oak": "Charter Oak Soffit White",
 };
 
 export function canonicalItemName(name) {

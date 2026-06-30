@@ -21,13 +21,17 @@ import { porchCeilingTotalSqft } from "@/components/estimate/PorchCeilingsCard";
 //   • If there's neither HOVER measurement data NOR porches, no-op.
 //   • Single toast summarising what was recalculated.
 
-const CHARTER_OAK_SOFFIT = "Charter Oak Soffit Standard color";
+const CHARTER_OAK_SOFFIT = "Soffit & fascia Charter Oak Standard Color";
 const LP_VENTED = "38 Series Soffit 16 x 16 Vented";
 const LP_CLOSED = "38 Series Soffit 16 x 16 Closed";
 
 // Iter 78ak — Porch Ceiling catalog row names (exact strings from
 // catalog_seed.py).
-const PORCH_CHARTER = "With or without siding Charter Oak";
+// Iter 79 (Feb 2026): Howard restructured Porch Ceiling pricing —
+// renamed "With or without siding Charter Oak" (SQ FT, ~$2/sqft) to
+// "Charter Oak Soffit White" (PCS, ~$20/piece). qty is now PIECES
+// (porch_sqft ÷ 10) instead of raw sqft. Beam wrap stays in LF.
+const PORCH_CHARTER = "Charter Oak Soffit White";
 const PORCH_BEAM = "Wrap porch beam";
 const PORCH_SECTION = "Porch Ceiling";
 
@@ -112,13 +116,18 @@ export default function useRecalcSoffitOnOverhang(est, update, catalog = []) {
 
     // Soffit qty targets — porches go to the Vented (eave) row by
     // convention since front porch ceilings sit under the main eave.
+    // Iter 79: PORCH_CHARTER unit is now PCS (was SQ FT). One piece of
+    // Charter Oak Soffit covers ~10 sqft (10" exposure × 12' panel), so
+    // qty_pcs = ceil(porch_sqft / 10).
+    const porchCharterPcs =
+      porchTotal > 0 ? Math.ceil(porchTotal / CHARTER_OAK_SQFT_PER_PC) : 0;
     const targets = {
       [CHARTER_OAK_SOFFIT]: charterOakSoffitPcs(current, eavesLf, rakesLf, porchTotal),
       [LP_VENTED]: lpSoffitPcs(current, eavesLf, porchTotal),
       [LP_CLOSED]: lpSoffitPcs(current, rakesLf),
-      // Iter 78ak — Porch Ceiling labor rows (always in sync with
-      // porch dimensions). qty=0 just means "no porches right now".
-      [PORCH_CHARTER]: porchTotal,
+      // Iter 78ak / Iter 79 — Porch Ceiling labor rows (always in sync
+      // with porch dimensions). qty=0 just means "no porches right now".
+      [PORCH_CHARTER]: porchCharterPcs,
       [PORCH_BEAM]: beamWrapLF,
     };
 
@@ -148,10 +157,10 @@ export default function useRecalcSoffitOnOverhang(est, update, catalog = []) {
           tab,
           section: PORCH_SECTION,
           name: PORCH_CHARTER,
-          unit: it.unit || "SQ FT",
+          unit: it.unit || "PCS",
           mat: Number(it.mat || 0),
           lab: Number(it.lab || 0),
-          qty: porchTotal,
+          qty: porchCharterPcs,
         });
       }
     }

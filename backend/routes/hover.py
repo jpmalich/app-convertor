@@ -828,7 +828,7 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["ascend"],
         "section": "Siding Accessories",
-        "item": "RainDrop House Wrap",
+        "item": "RainDrop",
         "unit": "SQ",
         "extract": lambda m: round(
             ((m.get("siding_with_openings_sqft") or m.get("siding_sqft") or 0)) / 100.0,
@@ -868,7 +868,7 @@ HOVER_MAPPING_SPEC = [
     {
         "tabs": ["vinyl", "ascend"],
         "section": "Vinyl Soffit with Siding",
-        "item": "Charter Oak Soffit Standard color",
+        "item": "Soffit & fascia Charter Oak Standard Color",
         "unit": "PCS",
         "extract": lambda m: max(
             0,

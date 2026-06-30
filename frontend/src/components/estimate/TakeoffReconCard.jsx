@@ -60,7 +60,7 @@ const VINYL_RECON_ROWS = [
   {
     label: "Soffit (Charter Oak)",
     raw: (m) => fmtSqft(m.soffit_sqft),
-    item: "Charter Oak Soffit Standard color",
+    item: "Soffit & fascia Charter Oak Standard Color",
     tab: "vinyl",
   },
   {

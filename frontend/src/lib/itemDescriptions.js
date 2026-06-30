@@ -42,7 +42,7 @@ const ITEM_DESCRIPTIONS = {
   },
 
   // ----- Underlayments -----
-  "RainDrop House Wrap": {
+  "RainDrop": {
     en: "RainDrop House Wrap: A drainable weather-resistive barrier whose surface is embossed with raised vertical channels (the \"3D\" texture) that hold the wrap slightly off the sheathing. This creates a built-in drainage gap so any water that gets behind the cladding has a continuous path to run down and out, rather than sitting against the wall. Like standard housewrap, it blocks air and bulk water infiltration while staying vapor-permeable so the wall can dry.",
     es: "RainDrop House Wrap: barrera de drenaje resistente a la intemperie cuya superficie está grabada con canales verticales en relieve (la textura \"3D\") que mantienen la envoltura ligeramente separada del tablero. Esto crea un hueco de drenaje integrado para que el agua que se cuele detrás del revestimiento tenga un camino continuo para bajar y salir, en lugar de quedarse contra la pared. Como las envolturas estándar, bloquea el aire y la infiltración masiva de agua manteniéndose permeable al vapor para que la pared pueda secarse.",
   },
@@ -187,17 +187,17 @@ const ITEM_DESCRIPTIONS = {
   // Charter Oak Soffit — Aerated and Solid variants combined (catalog
   // has a single SKU per color tier; the PDF splits the spec across
   // two pages, so we surface both NFA notes inside one popover.)
-  "Charter Oak Soffit Standard color": {
+  "Soffit & fascia Charter Oak Standard Color": {
     en: "Charter Oak Soffit — 10\". Triple 3-1/3\" exposure; 12'0\" panel length; 3/4\" field butt height; TriBeam system; smooth texture; low-gloss finish; 0.042\" nom. thickness. Aerated variant: 8.06 sq.in. NFA / lineal ft, 9.68 sq.in. NFA / sq ft. Solid / Vertical variant: no venting. Packaging: 2 squares per carton; 20 panels per carton (both Aerated and Solid variants).",
     es: "Charter Oak Soffit — 10\". Exposición triple 3-1/3\"; longitud de panel 12'0\"; alto de cara 3/4\"; sistema TriBeam; textura lisa; acabado bajo brillo; espesor nom. 0.042\". Variante aireada: 8.06 pulg² NFA/pie lineal; 9.68 pulg² NFA/pie². Variante sólida/vertical: sin ventilación. Empaque: 2 cuadrados por caja; 20 paneles por caja (tanto variante aireada como sólida).",
   },
-  "Charter Oak Soffit Architectural color": {
+  "Soffit & fascia Charter Oak Architectural color": {
     en: "Charter Oak Soffit — 10\". Triple 3-1/3\" exposure; 12'0\" panel length; 3/4\" field butt height; TriBeam system; smooth texture; low-gloss finish; 0.042\" nom. thickness. Aerated variant: 8.06 sq.in. NFA / lineal ft, 9.68 sq.in. NFA / sq ft. Solid / Vertical variant: no venting. Packaging: 2 squares per carton; 20 panels per carton (both Aerated and Solid variants).",
     es: "Charter Oak Soffit — 10\". Exposición triple 3-1/3\"; longitud de panel 12'0\"; alto de cara 3/4\"; sistema TriBeam; textura lisa; acabado bajo brillo; espesor nom. 0.042\". Variante aireada: 8.06 pulg² NFA/pie lineal; 9.68 pulg² NFA/pie². Variante sólida/vertical: sin ventilación. Empaque: 2 cuadrados por caja; 20 paneles por caja (tanto variante aireada como sólida).",
   },
 
   // Greenbriar® Vintage Beaded Soffit — 8" (Aerated + Solid combined)
-  "Greenbriar Soffit": {
+  "Soffit & fascia Greenbriar": {
     en: "Greenbriar® Vintage Beaded Soffit — 8\". Triple 2-1/2\" exposure; 12'6\" panel length; 3/8\" field butt height; smooth texture; low-gloss finish; 0.042\" nom. thickness. Aerated variant: 2.8 sq.in. NFA / lineal ft, 4.2 sq.in. NFA / sq ft. Solid variant: no venting. Packaging: 1 square per carton; 12 panels per carton (both Aerated and Solid variants).",
     es: "Greenbriar® Vintage Beaded Soffit — 8\". Exposición triple 2-1/2\"; longitud de panel 12'6\"; alto de cara 3/8\"; textura lisa; acabado bajo brillo; espesor nom. 0.042\". Variante aireada: 2.8 pulg² NFA/pie lineal; 4.2 pulg² NFA/pie². Variante sólida: sin ventilación. Empaque: 1 cuadrado por caja; 12 paneles por caja (tanto variante aireada como sólida).",
   },

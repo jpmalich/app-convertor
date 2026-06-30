@@ -708,12 +708,20 @@ async def ensure_tiers_seeded():
         "Finish Trim Standard color",
         "Finish Trim Architectural color",
         # Vinyl Soffit with Siding — Iter 45: renamed and converted to PCS
+        # Iter 79 (Feb 2026): Howard's supplier sheet renamed these to the
+        # "Soffit & fascia ..." prefix — backfill the new names too.
         'Charter Oak Soffit Standard color',
         'Charter Oak Soffit Architectural color',
         'Greenbriar Soffit',
         'T2 Soffit',
+        'Soffit & fascia Charter Oak Standard Color',
+        'Soffit & fascia Charter Oak Architectural color',
+        'Soffit & fascia Greenbriar',
+        'Soffit & fascia 2T',
         '3/4" Soffit J-Channel (Charter Oak) Standard color',
         '3/4" Soffit J-Channel (Charter Oak) Architectural color',
+        # Porch Ceiling — Iter 79: renamed + unit flipped SQ FT → PCS.
+        'Charter Oak Soffit White',
     ]
     # Iter 67 (2026-06-22): LP SmartSide renamed to supplier-spec names + units
     # consolidated to PCS-only (Howard's "I want only pcs pricing" + new
@@ -1032,6 +1040,148 @@ async def ensure_tiers_seeded():
                           "updated_at": datetime.now(timezone.utc).isoformat()}},
             )
             logger.info("Iter 78e: synced new accessory prices on tier %s", tier["name"])
+
+    # ------------------------------------------------------------------
+    # Iter 79 (Feb 2026) — Howard updated the Vinyl/Ascend master price
+    # sheet:
+    #   • Dropped "Inside Corners" from Ascend Cladding/Accessories.
+    #   • Renamed 5 SKUs to the supplier's "Soffit & fascia ..." prefix
+    #     plus 2 others ("RainDrop", "Charter Oak Soffit White"):
+    #         Charter Oak Soffit Standard color → Soffit & fascia Charter Oak Standard Color
+    #         Charter Oak Soffit Architectural color → Soffit & fascia Charter Oak Architectural color
+    #         Greenbriar Soffit → Soffit & fascia Greenbriar
+    #         T2 Soffit → Soffit & fascia 2T
+    #         1/2" Soffit J-Channel (for T2 Soffit) → 1/2" J-Channel (2 per Sq of siding) White
+    #         RainDrop House Wrap → RainDrop
+    #         With or without siding Charter Oak (SQ FT) → Charter Oak Soffit White (PCS)
+    #   • Restructured Porch Ceiling row to PCS pricing:
+    #         qty old (sqft) → qty new (pieces, sqft ÷ 10) — handled in
+    #         the frontend recalc hook for AUTO-populated rows, but for
+    #         existing estimate lines with the old SQ FT unit we flip
+    #         unit + divide qty by 10 + multiply mat × 10 to preserve
+    #         the dollar total on existing quotes.
+    #
+    # Each rename is applied to BOTH price_tiers.sections.items.name and
+    # estimates.lines.name so historical quotes keep matching their
+    # catalog source after the rename.
+    # ------------------------------------------------------------------
+    ITER79_RENAMES = {
+        'Charter Oak Soffit Standard color': 'Soffit & fascia Charter Oak Standard Color',
+        'Charter Oak Soffit Architectural color': 'Soffit & fascia Charter Oak Architectural color',
+        'Greenbriar Soffit': 'Soffit & fascia Greenbriar',
+        'T2 Soffit': 'Soffit & fascia 2T',
+        '1/2" Soffit J-Channel (for T2 Soffit)': '1/2" J-Channel (2 per Sq of siding) White',
+        'RainDrop House Wrap': 'RainDrop',
+    }
+    for old_name, new_name in ITER79_RENAMES.items():
+        await db.price_tiers.update_many(
+            {"sections.items.name": old_name},
+            {"$set": {"sections.$[].items.$[it].name": new_name}},
+            array_filters=[{"it.name": old_name}],
+        )
+        await db.estimates.update_many(
+            {"lines.name": old_name},
+            {"$set": {"lines.$[l].name": new_name}},
+            array_filters=[{"l.name": old_name}],
+        )
+
+    # Porch Ceiling restructure: "With or without siding Charter Oak"
+    # (SQ FT, ~$2 per sqft) → "Charter Oak Soffit White" (PCS, ~$20 per
+    # piece). Conversion preserves the dollar total on existing quotes:
+    # qty_pcs = ceil(qty_sqft / 10), mat_pcs = mat_sqft × 10.
+    PORCH_OLD = 'With or without siding Charter Oak'
+    PORCH_NEW = 'Charter Oak Soffit White'
+    # 1) Rename the catalog row, flip unit, multiply mat × 10. Idempotent —
+    #    only acts on rows whose unit is still "SQ FT".
+    async for tier in db.price_tiers.find({}, {"_id": 1, "name": 1, "sections": 1}):
+        sections = tier.get("sections") or []
+        dirty = False
+        for sec in sections:
+            for it in sec.get("items", []) or []:
+                if it.get("name") in (PORCH_OLD, PORCH_NEW):
+                    if it.get("name") == PORCH_OLD or it.get("unit") == "SQ FT":
+                        cur_mat = float(it.get("mat") or 0)
+                        # Only multiply if mat is in per-sqft range (< 5)
+                        if cur_mat > 0 and cur_mat < 5:
+                            it["mat"] = round(cur_mat * 10, 2)
+                            dirty = True
+                        if it.get("unit") != "PCS":
+                            it["unit"] = "PCS"
+                            dirty = True
+                        if it.get("name") == PORCH_OLD:
+                            it["name"] = PORCH_NEW
+                            dirty = True
+        if dirty:
+            await db.price_tiers.update_one(
+                {"_id": tier["_id"]},
+                {"$set": {"sections": sections,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            logger.info("Iter 79: Porch Ceiling restructured on tier %s", tier["name"])
+    # 2) Estimate lines: rename + unit flip + qty/mat conversion.
+    async for est in db.estimates.find(
+        {"lines.name": {"$in": [PORCH_OLD, PORCH_NEW]}}, {"lines": 1}
+    ):
+        lines = est.get("lines", [])
+        dirty = False
+        for ln in lines:
+            if ln.get("name") not in (PORCH_OLD, PORCH_NEW):
+                continue
+            if ln.get("name") == PORCH_OLD or ln.get("unit") == "SQ FT":
+                if ln.get("unit") == "SQ FT":
+                    ln["unit"] = "PCS"
+                    ln["qty"] = max(1, math.ceil(float(ln.get("qty") or 0) / 10))
+                    cur_mat = float(ln.get("mat") or 0)
+                    if cur_mat > 0 and cur_mat < 5:
+                        ln["mat"] = round(cur_mat * 10, 2)
+                    dirty = True
+                if ln.get("name") == PORCH_OLD:
+                    ln["name"] = PORCH_NEW
+                    dirty = True
+        if dirty:
+            await db.estimates.update_one(
+                {"_id": est["_id"]}, {"$set": {"lines": lines}}
+            )
+
+    # Force-sync the new Iter 79 prices on every tier so the rebuild loop
+    # below picks up the price updates even if a section's item-set didn't
+    # change (which would otherwise skip the rebuild). Idempotent — only
+    # writes when the DB value disagrees with TIER_PRICES.
+    ITER79_PRICED_ITEMS = {
+        # Renamed items
+        'Soffit & fascia Charter Oak Standard Color',
+        'Soffit & fascia Charter Oak Architectural color',
+        'Soffit & fascia Greenbriar',
+        'Soffit & fascia 2T',
+        '1/2" J-Channel (2 per Sq of siding) White',
+        'RainDrop',
+        'Charter Oak Soffit White',
+        # Price-only changes
+        'Ascend - Starter',
+        'ASCEND Finish Trim',
+        'Starter',
+        'Ascend - 5.5" Trim  (16\' length)',
+        'Cap porch band',
+        'Wrap porch beam',
+    }
+    async for tier in db.price_tiers.find({}, {"_id": 0, "id": 1, "name": 1, "sections": 1}):
+        prices = TIER_PRICES.get(tier["name"]) or {}
+        sections = tier.get("sections") or []
+        dirty = False
+        for sec in sections:
+            for it in sec.get("items", []) or []:
+                if it.get("name") in ITER79_PRICED_ITEMS:
+                    want = prices.get(it["name"])
+                    if want is not None and float(it.get("mat") or 0) != float(want):
+                        it["mat"] = float(want)
+                        dirty = True
+        if dirty:
+            await db.price_tiers.update_one(
+                {"id": tier["id"]},
+                {"$set": {"sections": sections,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            logger.info("Iter 79: synced renamed/repriced items on tier %s", tier["name"])
 
     existing = {t["name"] async for t in db.price_tiers.find({}, {"name": 1})}
     for name in TIER_NAMES:

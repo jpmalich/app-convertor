@@ -18,6 +18,46 @@ export function porchCeilingTotalSqft(porches) {
   );
 }
 
+// Iter 79 (Feb 2026): inline math hint helpers — surface "22'×10' = 220
+// (Front Porch)" under the auto-populated Porch Ceiling rows so the
+// contractor can verify the qty without opening the porch panel.
+//
+// `kind`:
+//   "sqft" — Charter Oak Soffit White piece count
+//          → e.g. "22'×10' + 12'×8' = 316 sqft → 32 pcs"
+//   "lf"   — Wrap porch beam linear footage (front + 2 sides per porch)
+//          → e.g. "22'+2×10' + 12'+2×8' = 70 LF"
+// Returns "" when no porches with valid dimensions exist.
+export function porchMathHint(porches, kind) {
+  if (!Array.isArray(porches)) return "";
+  const valid = porches.filter(
+    (p) => (Number(p.length_ft) || 0) > 0 && (Number(p.width_ft) || 0) > 0
+  );
+  if (valid.length === 0) return "";
+  const parts = valid.map((p) => {
+    const L = Number(p.length_ft);
+    const W = Number(p.width_ft);
+    const label = (p.label || "").trim() || `#${valid.indexOf(p) + 1}`;
+    if (kind === "lf") {
+      // Beam wrap: front + 2 sides = L + 2*W (LF)
+      const v = L + 2 * W;
+      return { expr: `${L}'+2×${W}'`, value: v, label };
+    }
+    // Default: sqft
+    const v = L * W;
+    return { expr: `${L}'×${W}'`, value: v, label };
+  });
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  const exprStr = parts.map((p) => p.expr).join(" + ");
+  const labelStr = parts.map((p) => p.label).join(", ");
+  if (kind === "lf") {
+    return `${exprStr} = ${round2(total)} LF (${labelStr})`;
+  }
+  // sqft kind — show sqft → pcs conversion (10 sqft per piece)
+  const pcs = Math.ceil(total / 10);
+  return `${exprStr} = ${round2(total)} sqft → ${pcs} pcs (${labelStr})`;
+}
+
 export default function PorchCeilingsCard({ value = [], onChange }) {
   const porches = Array.isArray(value) ? value : [];
   const total = porchCeilingTotalSqft(porches);

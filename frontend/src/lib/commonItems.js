@@ -33,7 +33,7 @@ export const COMMONLY_NEEDED_ITEMS = new Set([
   "Finish Trim Standard color",
   '3/4" J-Channel Standard color (2 per Sq of siding)',
   "House Wrap",
-  "RainDrop House Wrap",
+  "RainDrop",
   '2" Nails 30 lbs (1 per 15 Sq)',
   '1 1/4" Trim Nails',
   'Soffit & fascia up to 13" wide Charter Oak Standard color',
@@ -117,7 +117,7 @@ const COMMON_ITEM_TAB_SCOPE = {
   // House Wrap is the canonical underlayment on Vinyl jobs; Ascend installers
   // typically use RainDrop House Wrap instead, so swap the highlight per tab.
   "House Wrap": new Set(["vinyl"]),
-  "RainDrop House Wrap": new Set(["ascend"]),
+  "RainDrop": new Set(["ascend"]),
   // Iter 57y — only highlight the Pocket Install row on the window tabs
   // (Vero / Mezzo) where contractors actually pick install method.
   "Window DH/Slider - Pocket Install": new Set(["windows", "mezzo"]),
