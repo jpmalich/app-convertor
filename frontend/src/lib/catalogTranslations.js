@@ -179,6 +179,7 @@ const ITEM_NAME_ALIASES = {
   // UI consistent in the transient window before the migration runs
   // OR if an old serialized estimate sneaks through.
   "RainDrop House Wrap": "RainDrop",
+  ".019 Coil (1 per 5 Sq Siding)": ".019 Coil",
   "Charter Oak Soffit Standard color": "Soffit & fascia Charter Oak Standard Color",
   "Charter Oak Soffit Architectural color": "Soffit & fascia Charter Oak Architectural color",
   "Greenbriar Soffit": "Soffit & fascia Greenbriar",

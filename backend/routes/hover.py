@@ -178,6 +178,41 @@ def _finish_trim_note(m: dict) -> str:
             f"({src}) = {total:.0f} LF ÷ 12.5 = {pcs} pcs")
 
 
+# Iter 79b — .019 Coil (Siding Accessories) auto-fill — Howard switched
+# from "1 roll per 5 squares of siding" to a perimeter-based rule that
+# matches how the coil is actually installed (wrapped around openings
+# for clean flashing transitions). Perimeter = windows + entry doors
+# + sliding glass / patio doors + garage doors. 1 ROLL covers 100 LF.
+def _coil_019_rolls(m: dict) -> float:
+    win = _window_perim_total_lf(m)
+    entry = float(m.get("entry_door_count") or 0) * ENTRY_DOOR_PERIM_LF
+    patio = float(m.get("patio_door_count") or 0) * PATIO_DOOR_PERIM_LF
+    garage = float(m.get("garage_door_count") or 0) * GARAGE_DOOR_PERIM_LF
+    total = win + entry + patio + garage
+    if total <= 0:
+        return 0
+    return round(total / 100, 2)
+
+
+def _coil_019_breakdown(m: dict) -> str:
+    win = _window_perim_total_lf(m)
+    entry_n = float(m.get("entry_door_count") or 0)
+    patio_n = float(m.get("patio_door_count") or 0)
+    garage_n = float(m.get("garage_door_count") or 0)
+    entry_lf = entry_n * ENTRY_DOOR_PERIM_LF
+    patio_lf = patio_n * PATIO_DOOR_PERIM_LF
+    garage_lf = garage_n * GARAGE_DOOR_PERIM_LF
+    parts = [f"{win:.0f} LF windows"]
+    if entry_n:
+        parts.append(f"{int(entry_n)} entry × {int(ENTRY_DOOR_PERIM_LF)}")
+    if patio_n:
+        parts.append(f"{int(patio_n)} sliding × {int(PATIO_DOOR_PERIM_LF)}")
+    if garage_n:
+        parts.append(f"{int(garage_n)} garage × {int(GARAGE_DOOR_PERIM_LF)}")
+    total = win + entry_lf + patio_lf + garage_lf
+    return f"{' + '.join(parts)} = {total:.0f} LF ÷ 100 = {round(total/100, 2)} rolls"
+
+
 # Iter 78h — per-job breakdown strings for the 3 downspout-derived gutter
 # rows so the Takeoff Recon Card can surface the math (1/25 LF rule, min 2,
 # 10 LF/downspout, 2 elbows/downspout). Mirrors the J-channel pattern.
@@ -797,17 +832,21 @@ HOVER_MAPPING_SPEC = [
         "note": lambda m: _j_channel_breakdown(m),
     },
     # =====================================================================
-    # .019 TRIM COIL — 1 roll per 5 squares of siding (per Howard). The
-    # "Siding Accessories" section is shared across the Vinyl and Ascend
-    # tabs, so one mapping with both tabs listed lands the qty on each.
+    # .019 TRIM COIL (Siding Accessories) — Iter 79b: switched from a
+    # "1 roll per 5 squares of siding" rule to a perimeter-based rule per
+    # Howard. The coil wraps the LF perimeter of every opening (windows,
+    # entry doors, sliding glass / patio doors, garage doors); 1 roll
+    # covers 100 LF of perimeter wrap. The "Siding Accessories" section
+    # is shared across the Vinyl and Ascend tabs, so one mapping with
+    # both tabs listed lands the qty on each.
     # =====================================================================
     {
         "tabs": ["vinyl", "ascend"],
         "section": "Siding Accessories",
-        "item": ".019 Coil (1 per 5 Sq Siding)",
+        "item": ".019 Coil",
         "unit": "ROLL",
-        "extract": lambda m: round(((m.get("siding_sqft") or 0) / 100.0) / 5, 2),
-        "note": "Squares ÷ 5 (per Howard)",
+        "extract": lambda m: _coil_019_rolls(m),
+        "note": lambda m: _coil_019_breakdown(m),
     },
     # =====================================================================
     # WALL UNDERLAYMENT — vinyl gets House Wrap; Ascend gets RainDrop House

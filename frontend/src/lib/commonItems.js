@@ -13,7 +13,7 @@
 // change needed. Match must be EXACT (catalog item name).
 export const COMMONLY_NEEDED_ITEMS = new Set([
   // "Easy to forget" items
-  ".019 Coil (1 per 5 Sq Siding)",
+  ".019 Coil",
   "Caulking (per color)",
   "J-blocks - Split Blocks (82A009)",
   "Shutters (louvered, raised panel) standard sizes",

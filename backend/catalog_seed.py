@@ -143,7 +143,12 @@ SECTION_LAYOUT = [
         '24 inch VSSFT',
     ]),
     ("Siding Accessories", False, [
-        ".019 Coil (1 per 5 Sq Siding)",
+        # Iter 79b (Feb 2026): dropped the "(1 per 5 Sq Siding)" suffix —
+        # the auto-fill formula now uses opening-perimeter LF (windows +
+        # doors + sliding glass doors + garage doors) ÷ 100, NOT siding
+        # squares ÷ 5. The name no longer described the math, so we
+        # cleaned it up.
+        ".019 Coil",
         "PVC Trim Coil (1 per 5 Sq Siding)",
         "Performance G8 Trim Coil (1 per 5 Sq Siding)",
         # Iter 34: Outside / Inside / 3/4" J-Channel / Finish Trim now split
@@ -389,7 +394,7 @@ ITEM_META = {
     "Inside Corners": ("PCS", 0), "Ascend - 5.5\" Trim  (16' length)": ("PCS", 0),
     "Ascend - J - Channel  (2 per Sq of siding)": ("PCS", 0),
     "ASCEND Finish Trim": ("PCS", 0), "Ascend - Starter": ("PCS", 0),
-    ".019 Coil (1 per 5 Sq Siding)": ("ROLL", 0),
+    ".019 Coil": ("ROLL", 0),
     "PVC Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
     "Performance G8 Trim Coil (1 per 5 Sq Siding)": ("ROLL", 0),
     # Iter 34: split Standard/Architectural variants
@@ -481,7 +486,9 @@ ITEM_META = {
     # mat prices mirror the corresponding vinyl ".019 Coil (1 per 5 Sq
     # Siding)" rows so the same coil price appears regardless of which
     # tab the contractor is on.
-    '.019 Coil': ("ROLL", 0),
+    # Iter 79b: ".019 Coil" entry deduplicated — Vinyl/Siding Accessories
+    # already declares it above (same unit + label), so the second entry
+    # here triggered a F601 ruff warning. Same product, one declaration.
     'PVC Trim Coil': ("ROLL", 0),
     'Performance G8 Trim Coil': ("ROLL", 0),
     # ----------------- Window items (Vero product line) -----------------
@@ -673,7 +680,7 @@ ZERO_PRICED = {
 # 59 items that truly vary by tier. One block per item so a future
 # Excel update touches ONE place per row (was 4 places before this refactor).
 PER_TIER_PRICES = {
-    '.019 Coil (1 per 5 Sq Siding)': {"whole-sale": 161.33, "Contractor": 161.33, "Builder-Dealer": 161.33, "one-opp": 133.23},
+    '.019 Coil': {"whole-sale": 161.33, "Contractor": 161.33, "Builder-Dealer": 161.33, "one-opp": 133.23},
     ".019 Coil (1 per 50' fascia)": {"whole-sale": 161.33, "Contractor": 161.33, "Builder-Dealer": 161.33, "one-opp": 133.23},
     '1/2" J-Channel (2 per Sq of siding)': {"whole-sale": 7.28, "Contractor": 5.23, "Builder-Dealer": 5.23, "one-opp": 4.55},
     '1/2" J-Channel (2 per Sq of siding) White': {"whole-sale": 7.28, "Contractor": 5.23, "Builder-Dealer": 5.23, "one-opp": 4.55},
@@ -821,7 +828,7 @@ LP_PRICES_BY_TIER = {
 # automatically propagates to LP without a second edit.
 LP_COIL_PRICES_BY_TIER = {
     tier: {
-        '.019 Coil':              PER_TIER_PRICES['.019 Coil (1 per 5 Sq Siding)'][tier],
+        '.019 Coil':              PER_TIER_PRICES['.019 Coil'][tier],
         'PVC Trim Coil':          PER_TIER_PRICES['PVC Trim Coil (1 per 5 Sq Siding)'][tier],
         'Performance G8 Trim Coil': PER_TIER_PRICES['Performance G8 Trim Coil (1 per 5 Sq Siding)'][tier],
     }
@@ -1039,7 +1046,7 @@ ITEM_AMI = {
     'Ascend 5.5" Outside Corner  - MATTE': "108052",
     "Inside Corners": "105053",
     "Ascend - J - Channel  (2 per Sq of siding)": "108062",
-    ".019 Coil (1 per 5 Sq Siding)": "103954",
+    ".019 Coil": "103954",
     "PVC Trim Coil (1 per 5 Sq Siding)": "103956",
     "Performance G8 Trim Coil (1 per 5 Sq Siding)": "103960",
     # Iter 34: accessory color variants share the AMI of their base SKU.
