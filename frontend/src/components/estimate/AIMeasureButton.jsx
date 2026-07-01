@@ -659,7 +659,17 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   // upload all files at once and pre-tag each photo's elevation
   // (front / back / left / right) so Claude doesn't have to guess.
   const [wizardOpen, setWizardOpen] = useState(false);
-  const handleWizardComplete = async ({ photos }) => {
+  // Iter 79h (Phase 3) — auto-run trigger. When the wizard finishes
+  // with `autoRun: true` we set this flag; a useEffect below fires
+  // runMeasure() as soon as the just-uploaded photo names have landed
+  // in the photoUrls state (React state updates are batched, so we
+  // can't call runMeasure synchronously from handleWizardComplete —
+  // it'd read the stale array from closure). The effect resets the
+  // flag immediately after firing so retries require an explicit
+  // action from the contractor.
+  const [autoRunPending, setAutoRunPending] = useState(false);
+  const autoRunBaselineRef = useRef(0);
+  const handleWizardComplete = async ({ photos, autoRun }) => {
     if (!photos?.length) return;
     const room = 9 - photoUrls.length;
     if (room <= 0) {
@@ -728,7 +738,30 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
     const annotatedCount = ok.filter((u) => u.annotations).length;
     const annotatedNote = annotatedCount > 0 ? ` (${annotatedCount} annotated)` : "";
     toast.success(`${ok.length} photo${ok.length !== 1 ? "s" : ""} added & elevation-tagged from wizard${annotatedNote}`);
+    // Iter 79h (Phase 3) — arm the auto-run effect. The effect watches
+    // for photoUrls to grow beyond the pre-wizard baseline so it fires
+    // once the state has actually settled with the new URLs (not
+    // before). If no photos actually uploaded successfully we skip.
+    if (autoRun && ok.length > 0) {
+      autoRunBaselineRef.current = photoUrls.length;
+      setAutoRunPending(true);
+    }
   };
+
+  // Iter 79h (Phase 3) — auto-run effect. Runs the AI Measure call as
+  // soon as (a) the wizard flagged autoRun, (b) the just-uploaded photo
+  // names have landed in photoUrls (grew beyond baseline), (c) we're
+  // not already running. Toast-nudges the contractor so it doesn't
+  // feel like a surprise kick.
+  useEffect(() => {
+    if (!autoRunPending) return;
+    if (busy) return;
+    if (photoUrls.length <= autoRunBaselineRef.current) return;
+    setAutoRunPending(false);
+    toast.info("Wizard finished — launching AI Measure…");
+    // Fire on the next tick so the toast renders first.
+    setTimeout(() => { runMeasure(); }, 250);
+  }, [autoRunPending, photoUrls, busy]);
 
   // Iter 56c: pull a free Esri aerial tile for the estimate's address
   // and add it as an 8th photo. The endpoint resolves the address →

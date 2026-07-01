@@ -212,14 +212,14 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
   };
   const next = () => {
     if (stepIdx < STEPS.length - 1) setStepIdx((i) => i + 1);
-    else finish();
+    else finish({ autoRun: false });
   };
   const skip = () => {
     if (stepIdx < STEPS.length - 1) setStepIdx((i) => i + 1);
-    else finish();
+    else finish({ autoRun: false });
   };
   const back = () => setStepIdx((i) => Math.max(0, i - 1));
-  const finish = () => {
+  const finish = ({ autoRun = false } = {}) => {
     const photos = STEPS.map((s) => {
       const c = captured[s.key];
       if (!c) return null;
@@ -239,7 +239,10 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
       const c = captured[s.key];
       if (c?.previewUrl) URL.revokeObjectURL(c.previewUrl);
     });
-    onComplete?.({ photos });
+    // Iter 79h (Phase 3) — pass `autoRun` up so the parent knows to
+    // fire the AI Measure run immediately after uploads settle (see
+    // AIMeasureButton.handleWizardComplete + auto-run effect).
+    onComplete?.({ photos, autoRun });
     onClose?.();
     setCaptured({});
     setStepIdx(0);
@@ -503,15 +506,35 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={finish}
-                disabled={captureCount === 0}
-                className="px-4 py-2 bg-[#16A34A] text-white hover:bg-[#15803D] text-xs font-bold uppercase tracking-wider flex items-center gap-1 disabled:opacity-40"
-                data-testid="guided-capture-finish-btn"
-              >
-                <Check className="w-3.5 h-3.5" /> Done · Use {captureCount} photo{captureCount !== 1 ? "s" : ""}
-              </button>
+              // Iter 79h (Phase 3) — two end-of-wizard actions:
+              //  1) PRIMARY green: "Done · Run AI Measure →" auto-fires
+              //     the run after uploads settle. Removes the "hunt for
+              //     the Run button" step Howard called out.
+              //  2) SECONDARY grey link: "or just save photos" for
+              //     contractors who want to review/tweak before Claude
+              //     burns tokens (e.g. add a bulk-annotate pass first).
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => finish({ autoRun: false })}
+                  disabled={captureCount === 0}
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#71717A] hover:text-[#52525B] underline underline-offset-2 disabled:opacity-30"
+                  data-testid="guided-capture-finish-save-only-btn"
+                  title="Save photos without running AI Measure — you can trigger it manually later"
+                >
+                  Save photos only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => finish({ autoRun: true })}
+                  disabled={captureCount === 0}
+                  className="px-4 py-2 bg-[#16A34A] text-white hover:bg-[#15803D] text-xs font-bold uppercase tracking-wider flex items-center gap-1 disabled:opacity-40"
+                  data-testid="guided-capture-finish-run-btn"
+                >
+                  <Check className="w-3.5 h-3.5" /> Done · Run AI Measure
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </div>
