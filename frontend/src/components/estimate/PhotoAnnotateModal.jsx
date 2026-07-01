@@ -17,7 +17,7 @@
 // Modeled after PhotoMeasureButton's calibration + zone code so the
 // patterns stay consistent, but stripped down: no measurement loop,
 // no openings, no labels — annotations only.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Check, Ruler, Square, Trash2, RotateCcw, ZoomIn, ZoomOut, Maximize, Tags } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +152,15 @@ export default function PhotoAnnotateModal({
   profileBoxes, // Iter 78z+++ — array of saved profile boxes {id, shape, points/coords, profile, location, sqft, note}
   onSave,       // ({ reference, windowReference, zones, targetPin, windows, profileBoxes }) => void
   onOpenProfileAnnotator, // (legacy) — kept for cross-photo Tag Profiles tool
+  // Iter 79j (Feb 2026) — guided-flow mode. When set, the modal hides
+  // the mode picker toolbar and instead surfaces a 5-step wizard shell
+  // (Wall → Window → Mask → Style → Profile) with Next/Skip buttons that
+  // auto-advance through the modes. Optional callback for Next-on-last-
+  // step so the parent (GuidedCaptureWizard) can immediately advance to
+  // the next capture step. Value shape: { steps: [{key, mode, banner,
+  // skipLabel}, ...], onFinish: () => void } — leave null to keep the
+  // legacy free-form "pick your own tool" experience.
+  guidedFlow,
 }) {
   const canvasRef = useRef();
   const [photo, setPhoto] = useState(null); // { width, height }
@@ -226,6 +235,25 @@ export default function PhotoAnnotateModal({
     try { localStorage.setItem("photoAnnotateScaleUnit", scaleUnit); } catch { /* ignore */ }
   }, [scaleUnit]);
 
+  // Iter 79j — guided-flow step index. Only active when `guidedFlow`
+  // prop is set. Auto-syncs the `mode` state to the current step's
+  // mode via an effect below.
+  const guidedSteps = useMemo(() => {
+    if (!guidedFlow) return null;
+    if (Array.isArray(guidedFlow.steps) && guidedFlow.steps.length > 0) {
+      return guidedFlow.steps;
+    }
+    // Default 5-step sequence per Howard's spec.
+    return [
+      { key: "wall", mode: MODE_SCALE, banner: "Wall Scale — tap two points on a known span, then enter its real length in ft/in", skipLabel: null },
+      { key: "window", mode: MODE_WINDOW, banner: "Windows — tap each window to mark it and set its style", skipLabel: "Skip · no windows" },
+      { key: "mask", mode: MODE_ZONE, banner: "Mask — draw around brick / stone / masonry areas that aren't getting siding", skipLabel: "Skip · nothing to mask" },
+      { key: "style", mode: MODE_WINDOW, banner: "Confirm Styles — tap any window to change its style if needed", skipLabel: "Skip · styles are good" },
+      { key: "profile", mode: MODE_PROFILE, banner: "Profile — draw regions for each siding profile family (Lap / Shake / B&B / etc)", skipLabel: "Skip · single profile" },
+    ];
+  }, [guidedFlow]);
+  const [guidedStepIdx, setGuidedStepIdx] = useState(0);
+
   // Reset working copies when modal (re)opens for a different photo.
   useEffect(() => {
     if (!open) return;
@@ -236,9 +264,15 @@ export default function PhotoAnnotateModal({
     setLocalWindows(windows || []);
     setLocalProfileBoxes(profileBoxes || []);
     setWindowPending(null);
-    // For aerial photos, default to Target Pin mode since that's the
-    // most common reason to annotate one (geocoder missed the house).
-    setMode(elevation === "aerial" ? MODE_TARGET : MODE_SCALE);
+    // Iter 79j — guided mode overrides the aerial-default: always start
+    // on step 0 (Wall Scale) since that's the required first pass. The
+    // aerial pin flow is a separate wizard step at the end.
+    if (guidedFlow) {
+      setGuidedStepIdx(0);
+      setMode(guidedSteps[0].mode);
+    } else {
+      setMode(elevation === "aerial" ? MODE_TARGET : MODE_SCALE);
+    }
     setPending(null);
     setHoverPoint(null);
     setPolyPoints([]);
@@ -676,6 +710,35 @@ export default function PhotoAnnotateModal({
     });
     onClose();
   };
+
+  // Iter 79j — guided-flow navigation. Next advances to the following
+  // step (updating mode + clearing per-mode pending state). On the
+  // last step, saves the annotations and calls guidedFlow.onFinish so
+  // the parent wizard can auto-advance to the next photo capture.
+  // Skip is functionally identical to Next but grays the button so
+  // it's clear the current step's payload was intentionally left
+  // empty. Wall step has no Skip (scale ref is required).
+  const handleGuidedNext = () => {
+    if (!guidedSteps) return;
+    if (guidedStepIdx >= guidedSteps.length - 1) {
+      save(); // save + close (which fires onSave then onClose)
+      if (typeof guidedFlow?.onFinish === "function") {
+        // Fire on next tick so save() finishes first.
+        setTimeout(() => guidedFlow.onFinish(), 0);
+      }
+      return;
+    }
+    const nextIdx = guidedStepIdx + 1;
+    setGuidedStepIdx(nextIdx);
+    setMode(guidedSteps[nextIdx].mode);
+    setPending(null);
+    setHoverPoint(null);
+    setPolyPoints([]);
+    setScalePending(null);
+    setScaleValue("");
+    setWindowPending(null);
+  };
+  const handleGuidedSkip = () => handleGuidedNext();
 
   // Render overlay markup
   const renderOverlay = () => {
@@ -1197,7 +1260,79 @@ export default function PhotoAnnotateModal({
             )}
           </div>
 
-          {/* Controls */}
+          {/* Iter 79j — Guided-flow step banner + Next/Skip controls.
+              Replaces the free-form mode toolbar when guidedFlow is
+              set. The mode is driven by the current step index (see
+              handleGuidedNext / handleGuidedSkip below). */}
+          {guidedFlow && guidedSteps && (
+            <div
+              className="mb-3 p-3 bg-gradient-to-r from-[#0EA5E9]/10 to-[#7C3AED]/10 border-l-4 border-[#7C3AED]"
+              data-testid="annotate-guided-banner"
+            >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-xs uppercase tracking-wider font-bold text-[#7C3AED]">
+                  Step {guidedStepIdx + 1} of {guidedSteps.length} · {guidedSteps[guidedStepIdx]?.key}
+                </div>
+                <div className="flex items-center gap-1">
+                  {guidedSteps.map((_s, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full ${
+                        i < guidedStepIdx
+                          ? "bg-[#16A34A]"
+                          : i === guidedStepIdx
+                            ? "bg-[#7C3AED]"
+                            : "bg-[#E4E4E7]"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="text-sm text-[#09090B] font-medium mb-3">
+                {guidedSteps[guidedStepIdx]?.banner}
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={() => handleGuidedNext()}
+                  className="px-4 py-2 bg-[#16A34A] text-white hover:bg-[#15803D] text-xs font-bold uppercase tracking-wider flex items-center gap-1"
+                  data-testid="annotate-guided-next-btn"
+                >
+                  {guidedStepIdx === guidedSteps.length - 1 ? (
+                    <><Check className="w-3.5 h-3.5" /> Save & Continue</>
+                  ) : (
+                    <>Next Step →</>
+                  )}
+                </button>
+                {guidedSteps[guidedStepIdx]?.skipLabel && (
+                  <button
+                    type="button"
+                    onClick={() => handleGuidedSkip()}
+                    className="px-3 py-2 bg-white border border-[#E4E4E7] text-[#71717A] hover:bg-[#FAFAFA] text-xs font-bold uppercase tracking-wider"
+                    data-testid="annotate-guided-skip-btn"
+                  >
+                    {guidedSteps[guidedStepIdx].skipLabel}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Exit guided-flow entirely — contractor wants
+                    // manual control. Show the classic toolbar.
+                    if (typeof guidedFlow?.onExit === "function") guidedFlow.onExit();
+                  }}
+                  className="ml-auto px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#A1A1AA] hover:text-[#71717A] underline underline-offset-2"
+                  data-testid="annotate-guided-exit-btn"
+                  title="Turn off the guided walkthrough — use the full annotator toolbar instead"
+                >
+                  Exit guided mode
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Controls (classic mode toolbar — hidden in guided flow) */}
+          {!guidedFlow && (
           <div className="space-y-3">
             <div className="grid grid-cols-6 gap-1">
               <button type="button"
@@ -1498,21 +1633,31 @@ export default function PhotoAnnotateModal({
               </button>
             )}
           </div>
+          )}
         </div>
 
         <div className="border-t border-[#E4E4E7] px-5 py-3 flex justify-between items-center">
           <div className="text-[10px] text-[#A1A1AA]">
-            Annotations are burned into the photo before Claude sees it.
+            {guidedFlow
+              ? "Annotations save automatically when you finish the last step."
+              : "Annotations are burned into the photo before Claude sees it."}
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={onClose}
-                    className="px-3 py-2 bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5] text-xs font-bold uppercase tracking-wider">Cancel</button>
-            <button type="button" onClick={save}
-                    className="px-3 py-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                    data-testid="annotate-save">
-              <Check className="w-3.5 h-3.5" />
-              Save Annotations
+                    className="px-3 py-2 bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5] text-xs font-bold uppercase tracking-wider">
+              {guidedFlow ? "Cancel · discard" : "Cancel"}
             </button>
+            {/* Iter 79j — in guided mode, Save is triggered by the
+                step banner's "Save & Continue" button on the last step.
+                Hide the redundant classic Save button. */}
+            {!guidedFlow && (
+              <button type="button" onClick={save}
+                      className="px-3 py-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      data-testid="annotate-save">
+                <Check className="w-3.5 h-3.5" />
+                Save Annotations
+              </button>
+            )}
           </div>
         </div>
       </div>

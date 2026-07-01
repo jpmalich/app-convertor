@@ -289,6 +289,17 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
           if (!cur || cur.file !== f) return prev; // retook already
           return { ...prev, [step.key]: { ...cur, name: data?.name || null, uploading: false } };
         });
+        // Iter 79j (Feb 2026) — auto-fire the guided annotator as soon
+        // as the upload settles. This delivers Howard's ask directly:
+        // "contractor takes photo, after photo taken the app
+        // automatically fires the annotate button". Skipping the
+        // manual gate button is fine — the annotator itself now has
+        // an "Exit guided mode" link for anyone who wants to bypass.
+        // Skip for the aerial step (elevation === "aerial") since
+        // aerial uses Target Pin, not the 5-step wall/window flow.
+        if (!fastTrack && step.elevation !== "aerial") {
+          setTimeout(() => setAnnotateOpen(true), 100);
+        }
       } catch {
         setCaptured((prev) => {
           const cur = prev[step.key];
@@ -708,7 +719,10 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
       {/* Iter 79f — inline annotator. Opens on the current step's
           uploaded photo, pre-tagged with the elevation label. On save,
           the annotations get stashed per step-key in `captured[key].
-          annotations` and handed to the parent at wizard finish. */}
+          annotations` and handed to the parent at wizard finish.
+          Iter 79j — Now runs in guidedFlow mode: 5-step banner walks
+          the contractor through Wall → Window → Mask → Style →
+          Profile, then auto-advances to the next capture step. */}
       {annotateOpen && taken?.name && (
         <PhotoAnnotateModal
           open={annotateOpen}
@@ -722,6 +736,29 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
           windows={taken.annotations?.windows || []}
           profileBoxes={taken.annotations?.profileBoxes || []}
           onSave={handleAnnotateSave}
+          guidedFlow={{
+            // Default 5-step sequence baked into PhotoAnnotateModal;
+            // pass steps here only to customize.
+            onFinish: () => {
+              // Iter 79j — on last-step "Save & Continue", advance to
+              // the next capture step immediately so the contractor
+              // flows: capture → annotate → capture → annotate → …
+              // Landing on the last STEPS entry (aerial) fires the
+              // Done button chrome instead.
+              if (stepIdx < STEPS.length - 1) {
+                setStepIdx((i) => i + 1);
+              }
+            },
+            onExit: () => {
+              // Contractor wants full manual control — swap modal back
+              // to classic mode by clearing our guided-flow flag. Since
+              // guidedFlow is derived from the prop, we simulate by
+              // closing the modal (contractor can re-open with the
+              // header controls) — cleanest exit without re-rendering.
+              setAnnotateOpen(false);
+              toast.info("Guided mode off — use the header buttons to reopen the annotator manually.");
+            },
+          }}
         />
       )}
     </div>
