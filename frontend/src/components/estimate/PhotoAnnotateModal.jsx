@@ -1396,6 +1396,104 @@ export default function PhotoAnnotateModal({
               <div className="text-sm text-[#52525B] font-medium mb-3">
                 {guidedSteps[guidedStepIdx]?.banner}
               </div>
+
+              {/* Iter 79j.7 — Step-specific controls docked inside the
+                  guided banner so contractors don't have to reach the
+                  bottom-left of the modal to pick shape / category. */}
+              {guidedFlow && mode === MODE_ZONE && (
+                <div className="space-y-2 mb-3 p-2 bg-white border border-[#E4E4E7]">
+                  <div className="flex gap-1">
+                    <button type="button"
+                            onClick={() => { setZoneShape("rect"); setPending(null); setPolyPoints([]); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${zoneShape === "rect" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"}`}
+                            data-testid="guided-mask-shape-rect">Rectangle</button>
+                    <button type="button"
+                            onClick={() => { setZoneShape("poly"); setPending(null); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${zoneShape === "poly" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"}`}
+                            data-testid="guided-mask-shape-poly">Polygon</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {ZONE_CATEGORIES.map((c) => (
+                      <button key={c.key} type="button" onClick={() => setZoneCategory(c.key)}
+                              className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${zoneCategory === c.key ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"} flex items-center gap-1`}
+                              data-testid={`guided-mask-cat-${c.key}`}>
+                        <span className="w-2.5 h-2.5 rounded-sm" style={{ background: c.color }} />
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                  {zoneShape === "poly" && polyPoints.length > 0 && (
+                    <div className="flex gap-1">
+                      <button type="button" onClick={closePolygon} disabled={polyPoints.length < 3}
+                              className="flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#B45309] text-white border border-[#B45309] hover:bg-[#92400E] disabled:opacity-40"
+                              data-testid="guided-zone-poly-close-btn">
+                        Close ({polyPoints.length} pts)
+                      </button>
+                      <button type="button" onClick={() => setPolyPoints((prev) => prev.slice(0, -1))}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#B45309] border border-[#B45309] hover:bg-[#FEF3C7]"
+                              data-testid="guided-zone-poly-undo-btn"
+                              title="Remove the most recently placed point">Undo</button>
+                      <button type="button" onClick={() => setPolyPoints([])}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5]">Cancel</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {guidedFlow && mode === MODE_PROFILE && (
+                <div className="space-y-2 mb-3 p-2 bg-white border border-[#E4E4E7]">
+                  {!localRef && (
+                    <div className="px-2 py-1.5 bg-[#FEF3C7] border border-[#F59E0B] text-[10px] text-[#92400E]">
+                      <strong>Set Wall Anchor first</strong> — otherwise new boxes default to 50 ft².
+                    </div>
+                  )}
+                  <div className="flex gap-1">
+                    <button type="button"
+                            onClick={() => { setZoneShape("rect"); setPending(null); setPolyPoints([]); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${zoneShape === "rect" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"}`}
+                            data-testid="guided-profile-shape-rect">Rectangle</button>
+                    <button type="button"
+                            onClick={() => { setZoneShape("poly"); setPending(null); }}
+                            className={`flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${zoneShape === "poly" ? "border-[#09090B] bg-[#FAFAFA]" : "border-[#E4E4E7]"}`}
+                            data-testid="guided-profile-shape-poly">Polygon</button>
+                  </div>
+                  <div className="text-[9px] uppercase tracking-wider text-[#A1A1AA] font-bold">Profile family</div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {PROFILE_FAMILIES.map((f) => (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => setProfileFamily(f.key)}
+                        className={`px-1 py-1 text-[10px] font-bold uppercase tracking-wider border ${profileFamily === f.key ? "border-[#09090B] ring-1 ring-[#09090B]" : "border-[#E4E4E7]"}`}
+                        style={{ background: f.bg, color: f.fg }}
+                        data-testid={`guided-profile-fam-${f.key}`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  {zoneShape === "poly" && polyPoints.length > 0 && (
+                    <div className="flex gap-1">
+                      <button type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); closePolygon(); }}
+                              disabled={polyPoints.length < 3}
+                              className="flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#7C3AED] text-white border border-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40"
+                              data-testid="guided-profile-poly-close-btn">
+                        Close ({polyPoints.length} pts)
+                      </button>
+                      <button type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolyPoints((prev) => prev.slice(0, -1)); }}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#7C3AED] border border-[#7C3AED] hover:bg-[#EDE9FE]"
+                              data-testid="guided-profile-poly-undo-btn"
+                              title="Remove the most recently placed point">Undo</button>
+                      <button type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolyPoints([]); }}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5]">Cancel</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   type="button"
@@ -1501,7 +1599,7 @@ export default function PhotoAnnotateModal({
             </div>
             )}
 
-            {mode === MODE_ZONE && (
+            {!guidedFlow && mode === MODE_ZONE && (
               <div className="space-y-2">
                 <div className="flex gap-1">
                   <button type="button"
@@ -1540,7 +1638,7 @@ export default function PhotoAnnotateModal({
             )}
 
             {/* Iter 78z+++ — Profile mode side panel */}
-            {mode === MODE_PROFILE && (
+            {!guidedFlow && mode === MODE_PROFILE && (
               <div className="space-y-2">
                 {!localRef && (
                   <div className="px-2 py-2 bg-[#FEF3C7] border border-[#F59E0B] text-[10px] text-[#92400E]" data-testid="profile-no-anchor-banner">

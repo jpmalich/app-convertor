@@ -910,3 +910,9 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Banner copy sharpened**: "For polygon: place at least 3 corners, then tap your first corner again to close" — makes the 3-point minimum explicit.
   - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
   - **Status**: SHIPPED. USER VERIFICATION PENDING.
+
+- **Iter 79j.7 — Mask/Profile controls docked into guided banner (2026-02-28)**: Howard's screenshot showed the Rectangle/Polygon shape toggle + zone-category grid rendering at the bottom-left of the modal (below the photo) instead of next to the guided banner on the right. Root cause: the sub-panels lived in the shared right-sidebar container `<div className="space-y-3">`, but on the tested viewport width the panel wrapped below the photo due to the modal's flow. Moved the sub-panels INTO the guided banner itself so they always sit inline with Next/Skip on the right.
+  - **Change**: Added compact step-specific control blocks INSIDE the guided banner (right after the banner text, before the Next/Skip button row) for both `MODE_ZONE` (Mask) and `MODE_PROFILE` (Profile). New data-testids: `guided-mask-shape-rect/poly`, `guided-mask-cat-*`, `guided-zone-poly-close-btn/undo-btn`, `guided-profile-shape-rect/poly`, `guided-profile-fam-*`, `guided-profile-poly-close-btn/undo-btn`.
+  - Wrapped the outer sub-panels with `!guidedFlow` so they only render in classic mode (no duplication in guided).
+  - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
+  - **Status**: SHIPPED. USER VERIFICATION PENDING.
