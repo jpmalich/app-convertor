@@ -1354,6 +1354,15 @@ export default function PhotoAnnotateModal({
             )}
           </div>
 
+          {/* Iter 79j.8 — Sticky right column so the guided banner +
+              Next/Skip + shape/category controls stay in thumb range on
+              iPad landscape while the contractor pinch-zooms and pans
+              the photo below. `md:sticky md:top-0` anchors to the top
+              of the modal's overflow-y-auto scroll container; `self-start`
+              lets the sticky child size to its own content rather than
+              stretching to match the photo column height. */}
+          <div className="md:sticky md:top-0 md:self-start md:max-h-[calc(100vh-9rem)] md:overflow-y-auto">
+
           {/* Iter 79j — Guided-flow step banner + Next/Skip controls.
               Replaces the free-form mode toolbar when guidedFlow is
               set. The mode is driven by the current step index (see
@@ -1851,6 +1860,7 @@ export default function PhotoAnnotateModal({
                 <RotateCcw className="w-3 h-3" /> Clear all
               </button>
             )}
+          </div>
           </div>
         </div>
 

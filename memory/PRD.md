@@ -916,3 +916,7 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - Wrapped the outer sub-panels with `!guidedFlow` so they only render in classic mode (no duplication in guided).
   - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
   - **Status**: SHIPPED. USER VERIFICATION PENDING.
+
+- **Iter 79j.8 — Sticky right sidebar in annotate modal (2026-02-28)**: Wrapped the guided banner + controls column in a sticky container (`md:sticky md:top-0 md:self-start md:max-h-[calc(100vh-9rem)] md:overflow-y-auto`) so Next/Skip + shape/category stay pinned in thumb range while the contractor scrolls/pinch-zooms the photo below. Own overflow-y-auto lets the sidebar scroll internally when its content is taller than the viewport (e.g. Profile step with a long family list). No changes on mobile (single-column layout unchanged).
+  - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
+  - **Status**: SHIPPED. USER VERIFICATION PENDING.
