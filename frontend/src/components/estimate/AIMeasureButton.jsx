@@ -805,11 +805,46 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
   const removePhoto = (idx) => {    setPhotoUrls((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // Iter 79i (Phase 4) — Missing-wall warning modal. Before firing
+  // runMeasure we check which of the 4 primary walls (front/back/left/
+  // right) have at least one tagged photo. Corner shots (front-left,
+  // rear-right, etc.) count as covering both adjacent primary walls
+  // since the AI can read both elevations from a 45° corner. If fewer
+  // than 4 primary walls are covered, we open a modal so the contractor
+  // can go back and capture the missing ones — or bypass with "Run
+  // anyway" if they have a valid reason (e.g. inaccessible side yard).
+  const [missingWallsModal, setMissingWallsModal] = useState(null);
+  const primaryWallsCovered = () => {
+    const covered = new Set();
+    for (const name of photoUrls) {
+      const e = (photoAnnotations[name]?.elevation || "").toLowerCase();
+      if (!e) continue;
+      if (e === "front" || e === "front-left" || e === "front-right") covered.add("front");
+      if (e === "back" || e === "rear-left" || e === "rear-right") covered.add("back");
+      if (e === "left" || e === "front-left" || e === "rear-left") covered.add("left");
+      if (e === "right" || e === "front-right" || e === "rear-right") covered.add("right");
+    }
+    return covered;
+  };
+  const missingPrimaryWalls = () => {
+    const c = primaryWallsCovered();
+    return ["front", "back", "left", "right"].filter((w) => !c.has(w));
+  };
+
   const runMeasure = async () => {
     if (!photoUrls.length) {
       toast.error("Add at least one photo");
       return;
     }
+    // Iter 79i — pre-flight guardrail. Skip if we already showed the
+    // modal + contractor clicked "Run anyway" (missingWallsModal set to
+    // "bypassed" tag).
+    const missing = missingPrimaryWalls();
+    if (missing.length > 0 && missingWallsModal !== "bypassed") {
+      setMissingWallsModal({ missing });
+      return;
+    }
+    setMissingWallsModal(null);
     setBusy(true);
     setPreview(null);
     try {
@@ -2861,6 +2896,68 @@ export default function AIMeasureButton({ kind, onApply, address, overhangIn, es
             rerunWithAnnotations();
           } : null}
         />
+      )}
+      {/* Iter 79i (Phase 4) — Missing-wall pre-flight modal. Fires
+          before runMeasure() if fewer than 4 primary walls are covered.
+          Contractor can go back to capture more OR click "Run anyway"
+          to bypass (which sets the bypass flag so the modal doesn't
+          re-fire on retry). */}
+      {missingWallsModal && missingWallsModal !== "bypassed" && (
+        <div
+          className="fixed inset-0 z-[60] bg-[#09090B]/70 flex items-center justify-center p-4"
+          data-testid="ai-measure-missing-walls-modal"
+        >
+          <div className="bg-white max-w-md w-full p-6 shadow-2xl">
+            <div className="text-xs uppercase tracking-wider text-[#F97316] font-bold mb-2">
+              ⚠️ Missing walls
+            </div>
+            <h3 className="text-lg font-bold text-[#09090B] mb-2">
+              Only {4 - missingWallsModal.missing.length} of 4 primary walls captured
+            </h3>
+            <p className="text-sm text-[#52525B] mb-3">
+              Missing: <b className="text-[#F97316]">{missingWallsModal.missing.join(", ")}</b>
+            </p>
+            <p className="text-sm text-[#52525B] mb-4">
+              AI Measure will estimate the missing walls from photos of adjacent
+              elevations, which drops accuracy by 10-20%. If the side yard is
+              inaccessible, run anyway — otherwise, add the missing shots.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setMissingWallsModal(null);
+                  setWizardOpen(true);
+                }}
+                className="px-3 py-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] text-xs font-bold uppercase tracking-wider"
+                data-testid="ai-measure-missing-walls-open-wizard"
+              >
+                Capture missing walls
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMissingWallsModal("bypassed");
+                  // Re-invoke runMeasure now that the guard is bypassed.
+                  // Async fire-and-forget — the modal closes immediately.
+                  setTimeout(() => { runMeasure(); }, 50);
+                }}
+                className="px-3 py-2 bg-white border border-[#E4E4E7] text-[#71717A] hover:bg-[#FAFAFA] text-xs font-bold uppercase tracking-wider"
+                data-testid="ai-measure-missing-walls-run-anyway"
+              >
+                Run anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => setMissingWallsModal(null)}
+                className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A1A1AA] hover:text-[#71717A]"
+                data-testid="ai-measure-missing-walls-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

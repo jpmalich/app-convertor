@@ -29,7 +29,7 @@
 // re-upload) and `annotations` is the per-photo tag payload from
 // PhotoAnnotateModal (elevation + scale ref + zones + windows +
 // profileBoxes).
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Camera, X, Check, ChevronRight, ChevronLeft, SkipForward, Tags, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -95,7 +95,76 @@ const STEPS = [
     hint: "Last one — step to the front-right corner. Frame the front wall AND the right wall at ~45°.",
     diagram: "🏠   ↘ YOU",
   },
+  // Iter 79i (Phase 4) — Optional aerial/satellite step. Contractor
+  // takes a screenshot of Google Maps satellite / a drone shot and
+  // drops a target-pin so Claude knows WHICH house to measure when
+  // neighbors are close. Uses the existing PhotoAnnotateModal in
+  // MODE_TARGET (auto-selected when elevation="aerial").
+  {
+    key: "aerial",
+    elevation: "aerial",
+    title: "Aerial / satellite (optional)",
+    hint: "Screenshot Google Maps satellite view or drop a drone shot. Then tap two corners around your house to help Claude isolate it from neighbors.",
+    diagram: "🛰️  ⬇  🏠",
+  },
 ];
+
+// Iter 79i (Phase 4) — save/resume constants. Wizard state is
+// persisted to localStorage so a locked iPad or an accidental tab
+// close doesn't nuke 5 minutes of work.
+const RESUME_STORAGE_KEY = "guidedCaptureResume";
+const RESUME_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours — same job, same day.
+const PRIMARY_WALLS = ["front", "back", "left", "right"];
+
+// Iter 79i — persist a compact snapshot to localStorage.
+function persistResume(captured, stepIdx) {
+  try {
+    const compact = {};
+    for (const [key, c] of Object.entries(captured)) {
+      // Only persist photos that made it up to the server — File +
+      // blob-URL don't survive a page refresh.
+      if (!c?.name) continue;
+      compact[key] = {
+        name: c.name,
+        elevation: c.elevation,
+        annotations: c.annotations || null,
+        annotated: !!c.annotated,
+      };
+    }
+    if (Object.keys(compact).length === 0) {
+      localStorage.removeItem(RESUME_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(
+      RESUME_STORAGE_KEY,
+      JSON.stringify({ captured: compact, stepIdx, ts: Date.now() }),
+    );
+  } catch {
+    /* localStorage disabled — silent no-op */
+  }
+}
+
+function readResume() {
+  try {
+    const raw = localStorage.getItem(RESUME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.captured || !parsed.ts) return null;
+    if (Date.now() - parsed.ts > RESUME_MAX_AGE_MS) {
+      localStorage.removeItem(RESUME_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearResume() {
+  try { localStorage.removeItem(RESUME_STORAGE_KEY); } catch {
+    /* localStorage disabled */
+  }
+}
 
 export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
   const fileRef = useRef();
@@ -128,6 +197,56 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
       }
       return next;
     });
+  };
+  // Iter 79i (Phase 4) — resume-prompt state. Set once on mount if a
+  // recent (< 6h) snapshot exists in localStorage. Contractor picks
+  // Resume (loads the snapshot) or Start Over (clears + fresh state).
+  const [resumeCandidate, setResumeCandidate] = useState(null);
+  useEffect(() => {
+    if (!open) return;
+    // Only check on wizard OPEN — not on every render. Guard against
+    // re-prompting after they've already chosen.
+    if (Object.keys(captured).length > 0) return;
+    const found = readResume();
+    if (found && Object.keys(found.captured || {}).length > 0) {
+      setResumeCandidate(found);
+    }
+  }, [open]);
+
+  // Iter 79i — persist a compact snapshot to localStorage every time
+  // `captured` changes. Save-on-write keeps the resume snapshot
+  // continuously fresh so a screen-lock in the middle of step 5 still
+  // captures work through step 4.
+  useEffect(() => {
+    if (!open) return;
+    if (Object.keys(captured).length === 0) return;
+    persistResume(captured, stepIdx);
+  }, [captured, stepIdx, open]);
+
+  const applyResume = () => {
+    if (!resumeCandidate) return;
+    const restored = {};
+    for (const [key, c] of Object.entries(resumeCandidate.captured || {})) {
+      restored[key] = {
+        // No File / previewUrl on resume — the photo is already
+        // server-hosted at /api/uploads/{name}, so the wizard shows
+        // it via the same URL the parent will consume at finish().
+        file: null,
+        previewUrl: `/api/uploads/${c.name}`,
+        elevation: c.elevation,
+        name: c.name,
+        uploading: false,
+        annotations: c.annotations || null,
+        annotated: !!c.annotated,
+      };
+    }
+    setCaptured(restored);
+    setStepIdx(Math.min(resumeCandidate.stepIdx ?? 0, STEPS.length - 1));
+    setResumeCandidate(null);
+  };
+  const dismissResume = () => {
+    clearResume();
+    setResumeCandidate(null);
   };
 
   if (!open) return null;
@@ -244,6 +363,9 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
     // AIMeasureButton.handleWizardComplete + auto-run effect).
     onComplete?.({ photos, autoRun });
     onClose?.();
+    // Iter 79i (Phase 4) — success path: purge the resume snapshot so
+    // reopening the wizard on this device won't offer a stale prompt.
+    clearResume();
     setCaptured({});
     setStepIdx(0);
   };
@@ -266,6 +388,50 @@ export default function GuidedCaptureWizard({ open, onClose, onComplete }) {
       className="fixed inset-0 z-50 bg-[#09090B]/70 flex items-center justify-center p-4"
       data-testid="guided-capture-wizard"
     >
+      {/* Iter 79i (Phase 4) — Resume prompt. Shown once on wizard open
+          when a recent (< 6h) snapshot exists in localStorage. Restore
+          uses only server-hosted photo URLs — no File objects are
+          persisted, so anything that was mid-upload is lost, but the
+          already-uploaded photos (and their annotations) come right
+          back to where the contractor left off. */}
+      {resumeCandidate && (
+        <div
+          className="absolute inset-0 z-10 bg-[#09090B]/80 flex items-center justify-center p-4"
+          data-testid="guided-capture-resume-prompt"
+        >
+          <div className="bg-white max-w-md w-full p-6 shadow-2xl">
+            <div className="text-xs uppercase tracking-wider text-[#0EA5E9] font-bold mb-2">
+              Resume your session?
+            </div>
+            <h3 className="text-lg font-bold text-[#09090B] mb-2">
+              {Object.keys(resumeCandidate.captured || {}).length} photo
+              {Object.keys(resumeCandidate.captured || {}).length !== 1 ? "s" : ""} from earlier
+            </h3>
+            <p className="text-sm text-[#52525B] mb-4">
+              Looks like you started a Guided Capture on this device recently.
+              Restore where you left off, or start fresh?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={dismissResume}
+                className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#71717A] hover:text-[#52525B]"
+                data-testid="guided-capture-resume-start-over"
+              >
+                Start over
+              </button>
+              <button
+                type="button"
+                onClick={applyResume}
+                className="px-4 py-2 bg-[#16A34A] text-white hover:bg-[#15803D] text-xs font-bold uppercase tracking-wider"
+                data-testid="guided-capture-resume-btn"
+              >
+                Resume
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white w-full max-w-2xl rounded-sm shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#0EA5E9] to-[#7C3AED] text-white px-5 py-4 flex items-center gap-3">

@@ -192,6 +192,15 @@ export default function PhotoAnnotateModal({
   // first scale tap and the second tap so the contractor SEES the line
   // they're about to commit (and the angle off horizontal) instead of
   // guessing.
+  // Iter 79i (Phase 4) — Apple Pencil detection. iPad + Pencil is the
+  // ideal precision surface for profile boxes and window edges; when we
+  // detect stylus/pen pointer events we surface a "Precision · Pencil"
+  // chip in the header so the contractor knows the app recognizes their
+  // hardware. Not a functional change (Pencil already works on any
+  // pointer-event handler), just confidence signal. Sticks for the life
+  // of the modal — if the contractor switches to fingers mid-session,
+  // the chip stays (fine, it just means the modal saw a Pencil once).
+  const [pencilDetected, setPencilDetected] = useState(false);
   const [hoverPoint, setHoverPoint] = useState(null);
 
   // Iter 57l — pinch-zoom + pan. Critical on iPad/phones where small
@@ -338,6 +347,12 @@ export default function PhotoAnnotateModal({
   // pinch + pan + tap all coexist.
   const onPointerDown = (e) => {
     if (!photo) return;
+    // Iter 79i (Phase 4) — Apple Pencil detection. pointerType === "pen"
+    // is the standard signal on iPadOS + Chrome/Safari. Once seen, we
+    // never un-set it (see comment above the useState).
+    if (e.pointerType === "pen" && !pencilDetected) {
+      setPencilDetected(true);
+    }
     if (e.pointerType !== "touch") {
       // Mouse / pen: only act on primary button
       if (e.button !== 0) return;
@@ -955,6 +970,21 @@ export default function PhotoAnnotateModal({
                   data-testid="photo-annotate-elevation-chip"
                 >
                   Wall: {elevation}
+                </span>
+              )}
+              {/* Iter 79i (Phase 4) — Apple Pencil recognition chip.
+                  Appears the first time a pen/stylus pointer event lands
+                  on the canvas. Purely informational — Pencil already
+                  works via standard pointer events, this just tells the
+                  contractor "yep, we see your Pencil" so they know
+                  precision mode is engaged. */}
+              {pencilDetected && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0EA5E9] text-white text-xs font-bold uppercase tracking-wider"
+                  data-testid="photo-annotate-pencil-chip"
+                  title="Apple Pencil detected — you have pixel-precise input"
+                >
+                  ✏️ Precision · Pencil
                 </span>
               )}
             </div>
