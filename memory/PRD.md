@@ -887,3 +887,14 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Verification**: `testing_agent_v3_fork` iter 29 — 100% pass. All 9 verification points confirmed: Rectangle + Polygon both visible on Mask and Profile, top toolbar hidden, existing-annotations block hidden, Polygon click toggles active state correctly, zone-category and profile-family grids render as expected.
   - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
   - **Status**: SHIPPED + testing agent verified. USER VERIFICATION PENDING.
+
+- **Iter 79j.4 — Polygon snap-close on Mask & Profile (2026-02-28)**: Howard wanted a tap-to-snap-close UX for the polygon tool on Mask (step 4) and Profile (step 5) so contractors don't have to hunt for a separate 'Close' button after placing all points. If the contractor taps a point within ~18 screen pixels of the first vertex (after ≥3 points are placed), the polygon auto-closes and commits.
+  - **Implementation** (`PhotoAnnotateModal.jsx`):
+    - New `_isNearFirstPoint(p, first)` helper with zoom-aware threshold `Math.max(8, 18 / max(0.25, zoom))` in photo-px (feels the same on iPad zoom-in or full-photo desktop view).
+    - MODE_ZONE and MODE_PROFILE polygon tap paths check the helper before appending a new point — if within threshold and ≥3 points already placed, commit the zone/profile-box and clear `polyPoints`.
+    - Visual cue: once ≥3 points exist, the first vertex renders 1.4× larger and a hint-ring appears around it (dashed by default, solid + fully opaque when the hover is within the snap threshold).
+    - Banner copy on Mask and Profile updated to include 'tap your first polygon point again to close'.
+    - Classic 'Close (N pts)' button remains as a fallback.
+  - **Verification**: `testing_agent_v3_fork` iter 30 — 100% pass on both steps. Snap-close committed a Brick mask zone and a Shake profile box (50 ft² sentinel due to no wall anchor set) on real Playwright taps that land within the threshold. Rectangle regression + 5-step guided navigation regression both pass. Lint clean.
+  - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only.
+  - **Status**: SHIPPED + testing agent verified. USER VERIFICATION PENDING.
