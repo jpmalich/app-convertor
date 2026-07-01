@@ -898,3 +898,8 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Verification**: `testing_agent_v3_fork` iter 30 — 100% pass on both steps. Snap-close committed a Brick mask zone and a Shake profile box (50 ft² sentinel due to no wall anchor set) on real Playwright taps that land within the threshold. Rectangle regression + 5-step guided navigation regression both pass. Lint clean.
   - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only.
   - **Status**: SHIPPED + testing agent verified. USER VERIFICATION PENDING.
+
+- **Iter 79j.5 — Polygon "Undo last point" button on Mask & Profile (2026-02-28)**: Small UX add per Howard's approval. When a polygon is in-progress on the Mask or Profile step, a new "Undo" button sits between "Close (N pts)" and "Cancel". Removes the most recently placed vertex without wiping the whole shape — critical for Tudor dormers / complex gables where contractors mis-tap 1 of 6 points.
+  - Mask row (amber): `data-testid="zone-poly-undo-btn"` · Profile row (violet): `data-testid="profile-poly-undo-btn"`.
+  - Implementation: `setPolyPoints((prev) => prev.slice(0, -1))`. Lint clean.
+  - **Status**: SHIPPED. USER VERIFICATION PENDING.

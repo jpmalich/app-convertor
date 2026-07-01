@@ -1498,9 +1498,14 @@ export default function PhotoAnnotateModal({
                 {zoneShape === "poly" && polyPoints.length > 0 && (
                   <div className="flex gap-1">
                     <button type="button" onClick={closePolygon} disabled={polyPoints.length < 3}
-                            className="flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#B45309] text-white border border-[#B45309] hover:bg-[#92400E] disabled:opacity-40">
+                            className="flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#B45309] text-white border border-[#B45309] hover:bg-[#92400E] disabled:opacity-40"
+                            data-testid="zone-poly-close-btn">
                       Close ({polyPoints.length} pts)
                     </button>
+                    <button type="button" onClick={() => setPolyPoints((prev) => prev.slice(0, -1))}
+                            className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#B45309] border border-[#B45309] hover:bg-[#FEF3C7]"
+                            data-testid="zone-poly-undo-btn"
+                            title="Remove the most recently placed point">Undo</button>
                     <button type="button" onClick={() => setPolyPoints([])}
                             className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5]">Cancel</button>
                   </div>
@@ -1548,6 +1553,11 @@ export default function PhotoAnnotateModal({
                             data-testid="profile-poly-close-btn">
                       Close ({polyPoints.length} pts)
                     </button>
+                    <button type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolyPoints((prev) => prev.slice(0, -1)); }}
+                            className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#7C3AED] border border-[#7C3AED] hover:bg-[#EDE9FE]"
+                            data-testid="profile-poly-undo-btn"
+                            title="Remove the most recently placed point">Undo</button>
                     <button type="button"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolyPoints([]); }}
                             className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white text-[#52525B] border border-[#E4E4E7] hover:bg-[#F4F4F5]">Cancel</button>
