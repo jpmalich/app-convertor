@@ -243,13 +243,19 @@ export default function PhotoAnnotateModal({
     if (Array.isArray(guidedFlow.steps) && guidedFlow.steps.length > 0) {
       return guidedFlow.steps;
     }
-    // Default 5-step sequence per Howard's spec.
+    // Default 5-step sequence per Howard's spec (Iter 79j.2 — fixed
+    // step 2 to be Window MEASUREMENT, not a re-visit of Window mode;
+    // step 2 is now MODE_SCALE_WINDOW (calibrate a known window's real
+    // dimension) so Claude gets per-window sizing precision, and
+    // step 3 is MODE_WINDOW (mark + tag each window with its style).
+    // The two are now functionally distinct instead of two views of
+    // the same mode).
     return [
-      { key: "wall", mode: MODE_SCALE, banner: "Wall Scale — tap two points on a known span (door height, garage height, eave-to-ground) then enter its real length", skipLabel: null },
-      { key: "window", mode: MODE_WINDOW, banner: "Mark Windows — tap each window on this wall to place it. A style picker opens so you can tag it as you go.", skipLabel: "Skip · no windows on this wall" },
-      { key: "mask", mode: MODE_ZONE, banner: "Mask — draw around brick / stone / masonry areas that are NOT getting new siding", skipLabel: "Skip · nothing to mask" },
-      { key: "style", mode: MODE_WINDOW, banner: "Review Window Styles — tap any window you already marked to CHANGE its style if it's wrong. Skip if the tags are already correct.", skipLabel: "Skip · styles are correct" },
-      { key: "profile", mode: MODE_PROFILE, banner: "Profile — draw regions for each siding profile family (Lap · Shake · B&B · Vertical · etc). Skip if this whole wall is a single profile.", skipLabel: "Skip · single profile" },
+      { key: "wall", mode: MODE_SCALE, banner: "Wall Measurement — tap two points on a known span (door height, garage height, eave-to-ground) then enter its real length", skipLabel: null },
+      { key: "window-measure", mode: MODE_SCALE_WINDOW, banner: "Window Measurement — tap two points on ONE known window edge (e.g. a 36\" wide window), then enter its real dimension. Gives Claude per-window sizing precision (±5%).", skipLabel: "Skip · no window to calibrate" },
+      { key: "window-style", mode: MODE_WINDOW, banner: "Window Style — tap each window on this wall to place it and tag its style (double-hung, casement, picture, etc.)", skipLabel: "Skip · no windows on this wall" },
+      { key: "mask", mode: MODE_ZONE, banner: "Mask — draw a rectangle OR polygon around brick / stone / masonry areas that are NOT getting new siding", skipLabel: "Skip · nothing to mask" },
+      { key: "profile", mode: MODE_PROFILE, banner: "Profile — draw a rectangle OR polygon around each siding profile family (Lap · Shake · B&B · Vertical · etc). Skip if this whole wall is one profile.", skipLabel: "Skip · single profile" },
     ];
   }, [guidedFlow]);
   const [guidedStepIdx, setGuidedStepIdx] = useState(0);
