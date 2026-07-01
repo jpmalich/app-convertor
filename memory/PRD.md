@@ -855,3 +855,29 @@ User uploaded a self-contained Vinyl Siding Estimator HTML and asked to turn it 
   - **Status**: SHIPPED + verified via direct DB query + catalog API smoke test on all 4 tiers + lint clean. USER VERIFICATION PENDING — open any Vinyl/Ascend estimate and check the Vinyl Soffit + Porch Ceiling sections for the new SKU names and PCS pricing.
 
 - **P2 — Admin → Async Jobs panel** (deferred Feb 2026): small admin-only dashboard listing the last 50 runs across `hover_import_runs`, `ai_measure_runs`, and `ai_blueprint_runs` collections. Columns: type · status · stage · elapsed · user · "Retry" button on error rows · link to the source estimate. Doubles as an ops dashboard (catch stuck/error patterns) and a customer-support tool (when a contractor says "the upload didn't work", see the exact stage + error in 2 clicks).
+
+- **Iter 79j.2 — Guided Photo Capture: 5-step sequence fix (2026-02-28)**: Howard reported the Guided Annotate flow was jumping from Wall Measurement straight to Window Style, skipping Window Measurement. Root cause: `guidedSteps` array in `PhotoAnnotateModal.jsx` was missing the `MODE_SCALE_WINDOW` step, AND the big-title switch statement at lines 1301-1307 still used stale keys (`window`, `style`) that didn't match the renamed keys (`window-measure`, `window-style`), so even after adding the step the title would render blank.
+  - **Fix (2 parts)**:
+    1. `guidedSteps` array now injects `MODE_SCALE_WINDOW` (key `window-measure`) as step 2 between Wall (`MODE_SCALE`) and Window Style (`MODE_WINDOW`). Sequence is now exactly: Wall Measurement → Window Measurement → Window Style → Mask → Profile.
+    2. Big-title switch updated to match new keys: `wall` → 🎯 Wall Measurement, `window-measure` → 📏 Window Measurement, `window-style` → 🪟 Window Style, `mask` → 🧱 Mask (brick / stone), `profile` → 🏠 Profile.
+  - **Files**: `frontend/src/components/estimate/PhotoAnnotateModal.jsx` only. Lint clean.
+  - **Verification**: `testing_agent_v3_fork` iter 28 — 100% pass. All 5 step titles + banners + skip labels + Next/Save-&-Continue label + progress-dot counts + "Step X of 5" counter verified end-to-end on a fresh Vinyl+Ascend estimate. Howard's regression definitively fixed.
+  - **Status**: SHIPPED + testing agent verified. USER VERIFICATION PENDING.
+
+## Backlog (P1)
+- Dollar amount per elevation under each bar in Per-Elevation Breakdown card
+- Diverge Contractor Window Quotes labor from ISS Replacement Windows labor formula
+- Add upgrade/option lines to Customer Quote PDF + email
+- Real PWA app icons (replace programmatic placeholders)
+- ISS New Construction Siding catalog (awaiting Excel from Howard)
+
+## Backlog (P2)
+- Unfilled-item safety net: warn before quote send if highlighted items have qty=0
+- AI Measure mini-map sidebar: click opening row → photo zooms to that bbox
+- WhatsApp share button on Accept page
+- SKU-level conversion dashboard
+- Wire Three.js static 3D PNG into Customer Quote PDF
+- Admin → Async Jobs panel (last 50 runs across the 3 async collections + retry button)
+
+## Refactor (later, once flow is stable)
+- Split `PhotoAnnotateModal.jsx` (1600+ lines) into per-step components
