@@ -13,20 +13,21 @@
     "text": {
       "primary": "#09090B",
       "secondary": "#52525B",
-      "muted": "#A1A1AA",
+      "muted": "#71717A",
       "inverse": "#FFFFFF",
       "profit": "#059669"
     },
     "borders": {
       "subtle": "#E4E4E7",
       "strong": "#09090B",
-      "focus": "#F97316"
+      "focus": "#C2410C"
     },
     "brand": {
       "primary": "#F97316",
       "primary_hover": "#EA580C",
       "primary_active": "#C2410C",
-      "secondary": "#09090B"
+      "secondary": "#09090B",
+      "primary_text_on_light": "#C2410C"
     },
     "status": {
       "success": "#10B981",
@@ -62,17 +63,17 @@
     "dashboard_cards": "bg-white border border-[#E4E4E7] rounded-none shadow-sm hover:border-[#09090B] transition-colors",
     "estimate_grid": "border-collapse border border-[#E4E4E7] bg-white rounded-none. Inner rows have border-b border-[#E4E4E7]. No rounded corners for a technical spreadsheet feel.",
     "sticky_totals_bar": "bg-[#09090B] text-white backdrop-blur-xl bg-opacity-95 border-b sm:border-t-0 border-white/20 shadow-xl z-50",
-    "primary_button": "bg-[#F97316] text-white font-bold rounded-none px-6 py-3 hover:bg-[#EA580C] active:translate-y-[1px] shadow-[4px_4px_0px_#09090B] border border-[#09090B] transition-all hover:shadow-[2px_2px_0px_#09090B] hover:translate-x-[2px] hover:translate-y-[2px]"
+    "primary_button": "bg-[#F97316] text-[#09090B] font-bold rounded-none px-6 py-3 hover:bg-[#EA580C] active:translate-y-[1px] shadow-[4px_4px_0px_#09090B] border border-[#09090B] transition-all hover:shadow-[2px_2px_0px_#09090B] hover:translate-x-[2px] hover:translate-y-[2px]"
   },
   "components": {
     "inputs": "bg-white border-2 border-[#E4E4E7] rounded-none focus:border-[#F97316] focus:ring-0 text-[#09090B] text-base md:text-sm font-['IBM_Plex_Sans']",
     "number_inputs": "Large tap targets, right-aligned text for easy numeric scanning. Spin buttons hidden.",
     "tables": "Flat, unstyled backgrounds. Header rows use overline typography. Zebra striping disabled in favor of strong 1px bottom borders.",
-    "badges": "Square (rounded-none), uppercase, tiny text, bold border. e.g. 'border border-[#F97316] text-[#F97316] px-2 py-1 text-xs font-bold'"
+    "badges": "Square (rounded-none), uppercase, tiny text, bold border. e.g. 'border border-[#F97316] text-[#C2410C] px-2 py-1 text-xs font-bold' (darker orange for text — #F97316 fails 4.5:1 on white)"
   },
   "icons_strategy": {
-    "library": "@phosphor-icons/react",
-    "style": "Duotone or bold weights to match the chunky, industrial architecture of the fonts and buttons."
+    "library": "lucide-react",
+    "style": "Consistent stroke icons, w-4/w-5 sizing. NEVER use emoji glyphs as UI icons."
   },
   "media": {
     "login_hero_bg": {
@@ -121,5 +122,16 @@
       "actions": "Overlay action bar floating outside the printable area: 'Download PDF', 'Email to Customer', 'Close'."
     }
   },
-  "testing_attributes": "All inputs, buttons, and row items MUST use `data-testid` in kebab-case based on role. (e.g., `data-testid='login-submit-btn'`, `data-testid='qty-input-vinyl-siding'`)."
+  "testing_attributes": "All inputs, buttons, and row items MUST use `data-testid` in kebab-case based on role. (e.g., `data-testid='login-submit-btn'`, `data-testid='qty-input-vinyl-siding'`).",
+  "accessibility": {
+    "contrast_rules": [
+      "Text on light surfaces: >= 4.5:1. Muted text is #71717A (never #A1A1AA on white - 2.56:1 fail).",
+      "Orange as TEXT/ICON on light surfaces uses #C2410C (5.18:1); #F97316 is reserved for fills, borders, and text on dark surfaces (7.10:1 on #09090B).",
+      "Orange buttons use BLACK labels (#09090B on #F97316 = 7.10:1); white-on-orange (2.80:1) is forbidden.",
+      "On dark surfaces (#09090B), muted text stays #A1A1AA (7.76:1).",
+      "Focus indicators >= 3:1 against adjacent colors: use #C2410C border on white inputs."
+    ],
+    "motion": "index.css disables animations/transitions under prefers-reduced-motion.",
+    "non_color_cues": "Never rely on color alone: 'commonly needed' rows pair the yellow tint with a Lightbulb icon + count badge."
+  }
 }
