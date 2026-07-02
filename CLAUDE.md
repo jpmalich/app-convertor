@@ -58,3 +58,6 @@ node src/lib/wasteLogic.test.mjs   # pure-logic regression test (plain ESM, no r
 
 ### Agent testing protocol
 `test_result.md` contains a protected testing-protocol block ("DO NOT EDIT" markers) and YAML task-status history used to coordinate between a main agent and a testing agent. Preserve the protocol block; append status updates in the prescribed format rather than free-form.
+
+### Emergent replication log (required after every change)
+This app also lives on the Emergent platform (https://app.emergent.sh), where its creator maintains a parallel copy. **After completing any feature or change to the application, append a new entry to `PromptsForEmergent.md`** (newest at the bottom): date, one-line summary, and a self-contained copy-pasteable prompt that lets the Emergent AI agent replicate the change without seeing this repo's diffs — describe the change by rule and intent, name the files/components involved, and end with a verification step. **Exclusion:** do NOT log anything related to decoupling this repo from Emergent (direct-Anthropic LLM client, Docker self-hosting, Emergent branding/telemetry removal, dependency swaps) — those must never be replicated into Emergent. Repo-only changes (docs, CLAUDE.md, git housekeeping) don't need entries either; only changes that affect the running application do.
