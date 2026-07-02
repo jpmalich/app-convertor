@@ -1,0 +1,494 @@
+ [BLANK_AUDIO]
+ [BLANK_AUDIO]
+ >> Your call has been forwarded, it's voicemail.
+ The person you're trying to reach is not a- >> Hey, what's up, man?
+ >> How's your lunch, how you doing?
+ >> Hey, pretty good, how about yourself?
+ >> Okay.
+ >> Okay, cool, we'll keep up.
+ >> So I did, so tell me all about this and what are you trying to do and
+ what questions do you have?
+ [BLANK_AUDIO]
+ >> What it is, is I'm trying to make a estimating tool for
+ doing siding takeoffs off the houses.
+ >> Okay.
+ >> Is basically what I'm doing with it, and pretty much built everything through
+ with the emergent, then Claude just got to show up on it, couldn't handle it.
+ >> Right.
+ >> So then I recommended I go to emergent, so
+ then I went to emergent and started building on there.
+ And just trying to get it as accurate as you.
+ You probably don't know what hover is, but hover is a program out there that does
+ what I'm trying to do.
+ >> Okay.
+ >> I've been doing it for years, but
+ it's super expensive when you do them.
+ So this basically costs about a dollar, less than a dollar.
+ It's like 16 cents to run the same thing as hover.
+ I just don't get all the pretty pictures that nobody walks on.
+ >> Okay.
+ >> So I didn't know if there was some way you could help me
+ get it more accurate, stuff like that.
+ So today, at lunch, I met with a guy from LP SmartSiding.
+ He's pretty far up in the company, and I showed it to him, and he's like,
+ yeah, our company would be very interested in that.
+ >> Okay.
+ >> And there's really nothing after Lincoln.
+ >> Yeah?
+ >> Yeah, that I can find.
+ >> Okay, so I was on, I logged into your account here.
+ Are you doing something on it right now?
+ >> I just finished something.
+ >> Okay, yeah, I've just seen some stuff scrolling by, so.
+ So where are you stuck or what, like, so I'm trying to do the,
+ let's see, the preview, or I'm going to your published site, I guess.
+ >> Yeah.
+ >> Your published app, and I'm trying to register for an account.
+ And I guess I get tripped up on access code.
+ As far as creating an account.
+ >> Yeah, so that access code, which I can give you,
+ is A-L-S-I-D-E capital dash J-R-4-7-Q-8.
+ >> 7-Q-8?
+ >> Again, yeah, are you going, are you going to a preview once?
+ That's what I'm on, yeah.
+ So I have a live one, and I have a preview.
+ >> Well, I think I'm on the live one.
+ I hit the link to take me to the published one.
+ Or, damn, I don't know if it's published or not.
+ It says, from the top right, there's a little box with an arrow.
+ It says, open in new tab.
+ >> Okay.
+ >> And it takes me to appconverter-170.preview.emergentagent.com.
+ >> That's the preview, that's the build.
+ >> Oh, okay, that's the, okay, okay.
+ But that one should be fine to look at this, right, or to register with?
+ >> Yeah, anything fun to do in there, we can do.
+ Nobody sees it.
+ I have a couple guys using it right now, and they like it.
+ >> Okay.
+ Okay, I'm just going through registering right now.
+ >> If you just ask emergent in the question, say, hey,
+ give me the links to my preview login for admin and
+ contractor will throw it up there for you.
+ >> Oh, okay, yeah, okay, so this failed.
+ It says, sign up is invite only.
+ >> So, I'm going to just freaking invite you.
+ Okay, what's your email again?
+ >> J-P-M-A-L-I-C-H at Gmail.
+ [BLANK_AUDIO]
+ >> I'm sure if you got it.
+ [BLANK_AUDIO]
+ Okay, yes, create your account.
+ [BLANK_AUDIO]
+ Okay, good, that worked.
+ Okay, so it took me to page here.
+ Gives me options, ISIS quotes and contractor quotes.
+ >> Yeah.
+ >> Okay, you want to walk me through these?
+ >> Yeah, go to the contractor quote.
+ >> Okay, all right, I got three options here.
+ >> Yeah, go to final and send cited quotes.
+ >> Okay, so then when you can hit new estimate up top.
+ >> Okay.
+ >> And it'll pop open up.
+ >> Yeah, that broke.
+ >> Run time error, something I did just now must have.
+ >> Yeah, oops, or it's in the middle of building something still, maybe.
+ I don't know.
+ >> No, it's still on it, some of them will be black.
+ [BLANK_AUDIO]
+ Well, I can invite you to the live one, that's probably working.
+ >> Okay.
+ [BLANK_AUDIO]
+ >> I'll re-log into the admin for the live.
+ [BLANK_AUDIO]
+ >> Was it JP, right?
+ >> Yeah, JP, M-A-L-I-C-H.
+ [BLANK_AUDIO]
+ [BLANK_AUDIO]
+ >> Come on, Dan.
+ >> [LAUGH]
+ >> I think I put a semicolon, not a third, instead of a daughter.
+ Sometimes I think I have my hands on the- >> Good job, Buckley.
+ >> [LAUGH]
+ >> I know.
+ >> [LAUGH]
+ [BLANK_AUDIO]
+ All right, just got that.
+ Okay, create my account, okay.
+ [BLANK_AUDIO]
+ >> Trying to keep all the shit straight.
+ >> [LAUGH]
+ >> Four different logins.
+ >> Okay, all right, so I'm there.
+ All right, so yeah, that's how your published one looked like, it's app.proquotes.com.
+ >> Yeah.
+ >> Okay.
+ [BLANK_AUDIO]
+ >> Got a contractor and a final siding.
+ >> Yep, okay, so now I'm at a page, I create estimate page.
+ >> Yeah.
+ >> Okay.
+ >> And then you can upload what you call the upper reporter blueprints or
+ take photos of your house and do a siding measure on it.
+ It'll walk you through how to do it.
+ >> Okay.
+ >> And if you scroll down, it gives you a whole material list with pricing and
+ everything.
+ [BLANK_AUDIO]
+ >> Okay.
+ >> All the pieces, parts, and all that.
+ >> Neat, okay, cool.
+ [BLANK_AUDIO]
+ >> So, all that's wired in, waste factor, sales tax, profit.
+ All the colors, everything like that.
+ [BLANK_AUDIO]
+ All right, this looks pretty cool.
+ [BLANK_AUDIO]
+ >> So if you take eight pictures around your house, the front,
+ front, left, left, back, left, back, right, right, and front, right.
+ >> Uh-huh.
+ >> Then you can go through that AI measure and follow what it tells you to do.
+ >> And then it'll just give you all the siding, soffit, fascia,
+ everything that you need to buy to redo your house and siding.
+ [BLANK_AUDIO]
+ >> So it'll figure out all the measurements and all that stuff automatically through
+ the pictures and calculate all that, okay, that's pretty nice.
+ >> From the measurement, you need to know measurement of a wall.
+ You need to put that in this wall's 15 feet, and then you'll need to know
+ the measurement of a window, hey that's 48 inches wide or 36 inches wide or whatever.
+ >> Yeah.
+ >> That helps give the AI the ability to figure out sizing on the freaking picture.
+ >> Okay, cool, all right.
+ >> Instead of letting it guess.
+ [BLANK_AUDIO]
+ >> But that's pretty much like blueprints it obviously reads all that stuff off
+ the blueprints cuz there's measurements on there.
+ >> Yeah.
+ >> And then hover does the same thing, but a hover costs 150 bucks each one.
+ >> What is a hover?
+ >> It does the same thing I'm doing here with the AI measure.
+ With the AI measure, cool, you take eight pictures just like I said.
+ >> Uh-huh.
+ >> It figures the same thing gives you a nice 3D drawing,
+ which I cannot get AI to draw correctly.
+ I don't know if you won't do it.
+ I don't know if there's something out there that can do it.
+ Obviously, hover's doing it, but
+ [BLANK_AUDIO]
+ That's pretty much the difference, they draw a nice picture I don't.
+ >> Okay, okay, all right.
+ >> They're 150 times more than money.
+ >> Yeah, yeah, yeah, no, this is pretty cool.
+ This has a lot of capability here, Ali, so that's pretty nice.
+ >> Yeah, I started the guy from LP and he's like, holy shit.
+ >> [LAUGH]
+ >> He's like, that's pretty nice of you.
+ He goes, I've been telling everybody, I have this guy talking about you.
+ This is all he does is coding and you can't copy this unless you have somebody like him.
+ >> [LAUGH] Yeah, that's a good story to tell.
+ >> [LAUGH]
+ >> He does all the back end stuff.
+ >> [LAUGH]
+ >> The AI's messing up.
+ >> Yeah, you gotta keep all that stuff to yourself, man.
+ >> Yeah, because I mean, you can't patent it because it's just a procedure.
+ I asked AI, and it's like, well, you can't patent it.
+ It's the way you measure a house, you can't patent the way you measure a house.
+ >> Right, exactly.
+ >> It's like you could, it said I could patent some stuff like have a.
+ But it's like it's not really worth the money because they can just get around it anyway.
+ >> Mm-hm, mm-hm, yeah, so.
+ >> So at the end of this, so you load all this stuff into this page here, right?
+ And you get all these estimates and quotes.
+ And so you hit Save, or you have these other options, customer quote, material list.
+ >> It'll pull up a customer quote with their pricing on it.
+ >> So what does a customer quote do?
+ Does it just, is that just for your benefit?
+ Or does this like send it out to the customer?
+ Or what does that do?
+ >> It'll send it out to the homeowner.
+ >> Okay, good.
+ >> And then it'll tell them when they read it, when they opened it and looked at it.
+ And then the customer can respond back and say I accept or ask questions.
+ And it'll shoot an email back to the contractor.
+ Saying, hey, this person has accepted your bid.
+ Or hey, they have a question, here's the question.
+ You can print a material list and then send it to me and I can put an order in for that material list.
+ >> Okay, does any of that interaction get logged or stored within your app anywhere?
+ >> It gets stored within the app for the contractor.
+ On my admin page, I can see how many quotes they've sent, but it doesn't store it in my admin
+ because I didn't want that because if I have like 30 guys using it, I don't want, you know,
+ 90 quotes piled in there every freaking week.
+ >> Right.
+ >> Right.
+ >> Okay.
+ >> So how, what does this cost you to host it?
+ >> To host it?
+ >> Host it, yeah.
+ >> 50 bucks, or not even, I think it's 50 credits a month, which is like 10 credits a
+ month, or 10, I mean, what is it, like right now, credits are, it's $20 for 100, so it's 10 bucks a month.
+ >> Oh, that's not bad at all, geez.
+ >> Yeah, as a host, every AI run, every time somebody runs it, it's between 13 and 30 cents,
+ depending on how, like, the blueprint ones cost a little bit more because of what I have it doing.
+ I think they're like 20 to 30 cents, depending on how many times it goes back and forth to the AI.
+ >> Right.
+ >> So I was just on there, and Fable 5 just got released, and I was asking it, should I use Fable
+ 5, and it was like, no, you should use Gemini 3.5 to just tell me to move from quad to Gemini 3.5,
+ which is less expensive, and it has a little bit better, does a little bit better job at reading
+ pictures and getting measurements off of pictures. It's just built for that work.
+ >> Okay.
+ >> Well, it's not Optimus 4.5. I'm lining the fucking shitload up.
+ >> You sound like one of my developers right now, so hey, that's a good thing.
+ >> It's freaking amazing, like, how much. You just say, here's what my vision is,
+ here's what I'm looking at.
+ >> Oh, yeah.
+ >> But the whole reason I did it was because you did that freaking bowling.
+ >> You know, I've told some other people about that that I bowl with, and they're just like,
+ no, no way. And then I brought it up on my phone and showed them. I go, look, here it is.
+ And there was even more features in there this time than when we did it that night
+ bowling up in Tionesta. So they're like, oh, my God, that's, yeah, we need to work on this,
+ and we need to get, like, you know, real-time feedback from the lanes in there to analyze
+ your roll and all this stuff. Like, oh, easy, easy there, buddy.
+ Yeah, they want to do it. You know, they're talking like,
+ yeah, we need to do this, like, you know, those golf apps that analyze your swing. You know,
+ we want to, you know, focus this thing on your roll and then analyze your position and your
+ delivery and all that stuff. And like, yeah, that's, I'll just keep all those notes to myself.
+ Oh, it's amazing, like, this stuff that I've built, like, in the past six months, I built,
+ like, three major, three major products that are being used right now. This one, this one I've been
+ working on for the past couple months, it's like, it's so extensive now. And I'm just a one-man team
+ building it, designing and building it. And so we have these contracts with the government that's
+ called Blue UAS, or Blue List. So the government cannot purchase anything drone-related,
+ and that's the Blue UAS part. Blue List's part is like going to be any other thing the government
+ can procure, right? So we are tasked with getting any drones that the government might be interested
+ in purchasing, you know, government, meaning government, military, whatever. And so we get
+ them and we tear them apart. I mean, we tear them apart down to the chip and circuit board and chip
+ level. And even further now, they want us to go further and track materials, do a supply chain on
+ materials that make up chips and all that stuff. But for now, it's just like components, chips,
+ you know, so, you know, any, like, say we get like a DGI, right? And so we have to tear that all down
+ and assess every single part of that and compile reports and provide an, you know, an official
+ assessment that the government can, you know, can trust, really, before they can allow someone
+ in the government to go purchase these items. And so I built this, I built this tool to kind
+ of automate all that stuff. So all these guys got to do, we got a team down in Charlotte,
+ North Carolina, that that's all they do is tear these, tear these drones apart bit by bit,
+ photograph them all, research them, and just enter all this stuff in my in my tool. And my tool will
+ spit out this like beautiful, immaculate formal report that can go to the government. That takes
+ their workload down to like weeks from weeks to like days now. And so because of that, we were just
+ awarded with 11 new assessments two days ago. And it's beginning to be the big business now,
+ where drone vendors are coming to us and paying us to assess their products.
+ So it's taking off and like, all with the help of, you know, a tool like this, right,
+ that I wouldn't have been able to do what I've done. Prior to this, without like, you know,
+ six engineers working on it full time for a year. So yeah, that's crazy.
+ Yeah, like, I showed it to one of the big weeks at all side too. And he's like, Holy shit,
+ he's like, that's pretty impressive. He's like, we don't have anything like it's going right now.
+ Nobody's building anything like this, dude, with what you built, like you guys could be leading
+ the pack with all this stuff, you know that. Yeah. So that's where, like, I don't know what
+ to do. And I got like stuck, like, where do I go? Like, what, how do I market it out away?
+ Like my, my thoughts at first, my thoughts on leaning towards is just if I can find some
+ manufacturer like LP or outside and just say here, give me, you know, X amount of money and I'll,
+ I'll show you the whole damn thing. You can just take it off. Yeah, that'd be, so
+ yeah, that'd be, that'd be pretty sweet. I mean, what I would do, like, if you get an
+ opportunity to go to any of your like trade shows and stuff like that, take it there and
+ show it to folks, man. You might have, you know, you might get a fish on the line there, I bet.
+ So a couple things. First of all, what I did earlier when I logged on, I was, I was actually
+ looking to see what the code looked like. And I couldn't find any way to do that other than
+ link it to my, my, my, my GitHub account. So I pushed all the code out there. So I've
+ accessed all the code right now. So I'll be looking at that.
+ Really? I mean, there's the. Huh. Okay.
+ Really? Interesting. Okay. But anyway, so what I was going to do with that is I was going to
+ run that through my bots and have it analyze it as well. See what it spits out from a
+ user experience, user interface perspective. This run, you use this on your phone too, right? It
+ maps perfectly your phone. Uh-huh. Right.
+ Well, I'm thinking either phone screen or a tablet. Maybe if I don't know you guys
+ work with tablets. Okay. Okay. So it scales good for the tablet then. Yeah. Okay.
+ And then when you have to put the measures in, it's such a small screen. You're trying to tap
+ your finger on us on the edge of a house. Got it. You know, you could miss by a flick. Yeah.
+ Yeah. Yeah. Um, so the other things that, um, I, I don't know if you have covered here or not.
+ Just like from a look and feel perspective, like, um, accessibility type things, um,
+ might be important. And by that, by that, I mean like, um, uh, widgets and, you know, the styling
+ and stuff, um, needs to support things like, um, you know, color blindness, uh, stuff like that.
+ Um, which is a big, like it's a big deal in a government. So like, if you submit something
+ like this to the government, if it, if it doesn't pass the test for like color blindness and some
+ other accessibility things, they will reject it. So just stuff like that, that might be,
+ I did see that. Is there a Canadian button?
+ Change it all to Ebonics. I asked the AI to do something.
+ What? Well, you did what? You axed it. You hit it with an ax? What are you talking about?
+ But yeah, stuff like that. Um, let's see.
+ So I mean, like all the functions and widgets and stuff look like they work. Um,
+ it's like this page here I'm looking at is, is nicely laid out, but like the,
+ the widgets are kind of bland, I would, I would say. Um, so like, you know, maybe, you know,
+ styling it, styling it nicer maybe. Um, yeah. Right. Functionality and features. Yeah, absolutely.
+ Yeah. Yeah. Yep. Yep. Yep. Yep. Yep. Yep. Yep. Yep. Yep. Yep. Yep.
+ Right. Yeah. Oh yeah. Yeah. So let me ask you this other question. So
+ you have in your, uh, down below here where it, it does all the, um, you know, there's the,
+ the, um, little expanding bars for vinyl siding, siding accessories, um, tear off cleanup. So if
+ I click on those and expand, um, so it, it shows me all these things under that couple of questions,
+ what is the significance of the things the rows highlighted in yellow?
+ Those are things that you're, you most almost always need.
+ Oh, okay. And that's what it was indicated at the top level with that little button.
+ Yeah. So at the top where it says three or two or 12 or whatever, that's telling you,
+ hey, there's three items in here that you need to look at. You're missing in your quote that needs
+ to be verified that you don't need any. Okay. Okay. And then like, like, AI has a real hard time.
+ If you look at, uh, like siding accessories, um, yeah, siding accessories. Yep.
+ A blocks. We screwed on the J blocks. It's down a little bit, but, um, like there's multiple
+ different J blocks, but AI doesn't have to separate them. Okay. It doesn't have difference
+ between a light block and a split block and a UL block and a jumbo block and a dry event. It just
+ won't throw into one. Okay. So it puts it in that split block and then the contractor has to go and
+ you know, say, Hey, I need one split block. I need two of these, one of those. I need a dry
+ event. Like that's completely different than a split block. Okay. Gotcha. Like AI can't figure
+ that out, but it just doesn't help. It can't get it yet. Okay. How do you update, um, material costs
+ for you will probably change a lot. Right. Over time. How do you update that in this app?
+ So in the admin login, you can update either by, um, I have an Excel file and you can update the
+ Excel files and then just upload it and it'll change it. Or you can do, uh, a, uh, CSB update,
+ or you can do a roll like 3% increase 4% increase across the board. Oh, okay. Cool.
+ That's one thing I have a problem with is that I can't, I wish the, like how I update pricing each
+ very, um, it's an Excel file with like eight different tabs. I wish I could get it more
+ that a lot easier. That's why I'm having a little bit of problems figuring out what to do with that.
+ Okay. Um, other things in these, these, these categories here, um,
+ under the estimate, um, I don't see anywhere like within say siding accessories. So, um,
+ assume like these 12 yellow items or whatever, you know, are all filled out and to the right there,
+ there'll be totals. Is there a roll up total for this category at each, each section?
+ No, I didn't put that in there really. Um,
+ most guys wouldn't care. Really? Okay. Yeah, it's not that big of a deal. Like
+ I might, that could be something like that, but like they don't really care about the biggest,
+ most guys just care about the final, they care about maybe separating the vinyl,
+ like the actual vinyl. So I think price from the accessories, but that'd be it. Oh, okay. Okay.
+ Um, let's see. What else? Somebody wouldn't want to see that because they might like, so
+ just my guys, I haven't, they don't really, they're not that specific.
+ I get it.
+ Um, let's see what else I can't even read it. Um, you know, they have no idea how their
+ taxes are done. They don't have no idea what a budget is and how you operate a budget or
+ right. I have no idea. They just say, well, I got cash and they're all cash rich. Yeah. Yeah.
+ Cash Richmond. Um, what about, um,
+ so all these, all these, um, customer quotes and all your documents and all that,
+ that you would enter into this pictures and so on, um, are all stored on your server. Correct.
+ It's all stored on what's called the Mongo. Right. So Mongo DB. Yeah. Yep. Okay. So that's,
+ that's your database. Um, do you know if that Mongo database is set up to, um, do backups and,
+ and, um, in case of like some catastrophic event or say, you know, one of your, um,
+ minions or something like screw something up here and kill something that you had previously
+ done in here in terms of a customer quote, um, that you can restore from that backup.
+ Do you know if anything like that is supported? Okay. That might be, that might be a question
+ to ask the bot, um, to see what they, what it says about how to handle and manage that.
+ Um, is this the only, um, what are these other sections here that I'm seeing? Um,
+ so I see at the top, I see under next to estimates there's a catalog and then team. Um,
+ I guess the contractor wants to add another person to their team. Got it. But if they can
+ add, you know, they can do their own quotes and then we'll all go into the same, they'll have their own separate login. Okay.
+ If you click on catalog, that's where he can put his labor rates in for what he charges for everything.
+ Catalog.
+ No. Okay. So, okay. And that, that feeds into the estimates.
+ Yeah. Once he had saved catalog, every estimate he does after that,
+ and I'll ask him if he wants to do it backwards or, um, you know, just go forward and then he can
+ hit save catalog. And then every time he pulls up a quote, that labor number will be in, uh,
+ in the estimates. Okay.
+ And at the top of this price catalog, there's, uh, five categories, I guess, vinyl,
+ Ascend, LP smart, Vero, and Mezzo. Yeah. What are those? So, um, vinyl is a vinyl siding,
+ Ascend is our, is the all side composite product. Okay. LP is LP smart siding, which is another
+ manufacturer. Vero is a Vero window and Mezzo is a Mezzo window. Do you see these, do you see this be
+ expanding beyond these five things? Yeah. So my thought is I might separate it into different
+ tools, you know, different estimating tools. Like I might, my thought was to separate it from siding
+ windows, make one whole app siding one another completely different app when it's out for windows.
+ I haven't decided whether to do that. I haven't, I've asked it how to do that, then told it to save
+ it in case I want to go back and separate it. But that's why I was trying to make a GitHub.
+ It's like, yeah, you can do it, but you have to have a GitHub uploaded to GitHub and then we can,
+ they would run me off the process of copying it back in and then splitting off. Yeah.
+ I can't get a GitHub, which sucks. Oh, let me, I'll look into that for you there. You should be able
+ to get one. No problem. I don't know if somebody else can sign me up for one and then. Yeah. Let me,
+ let me look into it for you. Yeah. And if I, if I, if I can, if I create one, I'll connect it,
+ I'll link it up with emergent here and so you can start pushing code out to that. Yeah.
+ Um, if you want to help me work on it, if I ever sell it for anything, I'd cut you in.
+ No, cool. Um, yeah, I don't mind. Uh, I just, sorry, but, uh, uh, when you first told me about that,
+ like I was ready to do stuff and then I got distracted and then I forgot all about it.
+ So I apologize for that. It's cool. Cause if you would have seen it when I asked you
+ compared to what it is now, it's like so much better. Like every week it just gets better.
+ Oh yeah. I just keep thinking of more stuff to add more stuff to this, do that, add this, add that.
+ Oh, it's yeah. I want it all, man. I'm like, I was going to keep, it's like this conversation is getting too long. I need to,
+ like you're a freaking computer. What do you mean this conversation is too long?
+ I was like, cause that's what Claude was doing to me. And I'm like, oh man, it's emergent goodness.
+ I'm going to get so far and get stuck. Emergent called me. Emergent called me.
+ Emergent called you? Yeah. They're like, um, hey. And they offered me a deal on, uh, tokens. Uh-huh.
+ Which I took, um, basically offered me 125% extra. Yeah. If I bought a size of bucks worth, which I did.
+ Okay. Uh, he's like, you're like, your thing is becoming like one of the largest ones we have on our site.
+ Just so you know. Wow. He's like, you're, this is pretty big.
+ He's like, we're watching it. I go, well, you smell stealing. Yeah, really? Exactly. You Indian bastard.
+ Oh yeah. That's what they're doing over there. Right? I bet you they are.
+ That's where they're at. Are they really? Yeah. Oh, they're, they're definitely stealing it then.
+ Oh my God. No, Howie, this is, this is really good though. I'm, I'm really impressed with this.
+ Well, you got to log in for it. So anything you think of that you can help me with the DB Mongo or
+ Mongo DB backup. You see stuff that needs to be, that you think like the color blind stuff and like,
+ yeah, that's the stuff I don't see. Like, yeah, I like it the way I have it. Like the way I like
+ it to look, but doesn't mean that what everybody else likes to look at. Yeah. So usually, usually
+ what I put into my apps is I, I provide like, you know, like a little, you know, man, I just,
+ I just logged out apparently. A little kind of like user admin or user settings
+ panel somewhere options where I can select various styles. You know, I give like, you know,
+ eight to 10 different styles, look and feels. So just by a click of a button,
+ it can change the way the whole thing looks, providing different, different, different colors,
+ different, different fonts, different, you know, whatever, I mean, everybody has their preference.
+ And so that might be one thing I'd add there, but it's not going to affect or change or improve
+ functionality, which looks like it's, it's, you've got that covered pretty well there. So, um, yeah,
+ I think I'm doing good on like what I want it to do, but it's all the other stuff and like the
+ backup stuff and all that kind of stuff. Like I don't, then if you run the code through your tools,
+ fix anything in that, you know what I mean? Yeah. That would get the get up going like,
+ that'd be helpful. Okay, cool. Let me, let me, I've also told everybody, yeah, this guy has like
+ top clearances. You can't say anything, but he, I'm not telling you who he is, but he
+ wants stuff through the government stuff that nobody else has. Well, you're not lying. So
+ they're like, really? I'm like, yeah, I'm like the guy today. I'm like, well, I'm like, I asked
+ him how much he charges. I said he charges like $250 an hour to do this. Oh yeah, that's,
+ that's not far off either. And I'm like, he probably has like 300 hours in it. So give me,
+ you know, tell me how much that's worth. That's a, that's a great way to talk out the value of it too.
+ I mean, yeah. I'm like, you can try and build it. I said, if you just try and build it on AI,
+ you'll probably get about 80% down and get frustrated. Yeah. And that's, and, and, and
+ that's true with a lot of this. Like it's, it's, um, you know, people think that,
+ you know, they think the average person can come and build something like you just built.
+ Right. And it's generally like you can get, like you said, get 80% there, but you don't
+ know what you don't know as far as how a system should run. And so things like back end security,
+ you know, um, you know, those, those types of things, you, you just don't know what you don't know.
+ So yeah. And he's like, well, I'm going to talk to my superiors. We have, you know, my bosses,
+ I might show it to him. I might give him a login, but I wanted to kind of get with you and get all
+ the back end stuff protected. And then if he shows it to him, he's like, we have a meeting
+ in September with all the top contractors in the country. He's like, we might ask you to come and
+ show it and demo it. Oh, that'd be pretty sweet. You know, something for it. That'd be pretty sweet.
+ Yeah. And it's a pretty big deal when they go, when they take their top contractors,
+ like they go all out. It's like a really nice trip. Yeah. And maybe me and you'll be doing
+ a trip in September. Hey, I'll keep my, keep my calendar open. I'm sure it'll be open.
+ Yeah, that's probably true.
+ I don't know. I got to go fishing. Well, so the thing I did a couple of weeks ago up in,
+ up in Pennsylvania for a week, like they, they, they do two of these, two of these a year.
+ It's apparently so they were, they were, we're talking up there. So we, they, they, they, they
+ brewing. There were 12 of us. They flew, flew people in from all over the world. So we have,
+ you know, guy in Australia that flew in just for this. We have a guy in Seattle that flew in.
+ We have people in North Carolina that flew up Oklahoma, I think Texas. So 12 of us. And so we're,
+ we were sitting there talking to actually most, all we did was like drink beer and eat like 95%
+ of the time. That's all we did. Like other than like our activities, like fishing and
+ ATV and stuff like that. But one guy goes, yeah, you guys can, well, I'll host the next one in
+ Australia. Like, okay. All right. That was good. Okay. I was supposed to go there a long time ago
+ on a project, but then it never materialized. So no farthest I've been over that way is Japan.
+ But then you should have seen, um, the, the huge elk running around up in that part of Pennsylvania.
+ Yeah. Oh, yeah. Yeah. Yeah. Yeah. Yeah. The guy that owns the property, he was, he was one of our
+ team members. He owns that he owns like a hundred acres up there, big campground. Um, and they come
+ onto his campground all the time. And, um, he says, yeah, you gotta watch out there. You get too
+ close, man. They'll charge you and it's going to ruin your day. Oh, they are. They are. Yeah.
+ Yeah. And there's a picture of him. They have it hanging. There's a picture of him. He's,
+ he's probably like five 11 and its feet were on the ground. They had it hanging up. He was,
+ he was at his belly. Wow. So freaking wild. Like, like you could have took him standing
+ straight up and down and put them inside its body. Holy crap. Yeah. Yeah. It's hard to get
+ that perspective, looking at them from a distance too, you know? Yeah. But when you can get a picture
+ of them up close and you see how freaking big, like they take pickup trucks back to get them,
+ but they take a special, uh, trailer. Yeah. You can't put them in the back of a pickup.
+ Yeah. That's crazy. That's crazy. Well, I know that like, um, I seen some, some videos of people
+ like moose hunting, right? And like up in Alaska and there's just no way to get them all back in
+ one piece. So they bring a chainsaw and they just slice them up with a chainsaw. Take them out bit
+ by bit. All right, Howie. So I'm going to get going here. Like I said, I got the, I got the code
+ downloaded or pushed out to my GitLab. So I'm going to pull that and then run that through my
+ bots and, and see what it says. So I'll let you know what's, what's going on with that then. Um,
+ and then if I think of anything else, I'll, I'll, I'll, I'll work on this thing. I have no problem
+ with that. It sounds like a fun little project. The guy that was talking to you guys, I can see
+ them giving you at least 500 grand. He's like, they would, it would be, he's like, nobody has
+ anything like that. That's crazy. He's like, and if we can give it to our customers to make it easier
+ for them to quote faster and sell more, they would give it to you. That's crazy. Yeah. Wow. Well,
+ Hey, that's the goal, man. Yeah. That's the goal. Just text me when you're in it. So I don't go in
+ and start screwing you up. Okay, we'll do. Um, Hey, I'm going to be up there this weekend. I don't
+ know if you saw my message. Yeah. So if you have, if you're busy or not, it doesn't matter if they
+ want to stop by. That's great. I'd like to see you guys. Okay. I know we're having some people on
+ Saturday, but I don't know. Okay. What are you coming up? Uh, we're leaving tomorrow morning,
+ so we'll be up there tomorrow. Nice. Yeah. Okay. All right, Howie. Okay. All right. Talk to you later.
+ Bye.
