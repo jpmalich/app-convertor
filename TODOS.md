@@ -35,9 +35,71 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       when Alside updates wholesale pricing.
 - [ ] **Easier pricing updates** — Howard maintains an 8-tab Excel sheet; streamline the
       upload flow around it. *(Pain point from the call.)*
+- [ ] **Auto-populate estimate fields from known context** — pre-fill anything the app
+      already knows when creating an estimate instead of leaving it blank. Concretely:
+      **Estimator** = the logged-in user's name (`useAuth().user.name`, available in
+      `EstimateEditor`/`JobInfoPanel`), **Date** = today, and **State** could default to
+      the company's home state (most jobs are local). Best done at estimate creation
+      (`POST /estimates` or the editor's initial load when the field is empty) so the
+      contractor can still override; never overwrite a value someone typed. Candidate
+      future sources: HOVER/AI-measure imports already carry the property address —
+      make sure those flows populate the structured address parts too.
+- [ ] **Input format tips + soft validation on data-entry fields** — guide the user on
+      the expected format for each field and gently flag bad entries. Email should match
+      acceptable email format (the earlier test value "sdasdsf.com" sailed right in — a
+      typo'd email means a bounced quote); phone/fax should hint a format (e.g.
+      placeholder "(412) 555-0100", optional auto-formatting as you type); date fields
+      show the expected pattern; ZIP is 5 or 9 digits. Implementation direction:
+      placeholder examples + a one-line format hint under the field, `inputMode`/
+      `pattern` attributes, and inline "doesn't look like an email/phone" warnings on
+      blur — warn, don't block (consistent with the soft-required-at-send policy).
+      Wire warnings with `aria-invalid`/`aria-describedby` so they're announced (pairs
+      with the audit's form-error finding). Highest-value target: customer email,
+      since it feeds quote delivery.
+- [ ] **Identify and mark required fields on the input forms** — decide, per form, which
+      fields are actually required vs optional, and make that visible in the UI (the
+      conventional asterisk + an "* required" legend, `required`/`aria-required` on the
+      inputs). Forms to cover: estimate Job Information (today nothing is hard-required;
+      per the soft-required policy the likely set is customer name + job address to make
+      a usable estimate, email required at send — already hinted), Login/Register
+      (email, password, and signup or invite code), Team invite/rename, admin panels
+      (branding, pricing uploads), and the QuoteModal (recipient email — already gates
+      the Send button). Where a field is required only at a later action (email → send
+      quote), mark it as such rather than blocking entry — consistent with the
+      warn-don't-block policy above. Output first: a one-page field inventory
+      (form × field × required/optional/required-at-send) agreed with Howard, then
+      apply the markings.
+- [ ] **State dropdowns: show full state names** — the job/billing address State selects
+      (`US_STATES` in `JobInfoPanel.jsx`) currently list two-letter abbreviations; show
+      the full name in the option label ("Pennsylvania") while keeping the two-letter
+      code as the stored value — the composed address string ("…, Pittsburgh, PA 15222"),
+      CSV columns, and the legacy-address parser all expect the abbreviation. One
+      name↔code map, both selects (cust-state, billing-state).
 
 ## 🟡 P2 — Product (later)
 
+- [ ] **Redesign the /estimate page — wizard or sectioned navigation.** The editor is one
+      very long scroll today; condense it into manageable grouped sections the user moves
+      through. Two candidate shapes to explore (or a hybrid): a **wizard** (linear steps,
+      good for new estimates / new users) vs. a **sticky section index / jump nav** (good
+      for revisits and quick edits — contractors rarely fill a quote strictly in order).
+      Logical groupings already present on the page, in natural workflow order:
+      1. **Job Info** — customer / contact & lead / addresses / estimate meta (the four
+         groups shipped 2026-07-03)
+      2. **Measure** — HOVER import · AI photo measure · blueprints · pair-to-LP tiles
+      3. **Pricing setup** — waste factor · sales tax · profit margin/markup · eave
+         overhang · porch ceilings
+      4. **Photos** — job photo gallery
+      5. **Materials & colors** — Material Colors selectors (+ future swatches TODO)
+      6. **Line items** — product-line tabs (Vinyl/Ascend/LP · Vero/Mezzo) with section
+         accordions; windows-kind adds the opening editors — the heaviest section by far
+      7. **Review & send** — totals summary · customer quote · material list · print · CSV
+      Design considerations: the sticky sell-bar must stay visible in every step; autosave
+      makes steps freely revisitable (no "save & continue" needed); measure imports
+      (step 2) mutate line items (step 6), so the flow isn't strictly linear; mobile/field
+      use favors fewer, collapsible groups over hard page breaks; a completeness indicator
+      per section (like the lightbulb badges) could drive the index. Prototype both shapes
+      against a real 29-window estimate before committing.
 - [ ] **Material Colors section: show the actual colors** — on the estimate page, enhance
       the "Material Colors" section by rendering real color swatches for the selected
       products (e.g. manufacturer siding/trim color chips next to each picker) instead of
@@ -49,6 +111,27 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       a backend-served catalog (per product line, per supplier) editable from the admin
       panel, with versioning so existing estimates keep the color names they were quoted
       with. Pairs with the swatch item above.
+- [ ] **Full app redesign — modern, business-grade UI + per-company branding.** Objective:
+      a modern look and feel appropriate for a professional trade tool — polished and
+      business-like, not consumer-flashy. Two workstreams:
+      1. **Visual redesign** — evolve the current Swiss/industrial system (or replace it
+         deliberately) with modern spacing, elevation, and component polish across every
+         page; fold in the open UI/UX audit items (Radix dialogs, skeletons, section
+         rollups) so the redesign retires that debt rather than repainting over it.
+         The audit's "bland widgets" observation from the Howie call is the origin of
+         this item.
+      2. **Per-company customization** — each contractor company gets its own branding
+         inside the app, not just on quotes: company logo (already stored on the company
+         record and shown on quotes/nav), a company brand color or full theme, and
+         company-selectable defaults. Builds directly on the semantic-token theme system:
+         a "company theme" is just a generated `data-theme` block (derive
+         brand/brand-hover/brand-text/on-brand from one brand color, validated through
+         `frontend/scripts/validate-themes.py` so contractors can't pick an inaccessible
+         combo). Overlaps with theme-picker Phase 3 (supplier-pinned defaults) — design
+         the precedence chain: user pick > company theme > supplier default > app default.
+      Suggested path: design-system spec first (like `docs/specs/theme-picker.md`), with
+      before/after mockups of Dashboard + Estimate editor for Howard's sign-off before
+      any code.
 - [ ] **UI theme picker — Phase 3 remainders** (Phases 0–2 shipped 2026-07-03, see
       Recently Completed): sync theme choice to the user profile so it follows login
       across devices; supplier-pinned company default theme; expand toward Howard's 8–10
