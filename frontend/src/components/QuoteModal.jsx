@@ -7,6 +7,7 @@ import { useLang, useT } from "@/lib/i18n";
 import CompanyLogo from "@/components/CompanyLogo";
 import { X, Printer, Send } from "lucide-react";
 import { buildEmailHtml, buildEmailSubject, defaultEmailGreeting } from "@/lib/emailQuote";
+import { isValidEmail } from "@/lib/validate";
 import { tSection, tItem, tUnit } from "@/lib/catalogTranslations";
 
 export default function QuoteModal({ estimate, totals, onClose, emailConfigured, onEmail }) {
@@ -27,6 +28,7 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
     defaultEmailGreeting({ estimate, company, lang: uiLang })
   );
   const [sending, setSending] = useState(false);
+  const emailInvalid = !!email && !isValidEmail(email);
   const printRef = useRef();
   const showSupplierFooter = company?.quote_footer_enabled !== false;
 
@@ -155,7 +157,12 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
               data-testid="email-recipient"
               style={{ minWidth: 240 }}
             />
-            {!estimate?.customer_email && (
+            {emailInvalid && (
+              <span className="text-[11px] text-[#B45309] whitespace-nowrap font-semibold" data-testid="email-invalid-warn">
+                {t("est.invalidEmail")}
+              </span>
+            )}
+            {!emailInvalid && !estimate?.customer_email && (
               <span className="text-[11px] text-[#92400E] whitespace-nowrap" data-testid="email-will-save">
                 {t("quote.emailWillSave")}
               </span>
@@ -163,7 +170,7 @@ export default function QuoteModal({ estimate, totals, onClose, emailConfigured,
             <button
               className="btn-primary h-12 md:h-9 justify-center md:justify-start"
               onClick={handleEmail}
-              disabled={!email || sending || !emailConfigured}
+              disabled={!email || emailInvalid || sending || !emailConfigured}
               data-testid="send-email-btn"
               title={!emailConfigured ? "Add RESEND_API_KEY in backend/.env to enable" : ""}
             >

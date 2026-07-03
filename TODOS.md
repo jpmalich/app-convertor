@@ -56,18 +56,6 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       `address_street/city/state/zip` (today the UI's legacy parse covers display, but
       persisting real parts is cleaner). *(Follow-up split from the auto-populate item,
       shipped 2026-07-03.)*
-- [ ] **Input format tips + soft validation on data-entry fields** — guide the user on
-      the expected format for each field and gently flag bad entries. Email should match
-      acceptable email format (the earlier test value "sdasdsf.com" sailed right in — a
-      typo'd email means a bounced quote); phone/fax should hint a format (e.g.
-      placeholder "(412) 555-0100", optional auto-formatting as you type); date fields
-      show the expected pattern; ZIP is 5 or 9 digits. Implementation direction:
-      placeholder examples + a one-line format hint under the field, `inputMode`/
-      `pattern` attributes, and inline "doesn't look like an email/phone" warnings on
-      blur — warn, don't block (consistent with the soft-required-at-send policy).
-      Wire warnings with `aria-invalid`/`aria-describedby` so they're announced (pairs
-      with the audit's form-error finding). Highest-value target: customer email,
-      since it feeds quote delivery.
 - [ ] **Identify and mark required fields on the input forms** — decide, per form, which
       fields are actually required vs optional, and make that visible in the UI (the
       conventional asterisk + an "* required" legend, `required`/`aria-required` on the
@@ -81,6 +69,24 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       warn-don't-block policy above. Output first: a one-page field inventory
       (form × field × required/optional/required-at-send) agreed with Howard, then
       apply the markings.
+- [ ] **Custom confirmation modal for destructive actions — app-wide** — design and build
+      our own branded confirmation dialog instead of the browser-default `window.confirm`
+      (unstylable native chrome, blocks JS, silently suppressible in some webviews, and
+      looks nothing like the app). Build ONE reusable component on the already-installed
+      Radix `AlertDialog` primitive (`components/ui/alert-dialog.jsx` — currently dead
+      code) styled to the design system (semantic tokens, brutalist button treatment,
+      danger styling for the destructive action, EN/ES labels), then support it
+      THROUGHOUT the application:
+      - Replace all 8 `window.confirm`/`window.alert`/`window.prompt` sites: estimate
+        delete (`Dashboard.jsx:88`), catalog price reset (`Catalog.jsx:90`), waste re-bake
+        (`SettingsRow.jsx:29`), unsaved-changes discards (Mezzo/Vero pricing panels ×5),
+        company delete type-the-name prompt (`BrandingAdmin.jsx:779` — keep the
+        type-to-confirm friction, just in our own dialog), PDF error alert
+        (`QuoteModal.jsx:135` → toast).
+      - Add confirmation (or undo-toast where flow speed matters) to the currently
+        UNguarded one-tap destructions: photo remove, custom misc rows, Vero/Mezzo
+        window openings.
+      Covers and supersedes the audit item "Confirm-or-undo on one-tap destruction".
 - [ ] **State dropdowns: show full state names** — the job/billing address State selects
       (`US_STATES` in `JobInfoPanel.jsx`) currently list two-letter abbreviations; show
       the full name in the option label ("Pennsylvania") while keeping the two-letter
@@ -209,10 +215,9 @@ plus a live visual review. Contrast/color items are excluded (fixed earlier that
       pre-caches `/` (can white-screen after deploys: stale index.html → deleted hashed
       bundles). Fix: 15s axios timeout, offline banner, network-first navigations +
       runtime caching of `/static/*`, cache-bust per release.
-- [ ] **Confirm-or-undo on one-tap destruction** — photo remove (`PhotosPanel.jsx:55`),
-      custom misc rows (`SectionAccordion.jsx:574`), and fully-configured Vero/Mezzo
-      window openings all delete on a single (gloved) tap with no undo. Also replace the
-      8 `window.confirm`/`alert` call sites with the AlertDialog primitive.
+- [ ] **Confirm-or-undo on one-tap destruction** — *superseded by the P1 item "Custom
+      confirmation modal for destructive actions" (2026-07-03), which carries the full
+      scope; kept here for audit traceability.*
 - [ ] **Code-split the bundle** — zero `React.lazy` anywhere; login-only users download the
       entire 17k-line estimate-editor tree (AIMeasureButton alone is 3k lines). Lazy-load
       routes in `App.js` and the measure/annotate modals at their trigger buttons.
@@ -283,6 +288,9 @@ plus a live visual review. Contrast/color items are excluded (fixed earlier that
 
 ## ✅ Recently completed
 
+- [x] **Soft input validation + format tips** — email/phone/fax/ZIP placeholders,
+      warn-on-blur messages with aria-invalid/describedby, phone auto-format to
+      (AAA) BBB-CCCC, invalid-email gate on quote Send *(2026-07-03)*
 - [x] **Auto-populate estimate fields at creation** — Estimator = logged-in user, Date =
       today (fixed UTC→local date bug in Dashboard create), State = company's last-used
       state; fill-if-empty only *(2026-07-03)*

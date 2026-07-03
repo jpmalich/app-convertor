@@ -116,3 +116,6 @@ Resource_Docs/*.mp3
 
 # keep the config template tracked despite the .env.* rule above
 !.env.example
+Resource_Docs/*.pdf
+Resource_Docs/*.xls
+Resource_Docs/*.xlsx

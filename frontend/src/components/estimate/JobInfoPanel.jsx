@@ -11,6 +11,7 @@ import PairToLpButton from "@/components/estimate/PairToLpButton";
 import { useState } from "react";
 import { Upload, FileText, Sparkles, Layers, ChevronDown, ChevronUp, MoreHorizontal, Lightbulb } from "lucide-react";
 import ElevationCompareModal, { countSources } from "@/components/estimate/ElevationCompareModal";
+import { isValidEmail, isValidPhone, isValidZip, formatPhoneUS } from "@/lib/validate";
 
 // Iter 78z+++ — Cleaner job-info header. Three equal-width "tool tiles"
 // for the measurement importers (HOVER · Blueprints · AI Photo), each
@@ -139,7 +140,31 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
       address: composeAddress(merged),
     });
   };
-  const setBillPart = (field, value) => {
+  // Soft validation — warn after first blur, never block (soft-required policy).
+  const [touched, setTouched] = useState({});
+  const markTouched = (k) => setTouched((t) => ({ ...t, [k]: true }));
+  const softBad = {
+    email: touched.email && !isValidEmail(est?.customer_email),
+    phone: touched.phone && !isValidPhone(est?.customer_phone),
+    phoneAlt: touched.phoneAlt && !isValidPhone(est?.customer_phone_alt),
+    fax: touched.fax && !isValidPhone(est?.customer_fax),
+    zip: touched.zip && !isValidZip(est?.address_zip),
+    billZip: touched.billZip && !isValidZip(est?.billing_zip),
+  };
+  // Normalize a cleanly-entered 10-digit phone to (AAA) BBB-CCCC on blur.
+  const blurPhone = (key, field) => {
+    markTouched(key);
+    const formatted = formatPhoneUS(est?.[field]);
+    if (formatted !== est?.[field]) update({ [field]: formatted });
+  };
+  const FieldWarning = ({ id, show, children }) =>
+    show ? (
+      <div id={id} className="text-[11px] text-[var(--warning-text)] mt-1">
+        {children}
+      </div>
+    ) : null;
+
+    const setBillPart = (field, value) => {
     const merged = { ...billParts, [field]: value };
     update({
       billing_street: merged.street,
@@ -348,9 +373,14 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             type="tel"
             value={est.customer_phone || ""}
             onChange={(e) => update({ customer_phone: e.target.value })}
+                onBlur={() => blurPhone("phone", "customer_phone")}
+                placeholder="(412) 555-0100"
+                aria-invalid={softBad.phone || undefined}
+                aria-describedby={softBad.phone ? "cust-phone-warn" : undefined}
             autoComplete="off"
               data-testid="cust-phone"
           />
+              <FieldWarning id="cust-phone-warn" show={softBad.phone}>{t("est.invalidPhone")}</FieldWarning>
         </div>
         <div>
           <label className="label" htmlFor="cust-phone-alt">{t("est.phoneAlt")}</label>
@@ -360,9 +390,14 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             type="tel"
             value={est.customer_phone_alt || ""}
             onChange={(e) => update({ customer_phone_alt: e.target.value })}
+                onBlur={() => blurPhone("phoneAlt", "customer_phone_alt")}
+                placeholder="(412) 555-0100"
+                aria-invalid={softBad.phoneAlt || undefined}
+                aria-describedby={softBad.phoneAlt ? "cust-phone-alt-warn" : undefined}
             autoComplete="off"
               data-testid="cust-phone-alt"
           />
+              <FieldWarning id="cust-phone-alt-warn" show={softBad.phoneAlt}>{t("est.invalidPhone")}</FieldWarning>
         </div>
         <div>
           <label className="label" htmlFor="cust-fax">{t("est.fax")}</label>
@@ -372,9 +407,14 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             type="tel"
             value={est.customer_fax || ""}
             onChange={(e) => update({ customer_fax: e.target.value })}
+                onBlur={() => blurPhone("fax", "customer_fax")}
+                placeholder="(412) 555-0100"
+                aria-invalid={softBad.fax || undefined}
+                aria-describedby={softBad.fax ? "cust-fax-warn" : undefined}
             autoComplete="off"
               data-testid="cust-fax"
           />
+              <FieldWarning id="cust-fax-warn" show={softBad.fax}>{t("est.invalidPhone")}</FieldWarning>
         </div>
         <div>
           <label className="label" htmlFor="cust-email">{t("est.email")}</label>
@@ -385,8 +425,13 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             autoComplete="off"
             value={est.customer_email || ""}
             onChange={(e) => update({ customer_email: e.target.value })}
+                onBlur={() => markTouched("email")}
+                placeholder="name@example.com"
+                aria-invalid={softBad.email || undefined}
+                aria-describedby={softBad.email ? "cust-email-warn" : undefined}
             data-testid="cust-email"
           />
+              <FieldWarning id="cust-email-warn" show={softBad.email}>{t("est.invalidEmail")}</FieldWarning>
         </div>
         <div>
           <label className="label" htmlFor="cust-contact-method">{t("est.contactMethod")}</label>
@@ -486,9 +531,14 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
               maxLength={10}
               value={jobParts.zip}
               onChange={(e) => setJobPart("zip", e.target.value)}
+              onBlur={() => markTouched("zip")}
+              placeholder="15222"
+              aria-invalid={softBad.zip || undefined}
+              aria-describedby={softBad.zip ? "cust-zip-warn" : undefined}
               autoComplete="off"
               data-testid="cust-zip"
             />
+            <FieldWarning id="cust-zip-warn" show={softBad.zip}>{t("est.invalidZip")}</FieldWarning>
           </div>
         </div>
         <div className="sm:col-span-2 lg:col-span-3">
@@ -560,9 +610,14 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                   maxLength={10}
                   value={billParts.zip}
                   onChange={(e) => setBillPart("zip", e.target.value)}
+                  onBlur={() => markTouched("billZip")}
+                  placeholder="15222"
+                  aria-invalid={softBad.billZip || undefined}
+                  aria-describedby={softBad.billZip ? "billing-zip-warn" : undefined}
                   autoComplete="off"
               data-testid="billing-zip"
                 />
+                <FieldWarning id="billing-zip-warn" show={softBad.billZip}>{t("est.invalidZip")}</FieldWarning>
               </div>
             </div>
           )}

@@ -24,6 +24,7 @@ re-run that entry's prompt (they are written to be safely re-applied in full).
 | 2 | Theme picker (tokens + six themes) | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 3 | Customer contact & company fields | r3 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 4 | Auto-populate estimate fields at creation | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
+| 5 | Soft input validation + format tips | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 
 **Excluded by design:** anything related to decoupling this repo from the Emergent platform
 (the direct-Anthropic LLM client, Docker self-hosting, removal of Emergent branding/telemetry,
@@ -378,6 +379,58 @@ Verify: create an estimate from the dashboard while logged in — the editor ope
 Estimator = your name, Date = today (local), and State pre-selected to the state used on
 the company's previous estimate; creating via API with explicit estimator/date/state
 keeps the provided values untouched.
+```
+
+---
+
+## 5 — Soft input validation + format tips on contact fields (2026-07-03)
+
+**Revision:** r1 · last updated 2026-07-03
+**Change log:**
+- r1 (2026-07-03) — initial
+
+**What changed here:** format placeholders + warn-don't-block validation on the customer
+contact fields (email/phone/fax/ZIP), phone auto-formatting on blur, and an invalid-email
+gate on the quote Send button. *Depends on entry 3 (the contact fields).*
+
+**Prompt for Emergent:**
+
+```
+Add soft input validation to the customer contact fields. Policy: WARN, don't block —
+empty values are always allowed (requiredness is handled at the action that needs the
+field); warnings appear only after the user first leaves a field (blur) and clear live
+once the value is fixed.
+
+STEP 1 — create src/lib/validate.js with four helpers, each treating EMPTY as valid:
+isValidEmail (basic something@something.tld regex), isValidPhone (strip non-digits; valid
+if exactly 10 digits, or 11 starting with 1), isValidZip (/^\d{5}(-\d{4})?$/), and
+formatPhoneUS (if the digits are cleanly 10 — or 11 with a leading 1 — return
+"(AAA) BBB-CCCC"; otherwise return the input untouched, so extensions/international
+numbers are never mangled).
+
+STEP 2 — JobInfoPanel: track a per-field `touched` state set on blur. For Email
+(placeholder "name@example.com"), Cell Phone, Secondary Phone, Fax (placeholder
+"(412) 555-0100"), and both job + billing ZIP (placeholder "15222"): when touched AND
+non-empty AND invalid, render a small warning line under the field using the theme's
+--warning-text token ("Doesn't look like a valid email address" / "…phone number —
+expected 10 digits, e.g. (412) 555-0100" / "ZIP should be 5 digits, or ZIP+4"), and set
+aria-invalid + aria-describedby pointing at the warning element's id. On blur of the
+three phone-ish fields, also run formatPhoneUS and write the normalized value back if it
+changed. Add EN + ES dictionary keys for the three messages.
+
+STEP 3 — ISS editor: same treatment (placeholder + blur warning + phone auto-format) on
+its Email and Cell Phone inputs.
+
+STEP 4 — QuoteModal (send dialog): compute emailInvalid = non-empty AND !isValidEmail.
+When invalid, show a bold inline warning next to the recipient input and DISABLE the
+Send button (this is the required-at-send gate — the backend's EmailStr validation would
+reject it with an ugly 422 anyway; fail helpfully in the UI instead). The "will be saved
+to the estimate" note shows only when the email is not invalid.
+
+Verify: type "sdasdsf.com" in the estimate's Email field and tab away — warning appears
+and aria-invalid=true; fix it — warning clears live. Type 4125550100 in Cell Phone and
+tab away — it becomes (412) 555-0100. In the send-quote dialog, a malformed recipient
+email shows the warning and keeps Send disabled.
 ```
 
 ---

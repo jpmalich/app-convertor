@@ -11,6 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { isValidEmail, isValidPhone, formatPhoneUS } from "@/lib/validate";
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Lightbulb, Save, Upload, FileText, Sparkles } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import {
@@ -61,6 +62,7 @@ export default function ISSEstimateEditor() {
   const { id } = useParams();
   const nav = useNavigate();
   const [est, setEst] = useState(null);
+  const [contactTouched, setContactTouched] = useState({});
   const [catalog, setCatalog] = useState({ sections: [] });
   const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState({});
@@ -486,8 +488,17 @@ export default function ISSEstimateEditor() {
                 className="input h-9 text-sm w-full"
                 value={est.customer_email || ""}
                 onChange={(e) => updateField("customer_email", e.target.value)}
+                onBlur={() => setContactTouched((t) => ({ ...t, email: true }))}
+                placeholder="name@example.com"
+                aria-invalid={(contactTouched.email && !isValidEmail(est.customer_email)) || undefined}
+                aria-describedby={contactTouched.email && !isValidEmail(est.customer_email) ? "iss-email-warn" : undefined}
                 data-testid="iss-customer-email"
               />
+              {contactTouched.email && !isValidEmail(est.customer_email) && (
+                <div id="iss-email-warn" className="text-[11px] text-[var(--warning-text)] mt-1">
+                  Doesn't look like a valid email address
+                </div>
+              )}
             </div>
             <div>
               <label className="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold block mb-0.5">Cell Phone</label>
@@ -496,8 +507,21 @@ export default function ISSEstimateEditor() {
                 className="input h-9 text-sm w-full"
                 value={est.customer_phone || ""}
                 onChange={(e) => updateField("customer_phone", e.target.value)}
+                onBlur={() => {
+                  setContactTouched((t) => ({ ...t, phone: true }));
+                  const f = formatPhoneUS(est.customer_phone);
+                  if (f !== est.customer_phone) updateField("customer_phone", f);
+                }}
+                placeholder="(412) 555-0100"
+                aria-invalid={(contactTouched.phone && !isValidPhone(est.customer_phone)) || undefined}
+                aria-describedby={contactTouched.phone && !isValidPhone(est.customer_phone) ? "iss-phone-warn" : undefined}
                 data-testid="iss-customer-phone"
               />
+              {contactTouched.phone && !isValidPhone(est.customer_phone) && (
+                <div id="iss-phone-warn" className="text-[11px] text-[var(--warning-text)] mt-1">
+                  Doesn't look like a valid phone number — expected 10 digits
+                </div>
+              )}
             </div>
           </div>
 
