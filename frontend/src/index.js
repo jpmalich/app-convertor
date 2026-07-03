@@ -11,6 +11,11 @@ root.render(
 );
 
 // Register service worker for PWA install
+import("@/lib/themes").then(({ applyTheme, getStoredTheme, watchSystemTheme }) => {
+  applyTheme(getStoredTheme());
+  watchSystemTheme();
+});
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});

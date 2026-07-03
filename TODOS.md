@@ -49,17 +49,13 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       a backend-served catalog (per product line, per supplier) editable from the admin
       panel, with versioning so existing estimates keep the color names they were quoted
       with. Pairs with the swatch item above.
-- [ ] **UI theme picker** — user-selectable look-and-feel presets (suggested in the call).
-      **Designed:** full spec at `docs/specs/theme-picker.md` — six WCAG-validated themes,
-      token architecture, picker UX, and a 4-phase delivery plan. The prerequisite is the
-      Phase-1 codemod of 2,254 hardcoded hex classes to semantic tokens.
-      **Open questions to answer (John/Howard) before building:**
-      - Should the supplier (Alside) be able to pin a company-wide default theme that
-        contractors see until they pick their own? (Branding lever — spec leans yes, Phase 3.)
-      - Does the purple "AI feature" accent stay constant across all themes as a
-        recognizable signal, or re-map per theme? (Spec leans constant.)
-      - Theme names are placeholders — does Howard want supplier-flavored names
-        (e.g. "Alside Orange")?
+- [ ] **UI theme picker — Phase 3 remainders** (Phases 0–2 shipped 2026-07-03, see
+      Recently Completed): sync theme choice to the user profile so it follows login
+      across devices; supplier-pinned company default theme; expand toward Howard's 8–10
+      theme catalog. Spec: `docs/specs/theme-picker.md`.
+      **Open questions for John/Howard:** supplier-pinned defaults (spec leans yes);
+      AI purple accent constant vs per-theme (shipped constant, lightened in dark);
+      supplier-flavored theme names (shipped with placeholder names).
 - [ ] **HOVER-style 3D house rendering** from measurements — the missing piece vs HOVER;
       `elevation3D.js`/three.js groundwork exists.
 - [ ] **J-block disambiguation aid** — AI can't tell light/split/UL/jumbo/dri-vent blocks
@@ -177,6 +173,9 @@ plus a live visual review. Contrast/color items are excluded (fixed earlier that
 
 ## ✅ Recently completed
 
+- [x] **Theme picker (Phases 0–2)** — semantic token migration (~2,100 class replacements),
+      six WCAG-validated themes incl. Jobsite Dark, header + Team-page picker, FOUC guard,
+      `validate-themes.py` contrast gate *(2026-07-03)*
 - [x] WCAG AA accessibility pass (~410 contrast fixes) + emoji→lucide icon cleanup —
       addresses the color-blindness concern from the call *(2026-07-02)*
 - [x] Decouple from Emergent: direct-Anthropic `llm.py`, Docker self-hosting stack,

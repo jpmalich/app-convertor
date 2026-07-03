@@ -99,3 +99,105 @@ bg-[#F97316] with text-white, no emoji UI icons remain, and the app builds.
 ```
 
 ---
+
+## 2 — Theme picker: semantic tokens + six WCAG-validated themes (2026-07-03)
+
+**What changed here:** all hardcoded Tailwind hex classes migrated to CSS-variable tokens
+(~2,100 replacements), six themes defined in `index.css`, a ThemePicker component added to
+the header and Team page, FOUC guard in `index.html`, and a contrast-gate validator script.
+*Prerequisite: the accessibility pass in entry 1 must already be applied.*
+
+**Prompt for Emergent:**
+
+```
+Implement a user-selectable theme system for the React frontend. It restyles ONLY the
+contractor's working UI — customer-facing surfaces (QuoteModal, AcceptPage, and the
+generated HTML in lib/emailQuote.js, lib/materialList.js, lib/printTakeoff.js) keep the
+neutral document style and must be EXCLUDED from every step below.
+
+STEP 1 — tokens (src/index.css). Extend :root with this semantic token set (values = the
+current Safety Orange look): --bg-app #F4F4F5, --surface #FFFFFF, --surface-muted #FAFAFA,
+--table-header #E4E4E7, --ink #09090B, --ink-2 #52525B, --muted #71717A, --border #E4E4E7,
+--border-strong #09090B, --edge #09090B, --focus #C2410C, --brand #F97316, --brand-hover
+#EA580C, --brand-text #C2410C, --on-brand #09090B, --bar-bg #09090B, --bar-ink #FFFFFF,
+--bar-muted #A1A1AA, --ai #7C3AED, --ai-soft #F5F3FF, --profit #059669, --success #16A34A,
+--warning-text #92400E, --danger #EF4444, --danger-text #DC2626, --danger-soft #FEF2F2,
+--hint-bg #FEFCE8, --hint-bg-2 #FEF9C3, --hint-line #FACC15, --hint-ink #A16207,
+--hint-ink-2 #713F12. Rewrite the component classes (.btn-primary/.btn-secondary/
+.btn-ghost/.btn-danger/.input/.label/.card/.section-tag/.sell-bar and body) to use these
+variables — e.g. .btn-primary is bg var(--brand), color var(--on-brand), border+hard-shadow
+var(--edge); .sell-bar is background var(--bar-bg), border-bottom 2px var(--brand).
+
+STEP 2 — theme blocks. Add [data-theme="…"] blocks overriding only what differs:
+- blueprint: --bg-app #F2F4F8, --ink #0C1220, --ink-2 #475569, --muted #64748B, --border
+  #DBE1EA, --border-strong/--edge/--bar-bg #0C1220, --focus #1D4ED8, --brand #2563EB,
+  --brand-hover #1D4ED8, --brand-text #1D4ED8, --on-brand #FFFFFF
+- forest: --bg-app #F1F5F1, --ink #0A0F0B, --ink-2 #44554A, --muted #5F6F65, --border
+  #DDE4DE, --border-strong/--edge/--bar-bg #0A0F0B, --focus #166534, --brand #15803D,
+  --brand-hover #166534, --brand-text #166534, --on-brand #FFFFFF
+- steel: --bg-app #F2F4F6, --ink #0B0F14, --ink-2 #475569, --muted #64748B, --border
+  #DDE2E8, --border-strong/--edge/--bar-bg #0B0F14, --focus #334155, --brand #334155,
+  --brand-hover #1E293B, --brand-text #334155, --on-brand #FFFFFF
+- highvis: --focus #854D0E, --brand #FACC15, --brand-hover #EAB308, --brand-text #854D0E,
+  --on-brand #09090B
+- dark: --bg-app #0B0B0D, --surface #18181B, --surface-muted #1F1F23, --table-header
+  #27272A, --ink #FAFAFA, --ink-2 #D4D4D8, --muted #A1A1AA, --border #2E2E33,
+  --border-strong #FAFAFA, --edge #000000, --focus #FB923C, --brand #F97316, --brand-hover
+  #FB923C, --brand-text #FB923C, --on-brand #09090B, --bar-bg #27272A, --bar-ink #FAFAFA,
+  --ai #A78BFA, --ai-soft #2A2440, --profit #34D399, --success #4ADE80, --warning-text
+  #FBBF24, --danger #F87171, --danger-text #F87171, --danger-soft #3A1A1A, --hint-bg
+  #2A2415, --hint-bg-2 #332B15, --hint-line #854D0E, --hint-ink #FACC15, --hint-ink-2 #FDE68A
+
+STEP 3 — codemod every .jsx/.js under src (EXCEPT the excluded customer files and
+components/ui/), rewriting ONLY bracketed utility classes and plain bg-white — never inline
+styles or JS color strings (canvas/SVG drawing colors must stay literal). Ordered rules:
+(a) on lines containing bg-[#F97316]: text-[#09090B] → text-[var(--on-brand)]
+(b) focus:border/ring/outline-[#F97316] → …[var(--focus)]
+(c) #F97316 → var(--brand) (bg/text/border/accent/decoration/ring);
+    #EA580C → var(--brand-hover); bg-[#C2410C] → var(--brand-hover);
+    text/border-[#C2410C] → var(--brand-text)
+(d) bg-[#09090B] → bg-[var(--bar-bg)]; text-[#09090B] → text-[var(--ink)];
+    border-[#09090B] → border-[var(--border-strong)]
+(e) #52525B → var(--ink-2); #71717A → var(--muted);
+    text-[#A1A1AA] → text-[var(--bar-muted)]; border/bg-[#A1A1AA] → var(--muted)
+(f) bg-white → bg-[var(--surface)] (word-boundary — do NOT touch bg-white/50 opacity
+    variants); bg-[#F4F4F5] → bg-[var(--bg-app)]; bg-[#FAFAFA] → bg-[var(--surface-muted)];
+    bg-[#E4E4E7] → bg-[var(--table-header)]; border-[#E4E4E7] → border-[var(--border)];
+    border-[#F4F4F5] → border-[var(--bg-app)]
+(g) #7C3AED → var(--ai); bg-[#F5F3FF]/bg-[#EDE9FE] → bg-[var(--ai-soft)]
+(h) text-[#DC2626] → var(--danger-text); #EF4444 → var(--danger); bg-[#FEF2F2] →
+    var(--danger-soft); #16A34A/#10B981 → var(--success); text-[#059669] → var(--profit);
+    text-[#92400E]/text-[#B45309] → var(--warning-text)
+(i) bg-yellow-50 → bg-[var(--hint-bg)]; bg-yellow-100 → bg-[var(--hint-bg-2)];
+    border-yellow-400 → border-[var(--hint-line)]; text-yellow-700 → text-[var(--hint-ink)];
+    text-yellow-900 → text-[var(--hint-ink-2)]
+Leave soft pastel banner colors (#FEF3C7, #FFF7ED, #F0F9FF, sky #0EA5E9, deep purple
+#6D28D9, gradients) literal.
+
+STEP 4 — picker. Create src/lib/themes.js: THEMES registry (auto / orange / blueprint /
+forest / steel / highvis / dark) with 3-color swatch chips, localStorage key "ui-theme-v1",
+applyTheme() sets/removes data-theme on <html> ("orange" clears it; "auto" resolves
+prefers-color-scheme dark→dark else orange), setTheme(), watchSystemTheme(). Create
+src/components/ThemePicker.jsx: palette-icon button (btn-ghost) opening a Radix Popover
+(components/ui/popover) with a role="radiogroup" list — each row = 3-dot swatch chip +
+theme name + check on active, aria-checked, instant apply on click, aria-live status.
+An `inline` prop renders the list without the popover. Mount <ThemePicker /> in the Layout
+header next to <LangToggle />, and an inline card on the Team page ("does not affect
+customer quotes" blurb). Bilingual labels via the i18n dictionaries (theme.toggle.aria
+Theme/Tema, theme.auto, theme.orange "Safety Orange", theme.blueprint "Blueprint Blue",
+theme.forest "Forest Green", theme.steel "Steel", theme.highvis "High-Vis Yellow",
+theme.dark "Jobsite Dark", theme.status "Theme: {name}", theme.blurb). Apply the stored
+theme at boot in src/index.js and watch the OS scheme.
+
+STEP 5 — FOUC guard + SW. Add an inline <script> to public/index.html <head> that reads
+localStorage "ui-theme-v1" (default auto), resolves auto via prefers-color-scheme, and sets
+data-theme before first paint. Bump the service-worker cache name in public/sw.js so the
+cached shell refreshes.
+
+Verify: the app builds; switching themes restyles the whole UI instantly including the
+sticky sell-bar accent; Jobsite Dark shows dark surfaces with readable text everywhere;
+the quote preview/accept page stay unthemed; reload preserves the chosen theme without a
+flash of the default.
+```
+
+---

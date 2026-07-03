@@ -133,5 +133,11 @@
     ],
     "motion": "index.css disables animations/transitions under prefers-reduced-motion.",
     "non_color_cues": "Never rely on color alone: 'commonly needed' rows pair the yellow tint with a Lightbulb icon + count badge."
+  },
+  "theming": {
+    "system": "Semantic CSS-variable tokens in frontend/src/index.css; themes are [data-theme=…] blocks. The colors in this document are the 'Safety Orange' default theme.",
+    "spec": "docs/specs/theme-picker.md",
+    "validator": "frontend/scripts/validate-themes.py — run after ANY token/theme change; every theme must pass all WCAG gates.",
+    "rule": "NEVER add new hardcoded hex Tailwind classes to themed UI — use the semantic tokens. Customer-facing documents (QuoteModal, AcceptPage, email/print HTML) stay unthemed."
   }
 }

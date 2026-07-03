@@ -27,6 +27,20 @@
         -->
         <title>Pro-Quotes Estimator</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
+        <!-- Theme FOUC guard: apply the persisted theme before first paint.
+             Keep in sync with src/lib/themes.js ("auto" follows the OS scheme;
+             "orange" is the :root default so it clears the attribute). -->
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem("ui-theme-v1") || "auto";
+                    if (t === "auto") {
+                        t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "orange";
+                    }
+                    if (t !== "orange") document.documentElement.setAttribute("data-theme", t);
+                } catch (e) {}
+            })();
+        </script>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
