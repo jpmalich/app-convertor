@@ -9,6 +9,21 @@ rule and intent so the Emergent agent can implement it without seeing this repo'
 
 **Maintenance rule:** every time a feature or change is completed in this repo, a new entry
 is appended here (newest at the bottom) — date, summary, and the ready-to-paste prompt.
+**When later work changes something an existing entry covers, that entry's prompt is updated
+in place and its revision is bumped** — never silently. Each entry carries a `Revision` line
+and a `Change log` naming what caused each update, so you can tell whether a prompt you
+already applied in Emergent needs to be re-run.
+
+**Sync status table** — check the box when you apply an entry in Emergent and note the
+revision you applied. If the table's *current* revision is newer than the one you applied,
+re-run that entry's prompt (they are written to be safely re-applied in full).
+
+| # | Entry | Current rev | Last updated | Applied in Emergent? (you fill in) |
+|---|---|---|---|---|
+| 1 | WCAG accessibility pass + icon cleanup | r1 | 2026-07-02 | ☐ rev: ____ date: ____ |
+| 2 | Theme picker (tokens + six themes) | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
+| 3 | Customer contact & company fields | r3 | 2026-07-03 | ☐ rev: ____ date: ____ |
+
 **Excluded by design:** anything related to decoupling this repo from the Emergent platform
 (the direct-Anthropic LLM client, Docker self-hosting, removal of Emergent branding/telemetry,
 dependency swaps). Those changes are intentionally NOT for replication into Emergent.
@@ -16,6 +31,10 @@ dependency swaps). Those changes are intentionally NOT for replication into Emer
 ---
 
 ## 1 — WCAG AA accessibility pass + emoji-to-SVG icon cleanup (2026-07-02)
+
+**Revision:** r1 · last updated 2026-07-02
+**Change log:**
+- r1 (2026-07-02) — initial
 
 **What changed here:** ~410 context-sensitive contrast fixes across 63 frontend files, emoji
 UI icons replaced with lucide SVGs, reduced-motion support, and the rules codified in
@@ -101,6 +120,10 @@ bg-[#F97316] with text-white, no emoji UI icons remain, and the app builds.
 ---
 
 ## 2 — Theme picker: semantic tokens + six WCAG-validated themes (2026-07-03)
+
+**Revision:** r1 · last updated 2026-07-03
+**Change log:**
+- r1 (2026-07-03) — initial
 
 **What changed here:** all hardcoded Tailwind hex classes migrated to CSS-variable tokens
 (~2,100 replacements), six themes defined in `index.css`, a ThemePicker component added to
@@ -203,6 +226,19 @@ flash of the default.
 ---
 
 ## 3 — Customer contact & company fields on estimates (2026-07-03)
+
+**Revision:** r3 · last updated 2026-07-03
+**Change log:**
+- r1 (2026-07-03) — initial: 10 contact/company/lead fields, Contact & Lead block, email
+  sync, quote/CSV integration
+- r2 (2026-07-03) — Job Information form reorganized into four logical groups
+  (Customer / Contact & Lead / Job & Billing Address / Estimate); STEP 3 layout rewritten
+- r3 (2026-07-03) — addresses broken into structured Street/City/State/ZIP parts with a
+  composed-string sync + legacy parse (STEP 1 schema + STEP 3 address group rewritten);
+  added STEP 6b browser-autofill handling
+
+**If you applied r1 or r2 in Emergent:** re-run the full prompt below — it supersedes the
+earlier revisions and is safe to apply over them.
 
 **What changed here:** 10 new customer fields on the estimate (email, cell + secondary
 phone, fax, preferred contact method, company + contact title, billing address, lead
