@@ -71,6 +71,22 @@ async def create_estimate(body: EstimateIn, user: dict = Depends(get_current_use
     if not doc.get("pricing_mode"):
         b = await get_branding()
         doc["pricing_mode"] = b.get("default_pricing_mode") or "margin"
+    # Auto-populate what we already know (fill-if-empty only — the client's
+    # values always win, and the contractor can edit everything afterward):
+    # the estimator is whoever is creating the estimate; the job State
+    # defaults to the company's last-used state (most jobs are local).
+    if not doc.get("estimator"):
+        doc["estimator"] = user.get("name") or ""
+    if not doc.get("estimate_date"):
+        doc["estimate_date"] = now[:10]
+    if not doc.get("address_state"):
+        prev = await db.estimates.find_one(
+            {"company_id": user["company_id"], "address_state": {"$nin": [None, ""]}},
+            {"address_state": 1},
+            sort=[("updated_at", -1)],
+        )
+        if prev:
+            doc["address_state"] = prev["address_state"]
     doc.update({
         "id": est_id,
         "company_id": user["company_id"],

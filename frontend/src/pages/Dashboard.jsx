@@ -75,7 +75,9 @@ export default function Dashboard({ kind = "siding" }) {
       const { data } = await api.post("/estimates", {
         customer_name: "",
         estimate_number: `EST-${Date.now().toString().slice(-6)}`,
-        estimate_date: new Date().toISOString().slice(0, 10),
+        // Local date, not toISOString() (UTC) — an estimate created in the
+        // evening US-time would otherwise be dated tomorrow.
+        estimate_date: new Date().toLocaleDateString("en-CA"),
         kind, // tag the new estimate with the current workspace
       });
       nav(`/estimate/${data.id}`);

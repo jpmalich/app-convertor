@@ -51,15 +51,11 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       when Alside updates wholesale pricing.
 - [ ] **Easier pricing updates** — Howard maintains an 8-tab Excel sheet; streamline the
       upload flow around it. *(Pain point from the call.)*
-- [ ] **Auto-populate estimate fields from known context** — pre-fill anything the app
-      already knows when creating an estimate instead of leaving it blank. Concretely:
-      **Estimator** = the logged-in user's name (`useAuth().user.name`, available in
-      `EstimateEditor`/`JobInfoPanel`), **Date** = today, and **State** could default to
-      the company's home state (most jobs are local). Best done at estimate creation
-      (`POST /estimates` or the editor's initial load when the field is empty) so the
-      contractor can still override; never overwrite a value someone typed. Candidate
-      future sources: HOVER/AI-measure imports already carry the property address —
-      make sure those flows populate the structured address parts too.
+- [ ] **HOVER/AI-measure imports → structured address parts** — imports already set the
+      composed `address` string from the property; also populate
+      `address_street/city/state/zip` (today the UI's legacy parse covers display, but
+      persisting real parts is cleaner). *(Follow-up split from the auto-populate item,
+      shipped 2026-07-03.)*
 - [ ] **Input format tips + soft validation on data-entry fields** — guide the user on
       the expected format for each field and gently flag bad entries. Email should match
       acceptable email format (the earlier test value "sdasdsf.com" sailed right in — a
@@ -287,6 +283,9 @@ plus a live visual review. Contrast/color items are excluded (fixed earlier that
 
 ## ✅ Recently completed
 
+- [x] **Auto-populate estimate fields at creation** — Estimator = logged-in user, Date =
+      today (fixed UTC→local date bug in Dashboard create), State = company's last-used
+      state; fill-if-empty only *(2026-07-03)*
 - [x] **Customer contact & company fields on estimates** — 10 new fields (email, cell +
       secondary phone, fax, preferred contact, company + title, billing address, lead
       source), "Contact & Lead" block in Job Info, two-way email sync with the send-quote

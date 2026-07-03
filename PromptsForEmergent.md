@@ -23,6 +23,7 @@ re-run that entry's prompt (they are written to be safely re-applied in full).
 | 1 | WCAG accessibility pass + icon cleanup | r1 | 2026-07-02 | ☐ rev: ____ date: ____ |
 | 2 | Theme picker (tokens + six themes) | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 3 | Customer contact & company fields | r3 | 2026-07-03 | ☐ rev: ____ date: ____ |
+| 4 | Auto-populate estimate fields at creation | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 
 **Excluded by design:** anything related to decoupling this repo from the Emergent platform
 (the direct-Anthropic LLM client, Docker self-hosting, removal of Emergent branding/telemetry,
@@ -338,6 +339,45 @@ does not clobber; fill the fields in the editor, reload, they persist; the billi
 checkbox round-trips; QuoteModal prefills from the saved email and sending to a new
 address updates the estimate; both CSVs include the new columns; the hint badge
 disappears once an email is entered; Spanish labels render.
+```
+
+---
+
+## 4 — Auto-populate estimate fields at creation (2026-07-03)
+
+**Revision:** r1 · last updated 2026-07-03
+**Change log:**
+- r1 (2026-07-03) — initial
+
+**What changed here:** new estimates pre-fill the Estimator (logged-in user's name), the
+Date (today, local), and the job State (company's last-used state). Fill-if-empty only —
+client-provided values always win. *Depends on entry 3 (the address_state field).*
+
+**Prompt for Emergent:**
+
+```
+Auto-populate estimate fields the app already knows at creation time. Fill-if-empty ONLY —
+never override a value the client sent, and the contractor can edit everything afterward.
+
+BACKEND — in the POST /api/estimates create handler (routes/estimates.py), after building
+the doc from the request body:
+- if `estimator` is empty, set it to the creating user's name (user.get("name") or "").
+- if `estimate_date` is empty, set it to today's date (YYYY-MM-DD from the same UTC `now`
+  timestamp already used for created_at) as a server-side fallback.
+- if `address_state` is empty, look up the company's most recently updated estimate that
+  has a non-empty address_state (find_one filtered by company_id and
+  address_state $nin [None, ""], sorted by updated_at descending) and copy its
+  address_state — most jobs are local, so the last-used state is an excellent default.
+
+FRONTEND — Dashboard's createEstimate already sends estimate_date, but it uses
+new Date().toISOString().slice(0,10), which is the UTC date — an estimate created in the
+evening US-time gets dated tomorrow. Change it to the LOCAL date:
+new Date().toLocaleDateString("en-CA") (yields YYYY-MM-DD in local time).
+
+Verify: create an estimate from the dashboard while logged in — the editor opens with
+Estimator = your name, Date = today (local), and State pre-selected to the state used on
+the company's previous estimate; creating via API with explicit estimator/date/state
+keeps the provided values untouched.
 ```
 
 ---
