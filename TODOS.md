@@ -50,6 +50,16 @@ App-affecting items also need a `PromptsForEmergent.md` entry when completed (se
       panel, with versioning so existing estimates keep the color names they were quoted
       with. Pairs with the swatch item above.
 - [ ] **UI theme picker** — user-selectable look-and-feel presets (suggested in the call).
+      **Designed:** full spec at `docs/specs/theme-picker.md` — six WCAG-validated themes,
+      token architecture, picker UX, and a 4-phase delivery plan. The prerequisite is the
+      Phase-1 codemod of 2,254 hardcoded hex classes to semantic tokens.
+      **Open questions to answer (John/Howard) before building:**
+      - Should the supplier (Alside) be able to pin a company-wide default theme that
+        contractors see until they pick their own? (Branding lever — spec leans yes, Phase 3.)
+      - Does the purple "AI feature" accent stay constant across all themes as a
+        recognizable signal, or re-map per theme? (Spec leans constant.)
+      - Theme names are placeholders — does Howard want supplier-flavored names
+        (e.g. "Alside Orange")?
 - [ ] **HOVER-style 3D house rendering** from measurements — the missing piece vs HOVER;
       `elevation3D.js`/three.js groundwork exists.
 - [ ] **J-block disambiguation aid** — AI can't tell light/split/UL/jumbo/dri-vent blocks
