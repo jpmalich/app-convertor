@@ -489,7 +489,7 @@ export default function ISSEstimateEditor() {
                 value={est.customer_email || ""}
                 onChange={(e) => updateField("customer_email", e.target.value)}
                 onBlur={() => setContactTouched((t) => ({ ...t, email: true }))}
-                placeholder="name@example.com"
+                placeholder="e.g. name@example.com"
                 aria-invalid={(contactTouched.email && !isValidEmail(est.customer_email)) || undefined}
                 aria-describedby={contactTouched.email && !isValidEmail(est.customer_email) ? "iss-email-warn" : undefined}
                 data-testid="iss-customer-email"
@@ -512,7 +512,7 @@ export default function ISSEstimateEditor() {
                   const f = formatPhoneUS(est.customer_phone);
                   if (f !== est.customer_phone) updateField("customer_phone", f);
                 }}
-                placeholder="(412) 555-0100"
+                placeholder="e.g. (412) 555-0100"
                 aria-invalid={(contactTouched.phone && !isValidPhone(est.customer_phone)) || undefined}
                 aria-describedby={contactTouched.phone && !isValidPhone(est.customer_phone) ? "iss-phone-warn" : undefined}
                 data-testid="iss-customer-phone"

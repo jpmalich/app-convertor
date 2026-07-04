@@ -24,7 +24,7 @@ re-run that entry's prompt (they are written to be safely re-applied in full).
 | 2 | Theme picker (tokens + six themes) | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 3 | Customer contact & company fields | r3 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 4 | Auto-populate estimate fields at creation | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
-| 5 | Soft input validation + format tips | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
+| 5 | Soft input validation + format tips | r2 | 2026-07-03 | ☐ rev: ____ date: ____ |
 
 **Excluded by design:** anything related to decoupling this repo from the Emergent platform
 (the direct-Anthropic LLM client, Docker self-hosting, removal of Emergent branding/telemetry,
@@ -385,9 +385,15 @@ keeps the provided values untouched.
 
 ## 5 — Soft input validation + format tips on contact fields (2026-07-03)
 
-**Revision:** r1 · last updated 2026-07-03
+**Revision:** r2 · last updated 2026-07-03
 **Change log:**
 - r1 (2026-07-03) — initial
+- r2 (2026-07-03) — format examples looked like populated data at first glance; placeholders
+  are now globally styled as hints (dimmed 55% + italic via .input::placeholder) and all
+  example placeholders carry an "e.g. " prefix ("e.g. (412) 555-0100"), EN + ES
+
+**If you applied r1 in Emergent:** re-run the full prompt below — it supersedes r1 and is
+safe to apply over it.
 
 **What changed here:** format placeholders + warn-don't-block validation on the customer
 contact fields (email/phone/fax/ZIP), phone auto-formatting on blur, and an invalid-email
@@ -408,9 +414,12 @@ formatPhoneUS (if the digits are cleanly 10 — or 11 with a leading 1 — retur
 "(AAA) BBB-CCCC"; otherwise return the input untouched, so extensions/international
 numbers are never mangled).
 
-STEP 2 — JobInfoPanel: track a per-field `touched` state set on blur. For Email
-(placeholder "name@example.com"), Cell Phone, Secondary Phone, Fax (placeholder
-"(412) 555-0100"), and both job + billing ZIP (placeholder "15222"): when touched AND
+STEP 2 — JobInfoPanel: track a per-field `touched` state set on blur. Add a global
+placeholder style so format examples can never be mistaken for populated values:
+.input::placeholder { color: var(--muted); opacity: .55; font-style: italic; }. For Email
+(placeholder "e.g. name@example.com"), Cell Phone, Secondary Phone, Fax (placeholder
+"e.g. (412) 555-0100"), and both job + billing ZIP (placeholder "e.g. 15222") — the
+"e.g." prefix is part of the fix and needs EN ("e.g.") + ES ("p. ej.") variants: when touched AND
 non-empty AND invalid, render a small warning line under the field using the theme's
 --warning-text token ("Doesn't look like a valid email address" / "…phone number —
 expected 10 digits, e.g. (412) 555-0100" / "ZIP should be 5 digits, or ZIP+4"), and set

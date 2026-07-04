@@ -167,6 +167,10 @@ input[type="number"].input, textarea.input {
   @apply w-full bg-[var(--surface)] border-2 border-[var(--border)] px-3 text-[var(--ink)] outline-none transition-colors;
   height: 44px;
 }
+/* Placeholders are format EXAMPLES, not data — style them so they can never
+   be mistaken for a populated value: dimmed + italic, in every theme. */
+.input::placeholder { color: var(--muted); opacity: 0.55; font-style: italic; }
+
 /* Focus indicator must hit 3:1 against --surface (WCAG 1.4.11) — per-theme --focus. */
 .input:focus { border-color: var(--focus); }
 /* Chrome/WebKit autofill forces a pale blue/yellow fill via an internal inset

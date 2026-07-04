@@ -374,7 +374,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             value={est.customer_phone || ""}
             onChange={(e) => update({ customer_phone: e.target.value })}
                 onBlur={() => blurPhone("phone", "customer_phone")}
-                placeholder="(412) 555-0100"
+                placeholder={t("est.exPhone")}
                 aria-invalid={softBad.phone || undefined}
                 aria-describedby={softBad.phone ? "cust-phone-warn" : undefined}
             autoComplete="off"
@@ -391,7 +391,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             value={est.customer_phone_alt || ""}
             onChange={(e) => update({ customer_phone_alt: e.target.value })}
                 onBlur={() => blurPhone("phoneAlt", "customer_phone_alt")}
-                placeholder="(412) 555-0100"
+                placeholder={t("est.exPhone")}
                 aria-invalid={softBad.phoneAlt || undefined}
                 aria-describedby={softBad.phoneAlt ? "cust-phone-alt-warn" : undefined}
             autoComplete="off"
@@ -408,7 +408,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             value={est.customer_fax || ""}
             onChange={(e) => update({ customer_fax: e.target.value })}
                 onBlur={() => blurPhone("fax", "customer_fax")}
-                placeholder="(412) 555-0100"
+                placeholder={t("est.exPhone")}
                 aria-invalid={softBad.fax || undefined}
                 aria-describedby={softBad.fax ? "cust-fax-warn" : undefined}
             autoComplete="off"
@@ -426,7 +426,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
             value={est.customer_email || ""}
             onChange={(e) => update({ customer_email: e.target.value })}
                 onBlur={() => markTouched("email")}
-                placeholder="name@example.com"
+                placeholder={t("est.exEmail")}
                 aria-invalid={softBad.email || undefined}
                 aria-describedby={softBad.email ? "cust-email-warn" : undefined}
             data-testid="cust-email"
@@ -532,7 +532,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
               value={jobParts.zip}
               onChange={(e) => setJobPart("zip", e.target.value)}
               onBlur={() => markTouched("zip")}
-              placeholder="15222"
+              placeholder={t("est.exZip")}
               aria-invalid={softBad.zip || undefined}
               aria-describedby={softBad.zip ? "cust-zip-warn" : undefined}
               autoComplete="off"
@@ -611,7 +611,7 @@ export default function JobInfoPanel({ est, update, save, setInstallMethod, setH
                   value={billParts.zip}
                   onChange={(e) => setBillPart("zip", e.target.value)}
                   onBlur={() => markTouched("billZip")}
-                  placeholder="15222"
+                  placeholder={t("est.exZip")}
                   aria-invalid={softBad.billZip || undefined}
                   aria-describedby={softBad.billZip ? "billing-zip-warn" : undefined}
                   autoComplete="off"
