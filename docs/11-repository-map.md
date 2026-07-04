@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-    ROOT["app-convertor/"]
+    ROOT["pro-quote-estimator/"]
 
     ROOT --> BE["backend/<br/>FastAPI app — routes/, services.py, startup.py,<br/>seed data (catalog_seed.py, vero_*, mezzo_*, iss_catalog.py),<br/>tests/ (HTTP integration tests)"]
     ROOT --> FE["frontend/<br/>React SPA — src/pages, src/components, src/lib"]
