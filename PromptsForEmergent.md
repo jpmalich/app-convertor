@@ -20,11 +20,12 @@ re-run that entry's prompt (they are written to be safely re-applied in full).
 
 | # | Entry | Current rev | Last updated | Applied in Emergent? (you fill in) |
 |---|---|---|---|---|
-| 1 | WCAG accessibility pass + icon cleanup | r1 | 2026-07-02 | ☐ rev: ____ date: ____ |
+| 1 | WCAG accessibility pass + icon cleanup | r2 | 2026-07-04 | ☐ rev: ____ date: ____ |
 | 2 | Theme picker (tokens + six themes) | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 3 | Customer contact & company fields | r3 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 4 | Auto-populate estimate fields at creation | r1 | 2026-07-03 | ☐ rev: ____ date: ____ |
 | 5 | Soft input validation + format tips | r2 | 2026-07-03 | ☐ rev: ____ date: ____ |
+| 6 | Post-merge adaptations (2026-07-04 code merge) | r1 | 2026-07-04 | ☐ rev: ____ date: ____ |
 
 **Excluded by design:** anything related to decoupling this repo from the Emergent platform
 (the direct-Anthropic LLM client, Docker self-hosting, removal of Emergent branding/telemetry,
@@ -34,9 +35,17 @@ dependency swaps). Those changes are intentionally NOT for replication into Emer
 
 ## 1 — WCAG AA accessibility pass + emoji-to-SVG icon cleanup (2026-07-02)
 
-**Revision:** r1 · last updated 2026-07-02
+**Revision:** r2 · last updated 2026-07-04
 **Change log:**
 - r1 (2026-07-02) — initial
+- r2 (2026-07-04) — after merging your iters 79j.15–.34 into this repo, one NEW emoji UI
+  icon exists that r1's list predates: the "🔁 Re-run" button on the AI Measure preview →
+  replace with a lucide <RefreshCw> inline icon + "Re-run" text (aria-hidden, w-3). Also
+  note: RULES 1–3 apply equally to the newer AI components (AIMeasureButton additions,
+  BlueprintMeasureButton 3D tab, HouseModel3D UI chrome) — re-sweep those files.
+
+**If you applied r1 in Emergent:** only the r2 additions above are new — apply them
+directly; no need to redo the full pass.
 
 **What changed here:** ~410 context-sensitive contrast fixes across 63 frontend files, emoji
 UI icons replaced with lucide SVGs, reduced-motion support, and the rules codified in
@@ -440,6 +449,51 @@ Verify: type "sdasdsf.com" in the estimate's Email field and tab away — warnin
 and aria-invalid=true; fix it — warning clears live. Type 4125550100 in Cell Phone and
 tab away — it becomes (412) 555-0100. In the send-quote dialog, a malformed recipient
 email shows the warning and keeps Send disabled.
+```
+
+---
+
+## 6 — Post-merge adaptations from the 2026-07-04 code merge
+
+**Revision:** r1 · last updated 2026-07-04
+**Change log:**
+- r1 (2026-07-04) — initial
+
+**What changed here:** we merged your Emergent build's iters 79j.15–.34 (3D house model,
+model A/B suite, waste-baking, prompt overhaul, bug fixes) into this repo. Most of that
+work is already in your Emergent project — but the merge produced a few improvements on
+our side that Emergent does NOT have, plus follow-ups so earlier entries cover the new
+files. **Deliberately NOT replicated:** our trim of the model registry/dropdown to
+Claude-only — that is decoupling-related; Emergent's universal key should keep offering
+Gemini/GPT.
+
+**Prompt for Emergent:**
+
+```
+Three small follow-ups to the AI Measure feature set:
+
+1. ISS estimates: the ISS editor renders <AIMeasureButton> but does not pass the
+   estimate prop that JobInfoPanel passes (used by HouseModel3D for the Alside
+   color-name fallback when AI color sampling is weak). In pages/ISSEstimateEditor.jsx,
+   add estimate={est} to the <AIMeasureButton …> invocation so ISS runs get the same
+   3D color fallback as siding/windows estimates.
+
+2. Replace the "🔁 Re-run" emoji on the AI Measure preview's Re-run button with a
+   lucide-react <RefreshCw className="w-3 h-3 inline mr-1" aria-hidden="true" /> icon
+   followed by the text "Re-run" (consistent with the no-emoji-icons rule).
+
+3. Re-apply the accessibility + theming rule sets to the files added/changed since they
+   were first applied: AIMeasureButton.jsx additions (model select, comparison panel,
+   error banner, photos-lost banner), BlueprintMeasureButton.jsx 3D tab, and
+   HouseModel3D.jsx UI chrome. Concretely: run entry 1's RULES 1–3 (muted gray #A1A1AA →
+   #71717A on light, orange text → #C2410C on light, black labels on orange buttons) and
+   entry 2's STEP 3 codemod (hardcoded hex classes → the semantic var(--token) utilities)
+   over those files. Do NOT touch HouseModel3D's Three.js material colors (they are 3D
+   scene colors, not UI classes) — only its className strings.
+
+Verify: ISS estimate's AI Measure modal renders the 3D tab with palette-fallback colors;
+the Re-run button shows an SVG icon; no hardcoded hex classes remain in the three files'
+UI chrome; the app builds.
 ```
 
 ---
